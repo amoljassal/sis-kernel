@@ -1,0 +1,12 @@
+/Users/amoljassal/sis_kernel_refined3/target/debug/deps/fatfs-9fe3696f046c4b04.d: /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/lib.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/boot_sector.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/dir.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/dir_entry.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/file.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/fs.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/table.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/time.rs
+
+/Users/amoljassal/sis_kernel_refined3/target/debug/deps/libfatfs-9fe3696f046c4b04.rmeta: /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/lib.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/boot_sector.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/dir.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/dir_entry.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/file.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/fs.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/table.rs /Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/time.rs
+
+/Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/lib.rs:
+/Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/boot_sector.rs:
+/Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/dir.rs:
+/Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/dir_entry.rs:
+/Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/file.rs:
+/Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/fs.rs:
+/Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/table.rs:
+/Users/amoljassal/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fatfs-0.3.6/src/time.rs:

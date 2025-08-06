@@ -1,0 +1,34 @@
+[package]
+name = "sis_kernel"
+version = "0.1.0"
+edition = "2021"
+
+# The kernel runs without the standard library.  The `alloc`
+# dependency is enabled via the nightly `alloc` feature.  See
+# `rustc --print target-spec-json` for more details on the target.
+
+[dependencies]
+# Provides an easy UEFI bootloader for Rust kernels.  The
+# bootloader crate will build a PE/EFI executable that prints a
+# door glyph before transferring control to `kernel_main`.
+bootloader = { version = "0.11.3", default-features = false, features = ["uefi"] }
+# x86_64 architecture helpers for descriptor tables, paging and
+# control registers.
+x86_64 = { version = "0.14.9", default-features = false, features = ["instructions"] }
+# Serial port driver for 16550 UARTs.
+uart_16550 = { version = "0.2.0", default-features = false }
+# Simple heap allocator used by this kernel.
+linked_list_allocator = { version = "0.9.0", default-features = false, features = ["use_spin"] }
+# Spinlock for concurrent data structures in `no_std` environment.
+spin = { version = "0.9.8", default-features = false, features = ["spin_mutex", "once"] }
+# ECDSA for signed syscall validation using SHA256 hashing.
+# In a full implementation you would provide a key pair and verify signatures.
+ecdsa = { version = "0.13", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+lazy_static = { version = "1.4.0", default-features = false }
+
+[features]
+default = []
+
+[build-dependencies]
+bootloader = { version = "0.11.3", default-features = false, features = ["uefi"] }

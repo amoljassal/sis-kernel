@@ -1,0 +1,1 @@
+cargo:rustc-env=UEFI_BOOTLOADER_PATH=/Users/amoljassal/sis_kernel_refined3/target/debug/build/bootloader-6a25e4e2d0633eee/out/bin/bootloader-x86_64-uefi.efi
