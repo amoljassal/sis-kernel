@@ -158,3 +158,31 @@ jobs:
   #       with:
   #         name: serial-pfm-${{ matrix.test }}
   #         path: out/qemu-serial.log
+
+  # iommu-suite:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       test: [IOMMU_PROBE, IOMMU_DENY_DEFAULT]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: dtolnay/rust-toolchain@master
+  #       with:
+  #         toolchain: nightly-2024-12-15
+  #         components: rust-src, llvm-tools-preview
+  #     - uses: Swatinem/rust-cache@v2
+  #       with: { cache-on-failure: true }
+  #     - run: cargo install bootimage --version 0.10.3 --locked
+  #     - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
+  #     - name: Build bootimage (IOMMU features)
+  #       run: cargo bootimage --features iommu,qemu-intel-iommu-sim
+  #     - name: Run QEMU (IOMMU features)
+  #       env:
+  #         FEATURES: "iommu,qemu-intel-iommu-sim"
+  #       run: TEST=${{ matrix.test }} FEATURES="$FEATURES" ./scripts/qemu.sh
+  #     - if: always()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: serial-iommu-${{ matrix.test }}
+  #         path: out/qemu-serial.log

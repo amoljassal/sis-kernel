@@ -5,3 +5,4 @@ pub mod vfs;
 pub mod elfsec;
 pub mod pid;
 pub mod selftest_usr;
+pub mod selftest_vfio;

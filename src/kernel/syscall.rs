@@ -79,6 +79,8 @@ pub const SYS_VFIO_ENABLE_BUSMASTER: usize = 0x57;
 pub const SYS_VFIO_MSI_ARM: usize = 0x58;
 #[cfg(feature = "vfio")]
 pub const SYS_VFIO_MSI_DISARM: usize = 0x59;
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_MSI_TRIGGER_E1000: usize = 0x5A;
 
 pub fn init() {
     unsafe {
@@ -128,6 +130,7 @@ pub fn init() {
             // Phase 5C-B: MSI interrupt syscalls
             SYSCALL_TABLE[SYS_VFIO_MSI_ARM] = Some(sys_vfio_msi_arm);
             SYSCALL_TABLE[SYS_VFIO_MSI_DISARM] = Some(sys_vfio_msi_disarm);
+            SYSCALL_TABLE[SYS_VFIO_MSI_TRIGGER_E1000] = Some(sys_vfio_msi_trigger_e1000);
         }
     }
 }
@@ -866,6 +869,18 @@ fn sys_vfio_msi_disarm(handle: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5:
         },
         Err(_) => {
             serial::write_str("[sys_vfio_msi_disarm] MSI disarming failed\n");
+        }
+    }
+}
+
+#[cfg(feature = "vfio")]
+fn sys_vfio_msi_trigger_e1000(handle: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_msi_trigger_e1000(handle as u16) {
+        Ok(()) => {
+            serial::write_str("[sys_vfio_msi_trigger_e1000] e1000 MSI trigger sent\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_msi_trigger_e1000] e1000 MSI trigger failed\n");
         }
     }
 }

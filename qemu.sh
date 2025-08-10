@@ -24,8 +24,10 @@ elif [[ "${TEST}" == "AS_PER_TASK_ISOLATION" ]]; then
   FEATURES="idt-selftest,per-task-mm"
 elif [[ "${TEST}" == "IPC_PING" ]]; then
   FEATURES="idt-selftest,ipc"
+elif [[ "${TEST}" == "VFIO_MSI_SMOKE" ]]; then
+  FEATURES="idt-selftest,vfio,apic,iommu"
 fi
-RUSTFLAGS="--cfg selftest_${TEST}" cargo +nightly build -Z build-std=core,alloc --features "${FEATURES}" --target "${TARGET}"
+RUSTFLAGS="--cfg selftest_${TEST}" /home/apple/.cargo/bin/cargo +nightly build -Z build-std=core,alloc --features "${FEATURES}" --target "${TARGET}"
 
 # ====== RUN QEMU ======
 rm -f "${SERIAL_LOG}"
@@ -36,7 +38,7 @@ if [[ "${TEST}" == "SMP_2" ]]; then
   SMP_FLAGS="-smp 2"
 fi
 
-COMMON="-machine q35,accel=hvf:tcg ${SMP_FLAGS} -m 512M -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial file:${SERIAL_LOG} -display none -no-reboot -no-shutdown"
+COMMON="-machine q35,accel=tcg ${SMP_FLAGS} -m 512M -device isa-debug-exit,iobase=0xf4,iosize=0x04 -device e1000,netdev=n0 -netdev user,id=n0 -serial file:${SERIAL_LOG} -display none -no-reboot -no-shutdown"
 
 if [[ "${USE_UEFI}" == "1" ]]; then
   ${QEMU_BIN} ${COMMON} -bios "${OVMF_CODE}" || true
@@ -162,9 +164,17 @@ case "${TEST}" in
     grep -q '\[userA\] send ping' "${SERIAL_LOG}" || { echo "[!] Missing userA send ping"; exit 64; }
     grep -q '\[userB\] recv ping' "${SERIAL_LOG}" || { echo "[!] Missing userB recv ping"; exit 65; }
     ;;
+  VFIO_MSI_SMOKE)
+    grep -q '\[init\] IDT loaded' "${SERIAL_LOG}" || { echo "[!] Missing IDT loaded"; exit 66; }
+    grep -q '\[VFIO\] Initializing VFIO-lite subsystem' "${SERIAL_LOG}" || { echo "[!] Missing VFIO init"; exit 67; }
+    grep -q '\[VFIO\] MSI armed' "${SERIAL_LOG}" || { echo "[!] Missing MSI armed"; exit 68; }
+    grep -q '\[msi-trigger\] e1000 BAR0' "${SERIAL_LOG}" || { echo "[!] Missing e1000 trigger"; exit 69; }
+    grep -q '\[vfio-irq\] vector 0x5E fired' "${SERIAL_LOG}" || { echo "[!] Missing MSI interrupt delivery"; exit 70; }
+    grep -q '\[vfio-irq\] Selftest exit: first MSI delivered successfully' "${SERIAL_LOG}" || { echo "[!] Missing selftest success"; exit 71; }
+    ;;
   *)
     echo "[!] Unknown TEST=${TEST}"
-    exit 66
+    exit 72
     ;;
 esac
 

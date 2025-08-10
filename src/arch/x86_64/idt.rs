@@ -27,6 +27,8 @@ pub static PICS: Mutex<ChainedPics> = Mutex::new(unsafe { ChainedPics::new(PIC_1
 #[cfg(feature = "vfio")]
 static VFIO_IRQ_COUNTER: AtomicU32 = AtomicU32::new(0);
 #[cfg(feature = "vfio")]
+static VFIO_IRQ_LOG_RATE: AtomicU32 = AtomicU32::new(0);
+#[cfg(feature = "vfio")]
 pub const VFIO_IRQ_VECTOR: u8 = 0x5E;
 
 #[derive(Debug, Clone, Copy)]
@@ -318,7 +320,7 @@ extern "x86-interrupt" fn syscall_exit_handler(
     loop { cpu::halt(); }
 }
 
-// Phase 5C-B: VFIO MSI interrupt handler (vector 0x5E)
+// Phase 5C-B: VFIO MSI interrupt handler (vector 0x5E) with rate limiting
 #[cfg(feature = "vfio")]
 #[inline(always)]
 extern "x86-interrupt" fn vfio_interrupt_handler(
@@ -327,10 +329,23 @@ extern "x86-interrupt" fn vfio_interrupt_handler(
     // Increment interrupt counter
     let count = VFIO_IRQ_COUNTER.fetch_add(1, Ordering::SeqCst);
     
-    // Log breadcrumb with device BDF and counter
-    serial::write_str("[vfio-irq] vector 0x5E fired (dev 00:03.0) count=");
-    serial::write_u64((count + 1) as u64);
-    serial::write_str("\n");
+    // **NEW: Rate-limited logging - only log every 64th interrupt to prevent log storms**
+    let should_log = (count & 0x3F) == 0; // Log every 64 interrupts (2^6)
+    
+    if should_log || count < 5 {  // Always log first 5, then rate-limit
+        serial::write_str("[vfio-irq] vector 0x5E fired (dev 00:03.0) count=");
+        serial::write_u64((count + 1) as u64);
+        
+        if count >= 64 {
+            serial::write_str(" [rate-limited]");
+        }
+        serial::write_str("\n");
+    }
+    
+    // **NEW: Spurious interrupt guard - check if we expected this interrupt**
+    // In a full implementation, we'd check device-specific interrupt status registers
+    // For now, we just increment a separate counter for spurious detection
+    let log_count = VFIO_IRQ_LOG_RATE.fetch_add(1, Ordering::SeqCst);
     
     // Send EOI to LAPIC (always LAPIC for MSI)
     #[cfg(feature = "apic")]
@@ -340,7 +355,14 @@ extern "x86-interrupt" fn vfio_interrupt_handler(
     #[cfg(not(feature = "apic"))]
     {
         // MSI requires LAPIC, but provide fallback for non-APIC builds
-        serial::write_str("[vfio-irq] Warning: MSI without APIC, no EOI sent\n");
+        if should_log {
+            serial::write_str("[vfio-irq] Warning: MSI without APIC, no EOI sent\n");
+        }
+    }
+    
+    // **NEW: Enhanced spurious guard - warn if interrupt rate is suspiciously high**
+    if count > 1000 && (count % 1000) == 0 {
+        serial::write_str("[vfio-irq] High interrupt rate detected - possible spurious IRQs\n");
     }
     
     // Selftest exit condition: quit after first interrupt in selftest mode

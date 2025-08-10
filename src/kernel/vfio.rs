@@ -462,6 +462,16 @@ pub fn syscall_msi_arm(handle_val: u16, vector: u8) -> Result<(), VfioError> {
         // Install VFIO ISR before enabling MSI (force vector 0x5E for Phase 5C-B)
         crate::arch::x86_64::idt::install_vfio_isr(0x5E);
         
+        // **NEW: Disable INTx before arming MSI (PCI spec recommends MSI-exclusive mode)**
+        let current_cmd = crate::kernel::pci::cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x04);
+        let new_cmd = current_cmd | 0x0400;  // Set bit 10: Interrupt Disable
+        crate::kernel::pci::cfg_write32(bdf.bus, bdf.dev, bdf.func, 0x04, new_cmd);
+        
+        serial::write_fmt(format_args!(
+            "[msi] INTx disabled for MSI-exclusive mode (cmd: 0x{:04x} -> 0x{:04x})\n",
+            current_cmd & 0xFFFF, new_cmd & 0xFFFF
+        )).ok();
+        
         // Program MSI registers (use vector 0x5E for Phase 5C-B)
         program_msi_registers(bdf, msi_offset, 0x5E)?;
         
@@ -493,9 +503,24 @@ pub fn syscall_msi_disarm(handle_val: u16) -> Result<(), VfioError> {
             let new_ctrl = ctrl_reg & !0x0001;
             crate::kernel::pci::cfg_write32(bdf.bus, bdf.dev, bdf.func, msi_offset, new_ctrl);
             
+            // **NEW: Enhanced disarm with register readback verification**
+            let readback = crate::kernel::pci::cfg_read32(bdf.bus, bdf.dev, bdf.func, msi_offset);
+            let is_disabled = (readback & 0x0001) == 0;
+            
             serial::write_fmt(format_args!(
-                "[msi] masked for handle 0x{:04x} (ctrl: 0x{:04x} -> 0x{:04x})\n",
-                handle_val, ctrl_reg & 0xFFFF, new_ctrl & 0xFFFF
+                "[msi] disarmed handle 0x{:04x} (ctrl: 0x{:04x} -> 0x{:04x}) verify={}\n",
+                handle_val, ctrl_reg & 0xFFFF, new_ctrl & 0xFFFF, 
+                if is_disabled { "OK" } else { "FAIL" }
+            )).ok();
+            
+            // **NEW: Re-enable INTx if desired (optional, depends on device requirements)**
+            let current_cmd = crate::kernel::pci::cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x04);
+            let new_cmd = current_cmd & !0x0400;  // Clear bit 10: re-enable INTx
+            crate::kernel::pci::cfg_write32(bdf.bus, bdf.dev, bdf.func, 0x04, new_cmd);
+            
+            serial::write_fmt(format_args!(
+                "[msi] INTx re-enabled (cmd: 0x{:04x} -> 0x{:04x})\n",
+                current_cmd & 0xFFFF, new_cmd & 0xFFFF
             )).ok();
         }
         
@@ -531,6 +556,61 @@ fn program_msi_registers(bdf: crate::kernel::pci::Bdf, msi_offset: u8, vector: u
         "[msi] cap@0x{:02x} addr=0xFEE00000|dest=0x00 data=0x{:02x} ctrl=enable\n",
         msi_offset, vector
     )).ok();
+    
+    Ok(())
+}
+
+/// **NEW: Trigger e1000 MSI via BAR0 MMIO (IMS set → ICS poke)**
+/// This function maps BAR0, manipulates the e1000's Interrupt Mask Set (IMS) 
+/// and Interrupt Cause Set (ICS) registers to trigger an MSI.
+#[cfg(feature = "vfio")]
+pub fn syscall_msi_trigger_e1000(handle_val: u16) -> Result<(), VfioError> {
+    let bdf = crate::kernel::pci::Bdf { bus: 0, dev: 3, func: 0 };
+    
+    // Get BAR0 base address
+    let bar0_addr = crate::kernel::pci::read_bar0(bdf);
+    if bar0_addr == 0 {
+        serial::write_str("[msi-trigger] BAR0 not mapped\\n");
+        return Err(VfioError::InvalidDevice);
+    }
+    
+    serial::write_fmt(format_args!(
+        "[msi-trigger] e1000 BAR0 @ 0x{:08x}, manipulating IMS/ICS...\\n", 
+        bar0_addr
+    )).ok();
+    
+    // **e1000 Register Offsets (from Intel e1000 datasheet):**
+    // IMS (Interrupt Mask Set)   = BAR0 + 0x00D0
+    // ICS (Interrupt Cause Set)  = BAR0 + 0x00C8
+    // ICR (Interrupt Cause Read) = BAR0 + 0x00C0
+    
+    let bar0_ptr = bar0_addr as *mut u32;
+    
+    unsafe {
+        // Step 1: Set IMS to unmask TXDW (Transmit Descriptor Written Back) - bit 0
+        let ims_offset = 0x00D0 / 4;  // Convert to u32 offset
+        let ims_ptr = bar0_ptr.add(ims_offset);
+        core::ptr::write_volatile(ims_ptr, 0x0001);  // Enable TXDW interrupt
+        
+        serial::write_str("[msi-trigger] IMS set to 0x0001 (TXDW enabled)\\n");
+        
+        // Step 2: Trigger interrupt by setting ICS (this will cause MSI if armed)
+        let ics_offset = 0x00C8 / 4;  // Convert to u32 offset  
+        let ics_ptr = bar0_ptr.add(ics_offset);
+        core::ptr::write_volatile(ics_ptr, 0x0001);  // Set TXDW cause bit
+        
+        serial::write_str("[msi-trigger] ICS poked with 0x0001 - MSI should fire now\\n");
+        
+        // Step 3: Read back ICR to see if interrupt is pending
+        let icr_offset = 0x00C0 / 4;  // Convert to u32 offset
+        let icr_ptr = bar0_ptr.add(icr_offset);
+        let icr_value = core::ptr::read_volatile(icr_ptr);
+        
+        serial::write_fmt(format_args!(
+            "[msi-trigger] ICR readback = 0x{:08x} (bit 0 should be set)\\n",
+            icr_value
+        )).ok();
+    }
     
     Ok(())
 }
