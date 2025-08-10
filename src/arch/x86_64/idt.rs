@@ -73,6 +73,10 @@ lazy_static! {
             .set_handler_fn(syscall_exit_handler)
             .set_privilege_level(PrivilegeLevel::Ring3);
 
+        // Phase 5C-B: VFIO MSI interrupt handler at vector 0x5E
+        #[cfg(feature = "vfio")]
+        idt[VFIO_IRQ_VECTOR as usize].set_handler_fn(vfio_interrupt_handler);
+
         idt
     };
 }
@@ -89,14 +93,8 @@ pub fn install_vfio_isr(vector: u8) {
         serial::write_str("[vfio-isr] Warning: vector mismatch, using 0x5E\n");
     }
     
-    // Install VFIO ISR directly into IDT at vector 0x5E
-    unsafe {
-        use x86_64::structures::idt::InterruptDescriptorTable;
-        let idt_ptr = &IDT as *const InterruptDescriptorTable as *mut InterruptDescriptorTable;
-        (*idt_ptr)[VFIO_IRQ_VECTOR as usize].set_handler_fn(vfio_interrupt_handler);
-    }
-    
-    serial::write_str("[vfio-isr] ISR installed at vector 0x5E\n");
+    // The VFIO ISR is already installed during IDT initialization at vector 0x5E
+    serial::write_str("[vfio-isr] ISR already installed at vector 0x5E during IDT init\n");
 }
 
 #[inline(always)]

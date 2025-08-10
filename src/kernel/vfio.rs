@@ -9,7 +9,7 @@ use core::fmt::Write;
 use core::sync::atomic::{AtomicU32, Ordering};
 
 // VFIO capability handle type with generation
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VfioHandle {
     pub id: u16,
     pub gen: u8,
@@ -63,8 +63,8 @@ struct VfioHandleState {
     pub irq_count: AtomicU32,
 }
 
-// Simple handle state tracking (Phase 5C stub - no proper hash table yet)
-static mut HANDLE_STATES: [Option<VfioHandleState>; 16] = [None; 16];
+// Simple handle state tracking (Phase 5C stub - no proper hash table yet)  
+static mut HANDLE_STATES: [Option<VfioHandleState>; 16] = [const { None }; 16];
 
 /// Initialize VFIO subsystem
 pub fn init() -> Result<(), VfioError> {

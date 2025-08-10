@@ -34,7 +34,7 @@ pub fn cfg_write32(bus: u8, dev: u8, func: u8, off: u8, val: u32) {
     unsafe { outl(0xCF8, cfg_addr(bus, dev, func, off)); outl(0xCFC, val); }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Bdf { pub bus: u8, pub dev: u8, pub func: u8 }
 
 #[derive(Clone, Copy)]
@@ -275,8 +275,8 @@ pub fn init() {
                     match res {
                         Ok(handle) => {
                             serial::write_str(" [VFIO handle=0x");
-                            write_hex16(((handle as u16) >> 8) as u16);
-                            write_hex16((handle as u16) & 0xFF);
+                            write_hex16(((handle.as_u16()) >> 8) as u16);
+                            write_hex16((handle.as_u16()) & 0xFF);
                             serial::write_str("]\n");
                         }
                         Err(_) => {
