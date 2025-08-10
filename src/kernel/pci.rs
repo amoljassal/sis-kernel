@@ -82,7 +82,7 @@ pub fn init() {
                     write_hex16(vendor);
                     serial::write_str(" device=0x");
                     write_hex16(device_id);
-                    // Assign GPU to a parent.  GPU0 → Philosophy, GPU1 → Technical.
+                    // Assign GPU to a parent.  GPU0 -> Philosophy, GPU1 -> Technical.
                     unsafe {
                         match GPU_COUNT {
                             0 => serial::write_str(" assigned to Philosophy parent"),

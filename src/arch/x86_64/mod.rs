@@ -12,3 +12,17 @@ pub mod pit;
 pub mod interrupts;
 pub mod cpu;
 pub mod context_switch;
+#[cfg(feature = "apic")]
+pub mod apic;
+#[cfg(feature = "smp")]
+pub mod smp;
+#[cfg(feature = "idt-selftest")]
+pub mod idt_selftest;
+#[cfg(feature = "pf-matrix")]
+pub mod pf_matrix;
+#[cfg(feature = "per-task-mm")]
+pub mod as_isolation;
+#[cfg(feature = "ipc")]
+pub mod ipc_selftest;
+#[cfg(feature = "scheduler")]
+pub mod scheduler_selftest;

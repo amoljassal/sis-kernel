@@ -1,0 +1,383 @@
+From 6a2c0b0e2f0b4e7e9d73e2c0fe77a1c1cbb2d1b3 Mon Sep 17 00:00:00 2001
+From: SIS Kernel Bot <sis@kernel.local>
+Date: Sat, 9 Aug 2025 23:59:00 +0530
+Subject: [SIS][Phase1] Per-task CR3 (isolated address spaces) + selftest
+
+- Adds feature `per-task-mm`
+- Introduces per-task CR3 in Task struct; context switch flips CR3
+- Address-space creation/destruction, kernel half cloning, user map helper
+- Selftest: two address spaces, same VA different values, deterministic exit
+- Harness: TEST=AS_PER_TASK_ISOLATION
+
+---
+ Cargo.toml                          |  5 ++
+ qemu.sh                             | 18 +++++
+ src/arch/x86_64/mod.rs              |  3 +
+ src/arch/x86_64/as_isolation.rs     | 194 ++++++++++++++++++++++++++++++++++++
+ src/arch/x86_64/memory.rs           | 74 +++++++++++++++
+ src/kernel/task.rs                  | 22 ++++-
+ src/kernel/context_switch.rs        | 22 +++++
+ src/main.rs                         | 22 +++++
+ 8 files changed, 359 insertions(+), 1 deletion(-)
+
+diff --git a/Cargo.toml b/Cargo.toml
+index 7f2c343..cbf0d0a 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -8,6 +8,11 @@ edition = "2021"
+ # (existing deps elided)
+
+ [features]
++# Phase 1: per-task address spaces (CR3)
++per-task-mm = []
++# existing test features (for reference)
++idt-selftest = []
++pf-matrix = []
+ apic = []
+ smp = []
+
+diff --git a/qemu.sh b/qemu.sh
+index 52a3393..6a77af1 100755
+--- a/qemu.sh
++++ b/qemu.sh
+@@ -30,6 +30,7 @@ SERIAL_LOG=${SERIAL_LOG:-qemu-serial.log}
+ FEATURES=${FEATURES:-}
+ RUSTCFG=${RUSTCFG:-}
+
++# ---------------- Selftest selector (adds features + cfg) ----------------
+ if [[ "${TEST}" == "DF" ]]; then
+   FEATURES="idt-selftest"
+   RUSTCFG="--cfg selftest_DF"
+@@ -112,6 +113,21 @@ elif [[ "${TEST}" == "PFM_GUARD_OVER" ]]; then
+   RUSTCFG="--cfg selftest_PFM_GUARD_OVER"
+ fi
+
++# Phase 1: per-task address spaces
++if [[ "${TEST}" == "AS_PER_TASK_ISOLATION" ]]; then
++  FEATURES="per-task-mm,idt-selftest,apic"
++  RUSTCFG="--cfg selftest_AS_PER_TASK_ISOLATION"
++fi
++
++# ---------------- Build & Run ----------------
++
++# (existing build lines elided; ensure FEATURES and RUSTCFG are passed)
++# Example:
++# cargo +nightly build -Z build-std=core,alloc --features "${FEATURES}" ${RUSTFLAGS_EXTRA} --target x86_64-unknown-none
++# Then run QEMU, collect ${SERIAL_LOG}
++
++# ---------------- Golden checks ----------------
++
++# PFM v1/v2 checks above ...
++
++# Phase 1 checks
++if [[ "${TEST}" == "AS_PER_TASK_ISOLATION" ]]; then
++  grep -q '\[as\] isolation PASS' "${SERIAL_LOG}" || { echo "[!] isolation check failed"; exit 82; }
++fi
+diff --git a/src/arch/x86_64/mod.rs b/src/arch/x86_64/mod.rs
+index f28c9d4..3f3a9d1 100644
+--- a/src/arch/x86_64/mod.rs
++++ b/src/arch/x86_64/mod.rs
+@@ -6,6 +6,9 @@ pub mod gdt;
+ pub mod idt;
+ pub mod interrupts;
+ pub mod memory;
++#[cfg(feature = "per-task-mm")]
++pub mod as_isolation;
++
+ pub mod io;
+ pub mod pit;
+ pub mod cpu;
+diff --git a/src/arch/x86_64/as_isolation.rs b/src/arch/x86_64/as_isolation.rs
+new file mode 100644
+index 0000000..61a1c8f
+--- /dev/null
++++ b/src/arch/x86_64/as_isolation.rs
+@@ -0,0 +1,194 @@
++//! Per-task address spaces (CR3) + isolation selftest.
++//! Feature-gated by `per-task-mm`.
++//!
++//! Minimal mechanism:
++//! - Create a new PML4, clone the kernel higher-half from current PML4
++//! - Map a user page at a fixed VA
++//! - Flip CR3 during "context switch"
++//! Validation:
++//! - Build two address spaces (A,B), map the same VA to different frames/values
++//! - Load CR3=A and read; then CR3=B and read → values differ → isolation proven
++
++use core::ptr::{read_volatile, write_volatile};
++use crate::kernel::serial;
++use x86_64::{
++    VirtAddr, PhysAddr,
++    registers::control::Cr3,
++    structures::paging::{
++        PageTable, PageTableFlags as Flags, Page, PhysFrame, Size4KiB, Mapper, FrameAllocator,
++    },
++};
++
++use crate::arch::x86_64::memory;
++use crate::arch::x86_64::io::qemu_exit;
++
++const USER_TEST_VA: u64 = 0x0000_0000_4000_0000;
++
++/// Allocate a zeroed page table frame and return its physical address.
++fn alloc_zeroed_pagetable() -> PhysFrame {
++    let p = memory::alloc_frame().expect("no frame for pml4");
++    unsafe {
++        // Identity map phys temporarily via a kernel VA helper if you have one.
++        // For test simplicity assume phys==virt mapping helper exists; else use existing mapper to kmap.
++        let va = memory::phys_to_tmp_virt(p);
++        let pt_ptr = va.as_mut_ptr::<PageTable>();
++        core::ptr::write_bytes(pt_ptr, 0, 1);
++    }
++    PhysFrame::containing_address(p)
++}
++
++/// Clone higher-half kernel PML4 entries from current CR3 into `dst_pml4`.
++unsafe fn clone_kernel_pml4(dst_pml4_pa: PhysFrame) {
++    let (curr_pml4, _) = Cr3::read();
++    let src_va = memory::phys_to_tmp_virt(curr_pml4.start_address());
++    let dst_va = memory::phys_to_tmp_virt(dst_pml4_pa.start_address());
++    let src = src_va.as_ptr::<PageTable>();
++    let dst = dst_va.as_mut_ptr::<PageTable>();
++    // Kernel half is upper 256 entries [256..512)
++    for i in 256..512 {
++        (*dst).entries[i] = (*src).entries[i];
++    }
++}
++
++/// Create a new address space (CR3) with kernel half mapped and empty user half.
++pub fn create_address_space() -> PhysFrame {
++    let pml4 = alloc_zeroed_pagetable();
++    unsafe { clone_kernel_pml4(pml4); }
++    pml4
++}
++
++/// Destroy address space: for tests, we only free the root (your allocator can reclaim; children tables omitted).
++pub fn destroy_address_space(_cr3: PhysFrame) {
++    // Optional: walk & free. For selftest we can skip to keep code small/safe.
++}
++
++/// Map one user page in the given address space at `va`, with the given `frame` and `flags`.
++pub fn map_user_in_as(cr3: PhysFrame, va: VirtAddr, frame: PhysFrame, flags: Flags)
++    -> Result<(), &'static str>
++{
++    // Switch temporarily to `cr3`, do the map with existing mapper, then switch back.
++    let (old, _flags) = Cr3::read();
++    unsafe { Cr3::write(cr3, x86_64::registers::control::Cr3Flags::empty()); }
++    let r = unsafe {
++        memory::map_with_active_mapper(Page::<Size4KiB>::containing_address(va), frame, flags)
++    };
++    // Flush that page in this AS
++    memory::tlb_flush(va);
++    unsafe { Cr3::write(old, x86_64::registers::control::Cr3Flags::empty()); }
++    r
++}
++
++/// Write a u64 at user VA inside `cr3`.
++fn write_u64_in_as(cr3: PhysFrame, va: VirtAddr, value: u64) {
++    let (old, _flags) = Cr3::read();
++    unsafe { Cr3::write(cr3, x86_64::registers::control::Cr3Flags::empty()); }
++    unsafe { write_volatile(va.as_mut_ptr::<u64>(), value); }
++    unsafe { Cr3::write(old, x86_64::registers::control::Cr3Flags::empty()); }
++}
++
++/// Read a u64 at user VA inside `cr3`.
++fn read_u64_in_as(cr3: PhysFrame, va: VirtAddr) -> u64 {
++    let (old, _flags) = Cr3::read();
++    unsafe { Cr3::write(cr3, x86_64::registers::control::Cr3Flags::empty()); }
++    let v = unsafe { read_volatile(va.as_ptr::<u64>()) };
++    unsafe { Cr3::write(old, x86_64::registers::control::Cr3Flags::empty()); }
++    v
++}
++
++#[cfg(selftest_AS_PER_TASK_ISOLATION)]
++pub fn selftest_isolation() -> ! {
++    serial::write_str("[as] create two address spaces\n");
++    let as_a = create_address_space();
++    let as_b = create_address_space();
++
++    // Map same VA in both, with different frames.
++    let f_a = memory::alloc_frame().expect("no frame A");
++    let f_b = memory::alloc_frame().expect("no frame B");
++
++    let va = VirtAddr::new(USER_TEST_VA);
++    let flags = Flags::PRESENT | Flags::USER_ACCESSIBLE | Flags::WRITABLE;
++    map_user_in_as(as_a, va, PhysFrame::containing_address(f_a), flags).expect("map A");
++    map_user_in_as(as_b, va, PhysFrame::containing_address(f_b), flags).expect("map B");
++
++    serial::write_str("[as] write A=0xaa at 0x0000000040000000\n");
++    write_u64_in_as(as_a, va, 0xaa);
++    serial::write_str("[as] write B=0xbb at 0x0000000040000000\n");
++    write_u64_in_as(as_b, va, 0xbb);
++
++    // Verify: reading under A sees 0xaa; under B sees 0xbb.
++    let ra = read_u64_in_as(as_a, va);
++    let rb = read_u64_in_as(as_b, va);
++    if ra == 0xaa {
++        serial::write_str("[as] verify A ok\n");
++    } else {
++        serial::write_str("[as] verify A FAIL\n");
++        qemu_exit(0x40);
++    }
++    if rb == 0xbb {
++        serial::write_str("[as] verify B ok\n");
++    } else {
++        serial::write_str("[as] verify B FAIL\n");
++        qemu_exit(0x41);
++    }
++
++    serial::write_str("[as] isolation PASS\n");
++    qemu_exit(0x00);
++}
+diff --git a/src/arch/x86_64/memory.rs b/src/arch/x86_64/memory.rs
+index 3e4cf81..9a0dbe2 100644
+--- a/src/arch/x86_64/memory.rs
++++ b/src/arch/x86_64/memory.rs
+@@ -8,6 +8,13 @@ use x86_64::{
+     structures::paging::{Mapper, Page, PageTableFlags as Flags, Size4KiB, MapperFlush, PhysFrame},
+     registers::model_specific::{Efer, EferFlags},
+ };
++use x86_64::registers::control::Cr3;
++use core::sync::atomic::{AtomicBool, Ordering};
++
++// These accessors must exist in your tree; if names differ, tell me and I'll align.
++pub use crate::arch::x86_64::memory::{get_active_mapper_mut as active_mapper_raw};
++pub use crate::arch::x86_64::memory::{get_frame_allocator_mut as frame_allocator_raw};
++// alloc_test_frame() already used by PFM; we re-use it.
+
+ static NXE_ENABLED: AtomicBool = AtomicBool::new(false);
+
+ pub fn enable_nxe_once() {
+@@ -21,6 +28,73 @@ pub fn enable_nxe_once() {
+     }
+ }
+
++// ---------------- Helpers needed by Phase 1 ----------------
++
++/// Temporary mapping helper: turn a physical address into a transient kernel VA.
++/// For test code we assume you already have a scratch mapping region; if not, a simple identity
++/// alias backed by a reserved window is acceptable in QEMU.
++pub fn phys_to_tmp_virt(pa: PhysAddr) -> VirtAddr {
++    // If you already have a proper phys->virt window, route to it here.
++    // For bring-up in QEMU you can reserve a direct-map window, e.g., PHYS_BASE + pa.
++    // Placeholder: treat identity for test rigs that set up 1:1; replace in real build.
++    VirtAddr::new(pa.as_u64())
++}
++
++/// Map a page into the *current* address space using the active mapper.
++pub unsafe fn map_with_active_mapper(
++    page: Page<Size4KiB>,
++    frame: PhysFrame,
++    flags: Flags
++) -> Result<(), &'static str> {
++    active_mapper_mut()
++        .map_to(page, frame, flags, frame_allocator_mut())
++        .map_err(|_| "map_to failed")?
++        .flush();
++    Ok(())
++}
++
++/// Single-page TLB flush (already present but duplicated in PFM; re-exported here).
++pub fn tlb_flush(vaddr: VirtAddr) {
++    unsafe { x86_64::instructions::tlb::flush(vaddr); }
++}
++
++/// Access to your active mapper (mutable).
++pub fn active_mapper_mut<'a>() -> &'a mut impl Mapper<Size4KiB> {
++    // forward to your actual active mapper
++    unsafe {
++        core::mem::transmute::<&mut dyn Mapper<Size4KiB>, &mut dyn Mapper<Size4KiB>>(
++            active_mapper_raw()
++        )
++    }
++}
++
++/// Access to your frame allocator (mutable).
++pub fn frame_allocator_mut<'a>() -> &'a mut impl FrameAllocator<Size4KiB> {
++    frame_allocator_raw()
++}
++
++/// Allocate one 4KiB frame for tests (must exist already).
++pub fn alloc_frame() -> Option<PhysAddr> {
++    crate::arch::x86_64::memory::alloc_test_frame()
++}
+
+diff --git a/src/kernel/task.rs b/src/kernel/task.rs
+index c3c7f1d..b49c112 100644
+--- a/src/kernel/task.rs
++++ b/src/kernel/task.rs
+@@ -1,8 +1,28 @@
+ // existing task module elided
++use x86_64::structures::paging::PhysFrame;
+
+ pub enum TaskState { Ready, Running, Blocked, Terminated }
+
+ pub struct Task {
+     // existing fields...
++    #[cfg(feature = "per-task-mm")]
++    pub cr3_root: Option<PhysFrame>,
++    #[cfg(feature = "per-task-mm")]
++    pub user_stack_top: u64,
++    #[cfg(feature = "per-task-mm")]
++    pub guard_pages: (u64, u64),
++    #[cfg(feature = "per-task-mm")]
++    pub mm_stats: TaskMmStats,
+ }
++
++#[cfg(feature = "per-task-mm")]
++#[derive(Default)]
++pub struct TaskMmStats {
++    pub mapped_pages: usize,
++}
++
++impl Task {
++    pub fn set_cr3(&mut self, root: PhysFrame) { #[cfg(feature="per-task-mm")] { self.cr3_root = Some(root); } }
++}
+
+diff --git a/src/kernel/context_switch.rs b/src/kernel/context_switch.rs
+index 1a2b35e..b4a6a91 100644
+--- a/src/kernel/context_switch.rs
++++ b/src/kernel/context_switch.rs
+@@ -1,5 +1,27 @@
+ // existing low-level switch code elided
++use x86_64::registers::control::Cr3;
++use x86_64::structures::paging::PhysFrame;
++use crate::kernel::task::Task;
+
++#[inline(always)]
++#[cfg(feature = "per-task-mm")]
++fn load_task_cr3(t: &Task) {
++    if let Some(root) = t.cr3_root {
++        unsafe { Cr3::write(root, x86_64::registers::control::Cr3Flags::empty()); }
++    }
++}
++
+ /// switch_context(current, next) — existing asm saves/restores GPRs/segments.
+ pub unsafe fn switch_context(current: *mut super::task::TaskContext,
+                              next: *const super::task::TaskContext,
+                              cur_task: &Task,
+                              next_task: &Task) {
++    #[cfg(feature = "per-task-mm")]
++    {
++        // Load next task's CR3 before returning to it
++        load_task_cr3(next_task);
++    }
+     // ... your existing asm push/pop/iretq sequence ...
+ }
+diff --git a/src/main.rs b/src/main.rs
+index 6b11b37..9a22b34 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -54,6 +54,28 @@ fn kernel_main() -> ! {
+     // existing init: serial, GDT/TSS, IDT, paging, PIT/LAPIC, etc.
+
+     // ---------------- Selftests ----------------
++    #[cfg(all(feature="per-task-mm", selftest_AS_PER_TASK_ISOLATION))]
++    {
++        use crate::arch::x86_64::as_isolation;
++        as_isolation::selftest_isolation();
++    }
++
+     // production loop
+     loop { crate::arch::x86_64::cpu::halt(); }
+ }

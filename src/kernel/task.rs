@@ -9,6 +9,20 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::ptr::NonNull;
 
+#[cfg(feature = "per-task-mm")]
+use x86_64::structures::paging::PhysFrame;
+
+#[cfg(feature = "ipc")]
+use crate::kernel::caps::CTable;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BlockReason {
+    None,
+    IpcRecv,
+    IpcSend,
+    Sleep,
+}
+
 /// Size of each task's stack in bytes.  Stacks are allocated on
 /// demand and freed when the task terminates.
 pub const STACK_SIZE: usize = 16 * 1024; // 16 KiB
@@ -28,7 +42,7 @@ pub enum Role {
 pub enum State {
     Ready,
     Running,
-    Blocked,
+    Blocked(BlockReason),
     Terminated,
 }
 
@@ -62,6 +76,31 @@ pub struct Task {
     pub affinity_core: usize,
     pub affinity_gpu: Option<usize>,
     pub next: Option<&'static mut Task>,
+    pub kstack_top: u64,
+    
+    // Phase 1: per-task address space fields
+    #[cfg(feature = "per-task-mm")]
+    pub cr3_root: Option<PhysFrame>,
+    #[cfg(feature = "per-task-mm")]
+    pub user_stack_top: u64,
+    #[cfg(feature = "per-task-mm")]
+    pub guard_pages: (u64, u64),
+    #[cfg(feature = "per-task-mm")]
+    pub mm_stats: TaskMmStats,
+    
+    // Phase 2: IPC capability table
+    #[cfg(feature = "ipc")]
+    pub ctable: CTable,
+    
+    // Phase 3: scheduling priority boost
+    #[cfg(feature = "scheduler")]
+    pub priority_boost: bool,
+}
+
+#[cfg(feature = "per-task-mm")]
+#[derive(Default)]
+pub struct TaskMmStats {
+    pub mapped_pages: usize,
 }
 
 impl Task {
@@ -71,7 +110,7 @@ impl Task {
     /// the global allocator error handler.
     pub fn new(role: Role, entry: fn()) -> &'static mut Task {
         // Allocate a stack for the task.
-        let mut stack = vec![0u8; STACK_SIZE].into_boxed_slice();
+        let stack = alloc::vec![0u8; STACK_SIZE].into_boxed_slice();
         let stack_top = stack.as_ptr() as usize + STACK_SIZE;
         // Build the initial context: set the instruction pointer to
         // the entry function and the stack pointer to the top of the
@@ -114,6 +153,28 @@ impl Task {
             affinity_core: core,
             affinity_gpu: gpu,
             next: None,
+            kstack_top: stack_top as u64,
+            
+            // Phase 1: initialize per-task MM fields
+            #[cfg(feature = "per-task-mm")]
+            cr3_root: None,
+            #[cfg(feature = "per-task-mm")]
+            user_stack_top: 0,
+            #[cfg(feature = "per-task-mm")]
+            guard_pages: (0, 0),
+            #[cfg(feature = "per-task-mm")]
+            mm_stats: TaskMmStats::default(),
+            
+            // Phase 2: initialize IPC capability table
+            #[cfg(feature = "ipc")]
+            ctable: CTable::new(),
+            
+            // Phase 3: initialize scheduler priority boost
+            #[cfg(feature = "scheduler")]
+            priority_boost: match role {
+                Role::Philosophy | Role::Technical => true,
+                Role::Child => false,
+            },
         };
         // Leak the task onto the heap and return a static reference.
         Box::leak(Box::new(task))
@@ -125,7 +186,7 @@ impl Task {
     /// the caller's affinity and priority.
     pub fn spawn(entry: fn(), parent_role: Role) -> &'static mut Task {
         let role = Role::Child;
-        let mut task = Task::new(role, entry);
+        let task = Task::new(role, entry);
         // Inherit affinity from parent role
         match parent_role {
             Role::Philosophy => {

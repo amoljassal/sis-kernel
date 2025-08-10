@@ -12,3 +12,18 @@ pub mod syscall;
 pub mod pci;
 pub mod affinity;
 pub mod vfio;
+#[cfg(feature = "ipc")]
+pub mod caps;
+#[cfg(feature = "ipc")]
+pub mod ipc;
+#[cfg(feature = "scheduler")]
+pub mod waitqueue;
+
+#[cfg(feature = "userland")]
+pub mod user;
+
+#[cfg(not(feature = "userland"))]
+pub mod vfs;
+
+#[cfg(not(feature = "userland"))]
+pub mod initfs;

@@ -1,0 +1,11 @@
+Phase 4.1 · Part C
+===================
+Adds userland validation suite with four scenarios:
+  - USR_INIT       (ELF+VFS positive path)
+  - USR_SPAWN_TWO  (two PIDs => isolation proxy)
+  - USR_ELF_EDGES  (good passes, bad fails)
+  - USR_VFS_NEG    (negative VFS paths)
+
+Select test at build time via RUSTFLAGS cfgs, e.g.:
+  RUSTFLAGS="--cfg selftest_USR_INIT" cargo build --features userland
+Run under QEMU harness that watches qemu-exit code 0x00 for success.

@@ -1,0 +1,160 @@
+From 0b7d0e6a9c6e4b90b93977f0c7b6f4d0a1f2c9ef Mon Sep 17 00:00:00 2001
+From: SIS Kernel Bot <sis@kernel.local>
+Date: Fri, 8 Aug 2025 23:40:00 +0530
+Subject: [SIS][SelfTest] Add IDT self-tests (DIV0, GP, PF, DF) & hook via
+ feature flag
+
+- Adds src/arch/x86_64/idt_selftest.rs with deterministic triggers:
+  * DIV0: inline asm divide-by-zero
+  * GP: load invalid segment selector into DS
+  * PF: touch unmapped address (null)
+  * DF: stack overflow (deep recursion) -> uses DF IST
+- All tests log clear, unique markers on serial before triggering.
+- Feature-gated behind `idt-selftest`; no impact to normal builds.
+- main.rs calls the selftest sequence after IDT/GDT init when feature enabled.
+
+---
+diff --git a/src/arch/x86_64/idt_selftest.rs b/src/arch/x86_64/idt_selftest.rs
+new file mode 100644
+index 0000000..d2a11f3
+--- /dev/null
++++ b/src/arch/x86_64/idt_selftest.rs
+@@ -0,0 +1,141 @@
++//! IDT self-tests: deliberately trigger exceptions under controlled conditions.
++//! Each test prints a clear serial banner, then triggers the exception.
++//! Handlers should log and halt deterministically (no triple faults).
++//! Feature-gated behind `idt-selftest`.
++#![allow(dead_code)]
++
++use crate::kernel::serial;
++use core::arch::asm;
++
++#[inline(never)]
++fn banner(tag: &str) {
++    serial::write_str(tag);
++    serial::write_str("\n");
++}
++
++/// Trigger: Divide-by-zero (DIV0)
++#[inline(never)]
++pub fn trigger_divide_by_zero() -> ! {
++    banner("[selftest] about to trigger DIV0");
++    unsafe {
++        // RAX = 1, RCX = 0, then div rcx → #DE
++        asm!(
++            "xor rcx, rcx",
++            "mov rax, 1",
++            "div rcx",
++            options(noreturn)
++        );
++    }
++}
++
++/// Trigger: General Protection (#GP)
++/// Load an invalid segment selector into DS; on x86_64 this causes #GP.
++#[inline(never)]
++pub fn trigger_gp_fault() -> ! {
++    banner("[selftest] about to trigger GP");
++    unsafe {
++        asm!(
++            "xor eax, eax",
++            "mov ds, ax",    // load null selector -> #GP
++            options(noreturn)
++        );
++    }
++}
++
++/// Trigger: Page Fault (#PF) by touching NULL (unmapped)
++#[inline(never)]
++pub fn trigger_page_fault() -> ! {
++    banner("[selftest] about to trigger PF");
++    unsafe {
++        let ptr: *mut u64 = 0x0 as *mut u64;
++        core::ptr::read_volatile(ptr); // read from unmapped -> #PF
++        asm!("ud2", options(noreturn)); // should not reach
++    }
++}
++
++/// Trigger: Double Fault (#DF) via stack overflow recursion.
++/// With DF IST configured, this should land in DF handler and halt.
++#[inline(never)]
++fn deep_recurse(n: usize) {
++    // Prevent tail-call elimination and make frames "real"
++    unsafe { core::ptr::read_volatile(&(n as u64)); }
++    deep_recurse(n + 1);
++}
++
++#[inline(never)]
++pub fn trigger_double_fault() -> ! {
++    banner("[selftest] about to trigger DF (stack overflow)");
++    deep_recurse(0)
++}
++
++/// Run a single test by tag for flexible harnesses.
++pub fn run_one(tag: &str) -> ! {
++    match tag {
++        "DIV0" => trigger_divide_by_zero(),
++        "GP"   => trigger_gp_fault(),
++        "PF"   => trigger_page_fault(),
++        "DF"   => trigger_double_fault(),
++        _      => {
++            serial::write_str("[selftest] unknown tag\n");
++            loop { crate::arch::x86_64::cpu::halt(); }
++        }
++    }
++}
++
++/// Run in sequence; useful for quick manual testing. First one halts the CPU.
++pub fn run_sequence() -> ! {
++    // Pick the one you want to run by commenting others; each halts after trigger.
++    // NOTE: run ONLY ONE per boot, since handlers halt.
++    // Example: run_one("DIV0");
++    // Example: run_one("GP");
++    // Example: run_one("PF");
++    run_one("DF")
++}
+diff --git a/src/main.rs b/src/main.rs
+index 8d1e9a0..8e565c1 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -7,6 +7,9 @@
+ #![no_std]
+ #![no_main]
+ 
++#[cfg(feature = "idt-selftest")]
++mod arch_selftest { pub use crate::arch::x86_64::idt_selftest as idt_selftest; }
++
+ use bootloader_api::BootInfo;
+ 
+ mod arch;
+@@ -62,6 +65,16 @@ pub extern "C" fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
+     // ────────────────────────────────────────────────────────────────────────────────
+     serial::write_str("[init] IDT loaded\n");
+ 
++    // Optional IDT self-tests (feature-gated). Each test halts after triggering.
++    // Choose which test to run inside idt_selftest::run_sequence() or call run_one("TAG").
++    #[cfg(feature = "idt-selftest")]
++    {
++        serial::write_str("[selftest] starting IDT self-tests...\n");
++        // By default, run the DF test. Edit to run GP/PF/DIV0 as needed.
++        arch_selftest::idt_selftest::run_sequence();
++    }
++
+     // … continue normal boot (heap, scheduler, etc.) …
+ 
+     loop {
+         arch::x86_64::cpu::halt();
+     }
+diff --git a/src/arch/x86_64/mod.rs b/src/arch/x86_64/mod.rs
+index 6e7d0ab..5a1a2a3 100644
+--- a/src/arch/x86_64/mod.rs
++++ b/src/arch/x86_64/mod.rs
+@@ -1,6 +1,8 @@
+ pub mod gdt;
+ pub mod idt;
+ pub mod cpu;
+ pub mod memory;
+ pub mod pit;
+ pub mod io;
++#[cfg(feature = "idt-selftest")]
++pub mod idt_selftest;

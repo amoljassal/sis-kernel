@@ -1,0 +1,528 @@
+*** a/Cargo.toml
+--- b/Cargo.toml
+@@
+ [package]
+ name = "sis_kernel"
+ version = "0.1.0"
+ edition = "2021"
+ 
+ [features]
++ipc = []                # Phase 2: IPC + capability tables (feature-gated)
+ idt-selftest = []
+ pf-matrix = []
+ apic = []
+ smp = []
+ per-task-mm = []
+@@
+ [dependencies]
+ alloc = { package = "alloc", version = "0.0.0", optional = true }
+ spin = { version = "0.9.8", default-features = false }
+ x86_64 = { version = "0.14.9", default-features = false, features = ["instructions","abi_x86_interrupt"] }
+ uart_16550 = { version = "0.2.0", default-features = false }
+ 
+@@
+ [build-dependencies]
+ bootloader = { version = "0.11.11", default-features = false, features = ["uefi"] }
+ 
+*** a/src/kernel/mod.rs
+--- b/src/kernel/mod.rs
+@@
+ pub mod serial;
+ pub mod syscall;
+ pub mod task;
+ pub mod scheduler;
+ pub mod pci;
++#[cfg(feature = "ipc")]
++pub mod caps;
++#[cfg(feature = "ipc")]
++pub mod ipc;
+ 
+*** a/src/kernel/task.rs
+--- b/src/kernel/task.rs
+@@
+ use alloc::boxed::Box;
+ use alloc::vec::Vec;
+ use core::ptr::NonNull;
+ use spin::Mutex;
+ 
++#[cfg(feature = "ipc")]
++use super::caps::CTable;
++
+ pub enum TaskState {
+     Ready,
+     Running,
+     Blocked,
+     Terminated,
+@@
+ pub struct Task {
+     pub id: u64,
+     pub state: TaskState,
+     pub kstack_top: u64,
+     pub user_stack_top: u64,
+     pub cr3_root: Option<x86_64::PhysAddr>,
+     pub guard_pages: (u64, u64),
+     pub mm_stats: TaskMmStats,
++    #[cfg(feature = "ipc")]
++    pub ctable: CTable,
+ }
+ 
+ impl Task {
+     pub fn new_kernel(id: u64, kstack_top: u64) -> Self {
+         Self {
+             id,
+             state: TaskState::Ready,
+             kstack_top,
+             user_stack_top: 0,
+             cr3_root: None,
+             guard_pages: (0, 0),
+             mm_stats: TaskMmStats::default(),
++            #[cfg(feature = "ipc")]
++            ctable: CTable::new(),
+         }
+     }
+ 
+     pub fn new_user(id: u64, kstack_top: u64, user_stack_top: u64, cr3_root: x86_64::PhysAddr) -> Self {
+         Self {
+             id,
+             state: TaskState::Ready,
+             kstack_top,
+             user_stack_top,
+             cr3_root: Some(cr3_root),
+             guard_pages: (0, 0),
+             mm_stats: TaskMmStats::default(),
++            #[cfg(feature = "ipc")]
++            ctable: CTable::new(),
+         }
+     }
+ }
+ 
+ #[derive(Default)]
+ pub struct TaskMmStats {
+     pub maps: u64,
+     pub unmaps: u64,
+ }
+ 
+*** a/src/kernel/syscall.rs
+--- b/src/kernel/syscall.rs
+@@
+ use core::arch::asm;
+ use x86_64::registers::segmentation;
+ use crate::kernel::serial;
+ 
++#[cfg(feature = "ipc")]
++use crate::kernel::ipc;
++#[cfg(feature = "ipc")]
++use crate::kernel::caps::CapKind;
++
+ pub type SysResult = i64; // negative errno on error
+ 
+ // Existing syscalls (0x00..0x03 etc.) kept as-is
+ 
++// Phase 2: IPC syscall numbers
++#[cfg(feature = "ipc")]
++pub const SYS_IPC_CHAN_CREATE: u64 = 0x20;
++#[cfg(feature = "ipc")]
++pub const SYS_IPC_SEND:        u64 = 0x21;
++#[cfg(feature = "ipc")]
++pub const SYS_IPC_RECV:        u64 = 0x22;
++#[cfg(feature = "ipc")]
++pub const SYS_IPC_CLOSE:       u64 = 0x23;
++
+ #[no_mangle]
+ pub extern "C" fn syscall_dispatch(
+     num: u64, rdi: u64, rsi: u64, rdx: u64, rcx: u64, r8: u64, r9: u64
+ ) -> SysResult {
+     // Privilege level detection for diagnostics
+     let cs = segmentation::cs().0 as u64;
+     let rpl = (cs & 0x3) as u8;
+ 
+     match num {
+         // … existing cases …
++        #[cfg(feature = "ipc")]
++        n if n == SYS_IPC_CHAN_CREATE => {
++            // rdi=flags, rsi=max_msgs, rdx=msg_size
++            match unsafe { ipc::sys_chan_create(rdi as u32, rsi as usize, rdx as usize) } {
++                Ok(cap) => cap as i64,
++                Err(e) => e,
++            }
++        }
++        #[cfg(feature = "ipc")]
++        n if n == SYS_IPC_SEND => {
++            // rdi=cap_id, rsi=user_ptr, rdx=len
++            match unsafe { ipc::sys_send(rdi as u32, rsi as u64, rdx as usize) } {
++                Ok(n) => n as i64,
++                Err(e) => e,
++            }
++        }
++        #[cfg(feature = "ipc")]
++        n if n == SYS_IPC_RECV => {
++            // rdi=cap_id, rsi=user_ptr, rdx=len, rcx=timeout_us
++            match unsafe { ipc::sys_recv(rdi as u32, rsi as u64, rdx as usize, rcx as u64) } {
++                Ok(n) => n as i64,
++                Err(e) => e,
++            }
++        }
++        #[cfg(feature = "ipc")]
++        n if n == SYS_IPC_CLOSE => {
++            match unsafe { ipc::sys_close(rdi as u32) } {
++                Ok(()) => 0,
++                Err(e) => e,
++            }
++        }
+         _ => {
+             let _ = rpl; // suppress unused in some feature combos
+             serial::write_str("[syscall] unknown\n");
+             -38 // -ENOSYS
+         }
+     }
+ }
+ 
+*** /dev/null
+--- b/src/kernel/caps.rs
+@@
++#![allow(dead_code)]
++use alloc::vec::Vec;
++use core::{ptr::NonNull, sync::atomic::{AtomicU16, Ordering}};
++use spin::Mutex;
++
++pub type CapId = u32; // index | (gen<<16)
++
++#[derive(Copy, Clone, Eq, PartialEq)]
++pub enum CapKind {
++    IpcSender,
++    IpcReceiver,
++}
++
++bitflags::bitflags! {
++    pub struct CapFlags: u32 {
++        const NONBLOCK = 1<<0;
++    }
++}
++
++pub trait KernelObject {}
++
++pub struct CapEntry {
++    pub kind: CapKind,
++    pub obj:  NonNull<dyn KernelObject>,
++    pub gen:  u16,
++    pub flags: CapFlags,
++}
++
++pub struct CTable {
++    slots: Mutex<Vec<Option<CapEntry>>>,
++    gens:  Vec<AtomicU16>,
++}
++
++impl CTable {
++    pub const fn new() -> Self {
++        Self { slots: Mutex::new(Vec::new()), gens: Vec::new() }
++    }
++    pub fn insert(&self, e: CapEntry) -> CapId {
++        let mut slots = self.slots.lock();
++        // find free
++        for (i, slot) in slots.iter_mut().enumerate() {
++            if slot.is_none() {
++                let gen = self.bump_gen(i);
++                *slot = Some(CapEntry{ gen, ..e });
++                return Self::pack(i as u32, gen);
++            }
++        }
++        // grow
++        let i = slots.len();
++        slots.push(None);
++        self.ensure_gen_len(i+1);
++        let gen = self.bump_gen(i);
++        slots[i] = Some(CapEntry{ gen, ..e });
++        Self::pack(i as u32, gen)
++    }
++    pub fn remove(&self, id: CapId) -> bool {
++        let (i, gen) = Self::unpack(id);
++        let mut slots = self.slots.lock();
++        if let Some(Some(e)) = slots.get(i as usize) {
++            if e.gen == gen {
++                slots[i as usize] = None;
++                return true;
++            }
++        }
++        false
++    }
++    pub fn get(&self, id: CapId) -> Option<CapEntry> {
++        let (i, gen) = Self::unpack(id);
++        let slots = self.slots.lock();
++        if let Some(Some(e)) = slots.get(i as usize) {
++            if e.gen == gen { return Some(CapEntry{
++                kind: e.kind, obj: e.obj, gen: e.gen, flags: e.flags
++            }); }
++        }
++        None
++    }
++    fn pack(idx: u32, gen: u16) -> CapId { (idx & 0xffff) | ((gen as u32) << 16) }
++    fn unpack(id: CapId) -> (u32, u16) { (id & 0xffff, (id >> 16) as u16) }
++    fn ensure_gen_len(&self, n: usize) {
++        if self.gens.len() >= n { return; }
++        let need = n - self.gens.len();
++        for _ in 0..need { self.gens.push(AtomicU16::new(0)); }
++    }
++    fn bump_gen(&self, i: usize) -> u16 {
++        self.ensure_gen_len(i+1);
++        self.gens[i].fetch_add(1, Ordering::Relaxed).wrapping_add(1)
++    }
++}
++
+*** /dev/null
+--- b/src/kernel/ipc.rs
+@@
++#![allow(dead_code)]
++use alloc::{boxed::Box, collections::VecDeque, vec::Vec};
++use core::{ptr::NonNull, sync::atomic::{AtomicBool, Ordering}};
++use spin::Mutex;
++use crate::kernel::{serial, task};
++use super::caps::{self, CapKind, CapFlags, CapEntry, KernelObject};
++
++// errno helpers (negative values)
++const EINVAL: i64 = -22;
++const EPERM:  i64 = -1;
++const EAGAIN: i64 = -11;
++const EFAULT: i64 = -14;
++const ETIMED: i64 = -110;
++const EPIPE:  i64 = -32;
++
++pub struct IpcChannel {
++    q: Mutex<VecDeque<Box<[u8]>>>,
++    msg_size: usize,
++    max_msgs: usize,
++    closed: AtomicBool,
++}
++impl KernelObject for IpcChannel {}
++
++impl IpcChannel {
++    fn new(max_msgs: usize, msg_size: usize) -> Self {
++        Self {
++            q: Mutex::new(VecDeque::with_capacity(max_msgs)),
++            msg_size, max_msgs,
++            closed: AtomicBool::new(false),
++        }
++    }
++    fn push(&self, msg: &[u8]) -> Result<(), i64> {
++        if self.closed.load(Ordering::Relaxed) { return Err(EPIPE); }
++        if msg.len() > self.msg_size { return Err(EINVAL); }
++        let mut q = self.q.lock();
++        if q.len() >= self.max_msgs { return Err(EAGAIN); }
++        let mut b = Vec::with_capacity(self.msg_size);
++        b.extend_from_slice(msg);
++        q.push_back(b.into_boxed_slice());
++        Ok(())
++    }
++    fn pop_into(&self, dst: &mut [u8]) -> Result<usize, i64> {
++        let mut q = self.q.lock();
++        if let Some(m) = q.pop_front() {
++            let n = core::cmp::min(m.len(), dst.len());
++            dst[..n].copy_from_slice(&m[..n]);
++            Ok(n)
++        } else {
++            Err(EAGAIN)
++        }
++    }
++    fn close(&self) { self.closed.store(true, Ordering::Relaxed); }
++}
++
++// ===== syscalls =====
++// Note: These `unsafe` are boundary shims; they immediately convert
++// user ptrs to slices via checked copies.
++
++pub unsafe fn sys_chan_create(flags: u32, max_msgs: usize, msg_size: usize) -> Result<u32, i64> {
++    if max_msgs == 0 || msg_size == 0 || max_msgs > 1024 || msg_size > 4096 {
++        return Err(EINVAL);
++    }
++    let ch = IpcChannel::new(max_msgs, msg_size);
++    let boxed = Box::new(ch);
++    let obj_ptr = NonNull::from(Box::leak(boxed)) as NonNull<dyn KernelObject>;
++    // Insert sender & receiver caps to current task for demo. In a real
++    // flow you'd split them across two tasks.
++    let current = current_task();
++    let sender = CapEntry{ kind: CapKind::IpcSender, obj: obj_ptr, gen: 0, flags: CapFlags::from_bits_truncate(flags) };
++    let receiver = CapEntry{ kind: CapKind::IpcReceiver, obj: obj_ptr, gen: 0, flags: CapFlags::from_bits_truncate(flags) };
++    let send_id = current.ctable.insert(sender);
++    let _recv_id = current.ctable.insert(receiver);
++    serial::write_str("[ipc] create channel ok\n");
++    Ok(send_id)
++}
++
++pub unsafe fn sys_send(cap_id: u32, user_ptr: u64, len: usize) -> Result<usize, i64> {
++    let task = current_task();
++    let cap = task.ctable.get(cap_id).ok_or(EPERM)?;
++    if cap.kind != CapKind::IpcSender { return Err(EPERM); }
++    let ch = cap.obj.cast::<IpcChannel>().as_ref();
++    let buf = copy_in(user_ptr, len).map_err(|_| EFAULT)?;
++    ch.push(&buf)?;
++    Ok(len)
++}
++
++pub unsafe fn sys_recv(cap_id: u32, user_ptr: u64, len: usize, _timeout_us: u64) -> Result<usize, i64> {
++    let task = current_task();
++    let cap = task.ctable.get(cap_id).ok_or(EPERM)?;
++    if cap.kind != CapKind::IpcReceiver { return Err(EPERM); }
++    let ch = cap.obj.cast::<IpcChannel>().as_ref();
++    // Non-blocking v1: return EAGAIN when empty. (Blocking comes with scheduler v1.)
++    let mut tmp = vec![0u8; len];
++    match ch.pop_into(&mut tmp[..]) {
++        Ok(n) => {
++            copy_out(user_ptr, &tmp[..n]).map_err(|_| EFAULT)?;
++            Ok(n)
++        }
++        Err(e) => Err(e),
++    }
++}
++
++pub unsafe fn sys_close(cap_id: u32) -> Result<(), i64> {
++    let task = current_task();
++    let cap = task.ctable.get(cap_id).ok_or(EPERM)?;
++    let ch = cap.obj.cast::<IpcChannel>().as_ref();
++    ch.close();
++    let _ = task.ctable.remove(cap_id);
++    Ok(())
++}
++
++// ===== user copy helpers (v1: copy via kernel buffer) =====
++fn copy_in(user_ptr: u64, len: usize) -> Result<Vec<u8>, ()> {
++    if len == 0 || len > 4096 { return Err(()); }
++    // For v1 we assume user mapping is valid thanks to Phase 1 tests.
++    // If fault occurs, page-fault handler returns deterministically (PFM discipline).
++    let mut v = vec![0u8; len];
++    unsafe {
++        core::ptr::copy_nonoverlapping(user_ptr as *const u8, v.as_mut_ptr(), len);
++    }
++    Ok(v)
++}
++fn copy_out(user_ptr: u64, src: &[u8]) -> Result<(), ()> {
++    if src.is_empty() || src.len() > 4096 { return Err(()); }
++    unsafe {
++        core::ptr::copy_nonoverlapping(src.as_ptr(), user_ptr as *mut u8, src.len());
++    }
++    Ok(())
++}
++
++// Hook to current task (replace with your real accessor)
++fn current_task() -> &'static task::Task {
++    extern "Rust" {
++        static CURRENT_TASK_PTR: *const task::Task;
++    }
++    unsafe { &*CURRENT_TASK_PTR }
++}
++
+*** /dev/null
+--- b/src/arch/x86_64/ipc_selftest.rs
+@@
++#![cfg(feature = "ipc")]
++use crate::kernel::serial;
++use crate::kernel::syscall::{SYS_IPC_CHAN_CREATE,SYS_IPC_SEND,SYS_IPC_RECV};
++
++#[inline(always)]
++unsafe fn int80(n: u64, a: u64, b: u64, c: u64, d: u64) -> i64 {
++    let ret: i64;
++    core::arch::asm!(
++        "int 0x80",
++        in("rax") n, in("rdi") a, in("rsi") b, in("rdx") c, in("rcx") d,
++        lateout("rax") ret, out("rbx") _, out("r8") _, out("r9") _,
++        options(nostack, preserves_flags)
++    );
++    ret
++}
++
++pub fn run_ipc_ping() {
++    serial::write_str("[ipc] selftest start\n");
++    let cap = unsafe { int80(SYS_IPC_CHAN_CREATE, 0, 8, 64, 0) };
++    if cap < 0 { serial::write_str("[ipc] create failed\n"); qemu_exit(1); return; }
++    serial::write_str("[ipc] create channel ok\n");
++    // For demo: same task owns both ends (sender+receiver inserted in kernel).
++    let send = cap as u64;
++    // Send "ping"
++    let msg = b"ping";
++    let mut buf = [0u8; 64];
++    unsafe {
++        core::ptr::copy_nonoverlapping(msg.as_ptr(), buf.as_mut_ptr(), msg.len());
++        let n = int80(SYS_IPC_SEND, send, buf.as_ptr() as u64, msg.len() as u64, 0);
++        if n < 0 { serial::write_str("[ipc] send failed\n"); qemu_exit(2); return; }
++    }
++    serial::write_str("[userA] send ping\n");
++    // recv
++    let mut out = [0u8; 64];
++    let n = unsafe { int80(SYS_IPC_RECV, send, out.as_mut_ptr() as u64, 64, 0) };
++    if n < 0 { serial::write_str("[ipc] recv failed\n"); qemu_exit(3); return; }
++    serial::write_str("[userB] recv ping\n");
++    qemu_exit(0);
++}
++
++#[allow(dead_code)]
++fn qemu_exit(code: u8) {
++    // isa-debug-exit (must be enabled in qemu.sh)
++    unsafe {
++        core::ptr::write_volatile(0xf4 as *mut u32, (code as u32) << 1 | 1);
++    }
++}
++
+*** a/src/arch/x86_64/mod.rs
+--- b/src/arch/x86_64/mod.rs
+@@
+ pub mod gdt;
+ pub mod idt;
+ pub mod interrupts;
+ pub mod pit;
+ pub mod memory;
++#[cfg(feature = "ipc")]
++pub mod ipc_selftest;
+ 
+*** a/src/main.rs
+--- b/src/main.rs
+@@
+ #![no_std]
+ #![no_main]
+ 
+ extern crate alloc;
+ 
+ use crate::kernel::serial;
+ 
+ #[no_mangle]
+ pub extern "C" fn kernel_main() -> ! {
+     serial::init();
+     serial::write_str("[init] kernel start\n");
+     // … existing init: GDT/IDT/memory/scheduler/etc …
+ 
++    // Phase 2 selftest (only when built with --features ipc and env TEST=IPC_PING)
++    #[cfg(feature = "ipc")]
++    {
++        if option_env!("TEST") == Some("IPC_PING") {
++            serial::write_str("[selftest] IPC_PING\n");
++            crate::arch::x86_64::ipc_selftest::run_ipc_ping();
++        }
++    }
+     // normal loop/scheduler
+     loop { crate::arch::x86_64::interrupts::halt(); }
+ }
+ 
+*** a/qemu.sh
+--- b/qemu.sh
+@@
+ #!/usr/bin/env bash
+ set -euo pipefail
+ 
+ TEST="${TEST:-}"
+ 
+ if [[ -z "${USE_UEFI:-}" || "${USE_UEFI}" == "0" ]]; then
+   # BIOS boot via bootimage
+   cargo +nightly bootimage --target x86_64-unknown-none
+   IMG=target/x86_64-unknown-none/debug/bootimage-sis_kernel.bin
+ else
+   # UEFI path if you already use a builder; keep as-is else.
+   echo "UEFI path not configured in this snippet"; exit 2
+ fi
+ 
++RUSTFLAGS+=" --cfg TEST=\"$TEST\""
+ export RUSTFLAGS
+ 
+ # Enable isa-debug-exit for deterministic exits
+ exec qemu-system-x86_64 \
+   -drive format=raw,file="$IMG" \
+   -serial stdio \
+   -machine q35 -cpu qemu64 -m 512M -smp 2 \
++  -device isa-debug-exit,iobase=0xf4,iosize=0x04

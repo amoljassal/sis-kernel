@@ -25,6 +25,8 @@ pub fn init() {
     // The lazy_static ensures that the SerialPort is initialised on
     // first access.  Calling this function forces that initialisation.
     let _ = SERIAL.lock();
+    // Immediate feedback to confirm serial is working
+    write_str("[SERIAL] Serial port initialized.\n");
 }
 
 /// Write a single byte to the serial port.  Blocks until the UART
@@ -54,4 +56,23 @@ pub fn write_buf(buf: &[u8]) {
         }
         write_char(b);
     }
+}
+
+/// Write a u64 value as decimal to the serial port.
+pub fn write_u64(mut val: u64) {
+    if val == 0 {
+        write_char(b'0');
+        return;
+    }
+    
+    let mut buf = [0u8; 20]; // enough for u64::MAX
+    let mut i = buf.len();
+    
+    while val > 0 {
+        i -= 1;
+        buf[i] = b'0' + (val % 10) as u8;
+        val /= 10;
+    }
+    
+    write_buf(&buf[i..]);
 }

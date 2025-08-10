@@ -1,0 +1,72 @@
+name: SIS Kernel CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  userland-tests:
+    name: USR_* (${{ matrix.test }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test: [USR_INIT, USR_SPAWN_TWO, USR_ELF_EDGES, USR_VFS_NEG]
+
+    env:
+      RUST_TOOLCHAIN: nightly
+      FEATURES: userland
+      TEST: ${{ matrix.test }}
+      TIMEOUT: "40"          # seconds; bump if needed
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install Rust nightly + components
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rust-src, llvm-tools-preview
+
+      - name: Install bootimage (0.10.x compatible)
+        run: cargo install bootimage
+
+      - name: Install QEMU
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
+
+      - name: Build bootable image (BIOS / bootloader 0.10.x)
+        run: cargo bootimage --features ${FEATURES}
+
+      - name: Run headless QEMU via harness
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          # Harness should create out/qemu-serial.log and exit with our golden code.
+          # It should also pick the newest bootimage-*.bin internally or you can pass it.
+          # Example direct pass (uncomment if your harness expects a file argument):
+          # IMG=$(ls -t target/x86_64-unknown-none/debug/bootimage-*.bin | head -n1)
+          # BOOTIMG="$IMG" TEST="${TEST}" FEATURES="${FEATURES}" TIMEOUT="${TIMEOUT}" ./scripts/qemu.sh
+          TEST="${TEST}" FEATURES="${FEATURES}" TIMEOUT="${TIMEOUT}" ./scripts/qemu.sh
+          echo "Run completed for ${TEST}"
+        shell: bash
+
+      - name: Upload serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serial-${{ matrix.test }}
+          path: out/qemu-serial.log

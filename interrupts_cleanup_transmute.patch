@@ -1,0 +1,173 @@
+From 9b4b4c9b3c0d4a889aa2e274a0a7f3f0c9f9b7a1 Mon Sep 17 00:00:00 2001
+From: SIS Kernel Bot <sis@kernel.local>
+Date: Fri, 8 Aug 2025 22:05:00 +0530
+Subject: [SIS][IDT] Normalize handler signatures, DF transmute adapter, PF
+ error type, warning cleanup
+
+- Double-fault: keep compiler-compliant handler (no explicit return),
+  register via transmute to crate-expected `-> !` type; keep IST stack.
+- Page-fault: use PageFaultErrorCode (not u64), by-value frame.
+- All handlers: by-value InterruptStackFrame, no explicit return types.
+- Timer ISR: unchanged logic, minor lint cleanup.
+- Remove any phantom imports; align paths to existing project modules.
+- Add small touches to reduce warnings (underscore params, inline hints).
+
+---
+ src/arch/x86_64/idt.rs | 92 +++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 77 insertions(+), 15 deletions(-)
+
+diff --git a/src/arch/x86_64/idt.rs b/src/arch/x86_64/idt.rs
+index e1f3a97..b56a4f4 100644
+--- a/src/arch/x86_64/idt.rs
++++ b/src/arch/x86_64/idt.rs
+@@ -1,29 +1,85 @@
+-//! Interrupt Descriptor Table (IDT) setup and handlers.
+-//!
+-//! The IDT dispatches exceptions, hardware interrupts and system
+-//! calls to appropriate handlers.  We install handlers for common
+-//! CPU exceptions, the PIT timer and the syscall vector (0x80).
++//! Interrupt Descriptor Table (IDT) setup and handlers.
++//! - All handlers use by-value `InterruptStackFrame` (compiler-compatible).
++//! - No explicit return types on `extern "x86-interrupt"` functions.
++//! - Double-fault registered via transmute to satisfy x86_64 crate `-> !` type.
+ 
+-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+-use crate::arch::x86_64::gdt;
+-use crate::kernel::{scheduler, syscall, serial};
++use x86_64::structures::idt::{
++    InterruptDescriptorTable,
++    InterruptStackFrame,
++    PageFaultErrorCode
++};
++use x86_64::PrivilegeLevel;
++use crate::arch::x86_64::{gdt, cpu};
++use crate::kernel::{scheduler, syscall, serial};
+ use lazy_static::lazy_static;
+ use pic8259::ChainedPics;
+ use spin::Mutex;
+ 
+ pub const PIC_1_OFFSET: u8 = 32;
+ pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
+ 
+ pub static PICS: Mutex<ChainedPics> = Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
+ 
+ #[derive(Debug, Clone, Copy)]
+ #[repr(u8)]
+ pub enum InterruptIndex {
+     Timer = PIC_1_OFFSET,
+     // add more as needed (Keyboard = 33, etc.)
+ }
+ impl InterruptIndex {
+     #[inline(always)] pub fn as_u8(self) -> u8 { self as u8 }
+     #[inline(always)] pub fn as_usize(self) -> usize { usize::from(self.as_u8()) }
+ }
+ 
+ lazy_static! {
+     static ref IDT: InterruptDescriptorTable = {
+         let mut idt = InterruptDescriptorTable::new();
+-        // double fault handler registration happens below in `init_idt` to use IST index
+-        idt
++        // Exceptions
++        idt.divide_error.set_handler_fn(divide_by_zero);
++        idt.general_protection_fault.set_handler_fn(gp_fault);
++        idt.page_fault.set_handler_fn(page_fault);
++
++        // Hardware IRQs
++        idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
++
++        // Syscall gate @ 0x80 for ring3
++        unsafe {
++            idt[0x80]
++                .set_handler_fn(syscall_handler)
++                .set_privilege_level(PrivilegeLevel::Ring3);
++        }
++
++        idt
+     };
+ }
+ 
+ pub fn init_idt() {
+-    IDT.load();
++    // Double fault needs IST stack and crate expects a `-> !` typed fn pointer.
++    // Our handler has no explicit return type (compiler rule), so we transmute its pointer.
++    unsafe {
++        type DfExpect = extern "x86-interrupt" fn(InterruptStackFrame, u64) -> !;
++        type DfActual = extern "x86-interrupt" fn(InterruptStackFrame, u64);
++        let actual: DfActual = double_fault_handler;
++        let ptr: DfExpected = core::mem::transmute(actual);
++        IDT.double_fault
++            .set_handler_fn(ptr)
++            .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
++    }
++
++    IDT.load();
+ }
+ 
+-extern "x86-interrupt" fn double_fault_handler(
+-    stack_frame: &mut InterruptStackFrame,
+-    _error_code: u64,
+-) {
+-    panic!("DOUBLE FAULT\n{:#?}", stack_frame);
++#[inline(always)]
++extern "x86-interrupt" fn double_fault_handler(
++    _stack_frame: InterruptStackFrame,
++    _error_code: u64,
++) {
++    // Keep DF path tiny & deterministic; avoid formatted panic.
++    serial::write_str("[df] double fault — halting\n");
++    loop { cpu::halt(); }
+ }
+ 
+-extern "x86-interrupt" fn timer_interrupt_handler(
+-    _stack_frame: &mut InterruptStackFrame
+-) {
+-    scheduler::tick();
+-    unsafe {
+-        PICS.lock()
+-            .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
+-    }
++#[inline(always)]
++extern "x86-interrupt" fn timer_interrupt_handler(
++    _stack_frame: InterruptStackFrame
++) {
++    scheduler::tick();
++    unsafe { PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.as_u8()); }
+ }
+ 
++#[inline(always)]
++extern "x86-interrupt" fn divide_by_zero(
++    _stack_frame: InterruptStackFrame
++) {
++    serial::write_str("[exc] divide-by-zero — halting\n");
++    loop { cpu::halt(); }
++}
++
++#[inline(always)]
++extern "x86-interrupt" fn gp_fault(
++    _stack_frame: InterruptStackFrame,
++    _error_code: u64
++) {
++    serial::write_str("[exc] general-protection-fault — halting\n");
++    loop { cpu::halt(); }
++}
++
++#[inline(always)]
++extern "x86-interrupt" fn page_fault(
++    _stack_frame: InterruptStackFrame,
++    _error_code: PageFaultErrorCode
++) {
++    use x86_64::registers::control::Cr2;
++    let _addr = Cr2::read(); // avoid formatting; keep deterministic
++    serial::write_str("[exc] page-fault — halting\n");
++    loop { cpu::halt(); }
++}
++
++#[inline(always)]
++extern "x86-interrupt" fn syscall_handler(
++    _stack_frame: InterruptStackFrame
++) {
++    // Minimal syscall dispatch; body lives in kernel::syscall
++    syscall::dispatch();
++}
+-- 
+2.45.2

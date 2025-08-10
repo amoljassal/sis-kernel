@@ -32,9 +32,12 @@ pub fn cpuid(function: u32) -> (u32, u32, u32, u32) {
     let edx: u32;
     unsafe {
         asm!(
+            "push rbx",
             "cpuid",
+            "mov {ebx:e}, ebx",
+            "pop rbx",
             inlateout("eax") function => eax,
-            lateout("ebx") ebx,
+            ebx = out(reg) ebx,
             lateout("ecx") ecx,
             lateout("edx") edx,
             options(nomem, nostack)
@@ -67,6 +70,41 @@ pub fn rdtsc() -> u64 {
     let low: u32;
     unsafe {
         asm!("rdtsc", out("edx") high, out("eax") low, options(nomem, nostack, preserves_flags));
+    }
+    ((high as u64) << 32) | (low as u64)
+}
+
+/// Read the time stamp counter (TSC) with serialization to prevent
+/// out-of-order execution from affecting benchmark accuracy.  Uses
+/// CPUID as a serializing instruction before and after RDTSC.
+#[inline]
+pub fn rdtsc_serialized() -> u64 {
+    let high: u32;
+    let low: u32;
+    unsafe {
+        // Serialize with CPUID before reading TSC - use same pattern as cpuid function
+        asm!(
+            "push rbx",
+            "cpuid",
+            "pop rbx",
+            in("eax") 0,
+            lateout("eax") _,
+            lateout("ecx") _,
+            lateout("edx") _,
+            options(nomem, nostack)
+        );
+        asm!("rdtsc", out("edx") high, out("eax") low, options(nomem, nostack, preserves_flags));
+        // Serialize again to ensure TSC read completes
+        asm!(
+            "push rbx",
+            "cpuid", 
+            "pop rbx",
+            in("eax") 0,
+            lateout("eax") _,
+            lateout("ecx") _,
+            lateout("edx") _,
+            options(nomem, nostack)
+        );
     }
     ((high as u64) << 32) | (low as u64)
 }

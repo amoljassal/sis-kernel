@@ -41,3 +41,16 @@ pub unsafe fn inl(port: u16) -> u32 {
     asm!("in eax, dx", in("dx") port, out("eax") val, options(nomem, nostack, preserves_flags));
     val
 }
+
+/// Exit QEMU immediately via isa-debug-exit device at I/O port 0xF4.
+/// Use with `-device isa-debug-exit,iobase=0xf4,iosize=0x04`.
+/// Convention: 0x00 = success; non-zero = failure code.
+#[inline(always)]
+pub unsafe fn qemu_exit(code: u8) -> ! {
+    // Some QEMU variants exit with (code << 1) | 1; harness should handle both.
+    outb(0xF4, code);
+    // If device not present, fall back to halt loop to avoid undefined behavior.
+    loop {
+        crate::arch::x86_64::cpu::halt();
+    }
+}

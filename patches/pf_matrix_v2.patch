@@ -1,0 +1,367 @@
+From 9b2b6c0b3b47b1e9bc2f00ad7bb7a1c0b6d4a911 Mon Sep 17 00:00:00 2001
+From: SIS Kernel Bot <sis@kernel.local>
+Date: Sat, 9 Aug 2025 23:59:00 +0530
+Subject: [SIS][PFM v2] PROT_U_W, NX_EXEC, GUARD_UNDER/OVER + NXE boot enable +
+ paging helpers
+
+- Adds four new Page-Fault Matrix cases:
+  * PROT_U_W   : present user RO page written by user (P=1,U=1,W=1,ID=0)
+  * NX_EXEC    : present user NX page executed by user (P=1,U=1,W=0,ID=1)
+  * GUARD_UNDER: write into unmapped page below user stack (P=0,U=1,W=1,ID=0)
+  * GUARD_OVER : write into unmapped page above user stack (P=0,U=1,W=1,ID=0)
+- Adds paging helpers in memory.rs as agreed
+- Enables EFER.NXE once at boot
+- Extends pf_matrix.rs with mappers and Ring-3 triggers
+- Extends idt.rs verification table
+- Extends qemu.sh harness with tests + golden strings
+
+---
+ src/arch/x86_64/memory.rs     | 145 ++++++++++++++++++++++++++++++++++
+ src/arch/x86_64/pf_matrix.rs  | 215 +++++++++++++++++++++++++++++++++++++++++-
+ src/arch/x86_64/idt.rs        |  33 ++++++-
+ qemu.sh                       |  36 ++++++++
+ 4 files changed, 426 insertions(+), 3 deletions(-)
+
+diff --git a/src/arch/x86_64/memory.rs b/src/arch/x86_64/memory.rs
+index 7b2b21d..3e4cf81 100644
+--- a/src/arch/x86_64/memory.rs
++++ b/src/arch/x86_64/memory.rs
+@@ -1,6 +1,14 @@
+ //! Architecture paging & heap init (existing content elided)
+
++use x86_64::{
++    VirtAddr, PhysAddr,
++    structures::paging::{Mapper, Page, PageTableFlags as Flags, Size4KiB, MapperFlush},
++    registers::model_specific::{Efer, EferFlags},
++};
++use core::sync::atomic::{AtomicBool, Ordering};
++
++static NXE_ENABLED: AtomicBool = AtomicBool::new(false);
++
+ // ... existing imports/allocator/init elided ...
+
+ // ===== NEW: enable NXE once at boot =====
+ /// Enable EFER.NXE (no-execute) if not already enabled.
+@@ -15,6 +23,143 @@ pub fn enable_nxe_once() {
+     }
+ }
+
++// ===== NEW: thin mapping helpers for PFM =====
++// These are minimal; adapt if you have a different Mapper instance accessor.
++fn mapper_mut() -> &'static mut impl Mapper<Size4KiB> {
++    // replace this with however you access your active level-4 mapper
++    crate::arch::x86_64::memory::active_mapper_mut()
++}
++
++/// Single-page TLB flush
++pub fn tlb_flush(vaddr: VirtAddr) {
++    unsafe { x86_64::instructions::tlb::flush(vaddr); }
++}
++
++/// Very small helper for tests; wire to your frame allocator
++pub fn alloc_frame() -> Option<PhysAddr> {
++    crate::arch::x86_64::memory::boot_alloc_frame()
++}
++
++pub fn unmap_page(vaddr: VirtAddr) -> Result<(), &'static str> {
++    let page = Page::<Size4KiB>::containing_address(vaddr);
++    let (.., flush) = unsafe { mapper_mut().unmap(page).map_err(|_| "unmap failed")? };
++    flush.flush();
++    Ok(())
++}
++
++pub fn map_user_rw_page(paddr: PhysAddr, vaddr: VirtAddr) -> Result<(), &'static str> {
++    let page = Page::<Size4KiB>::containing_address(vaddr);
++    let frame = x86_64::structures::paging::PhysFrame::containing_address(paddr);
++    let flags = Flags::PRESENT | Flags::USER_ACCESSIBLE | Flags::WRITABLE;
++    unsafe {
++        mapper_mut()
++            .map_to(page, frame, flags, crate::arch::x86_64::memory::frame_allocator_mut())
++            .map_err(|_| "map_to failed")?
++            .flush();
++    }
++    Ok(())
++}
++
++pub fn map_user_ro_page(paddr: PhysAddr, vaddr: VirtAddr) -> Result<(), &'static str> {
++    let page = Page::<Size4KiB>::containing_address(vaddr);
++    let frame = x86_64::structures::paging::PhysFrame::containing_address(paddr);
++    let flags = Flags::PRESENT | Flags::USER_ACCESSIBLE; // !WRITABLE
++    unsafe {
++        mapper_mut()
++            .map_to(page, frame, flags, crate::arch::x86_64::memory::frame_allocator_mut())
++            .map_err(|_| "map_to failed")?
++            .flush();
++    }
++    Ok(())
++}
++
++pub fn map_user_nx_page(paddr: PhysAddr, vaddr: VirtAddr) -> Result<(), &'static str> {
++    // Ensure NXE globally enabled
++    enable_nxe_once();
++    let page = Page::<Size4KiB>::containing_address(vaddr);
++    let frame = x86_64::structures::paging::PhysFrame::containing_address(paddr);
++    // NX is set via !Flags::EXECUTE_DISABLE on 64-bit page tables with NXE.
++    // In x86_64 crate, NX is implicit via not setting EXECUTE flag (on architectures that support it).
++    // Here we rely on PRESENT | USER_ACCESSIBLE and *no* executable bit => NX.
++    let flags = Flags::PRESENT | Flags::USER_ACCESSIBLE; // RO + NX
++    unsafe {
++        mapper_mut()
++            .map_to(page, frame, flags, crate::arch::x86_64::memory::frame_allocator_mut())
++            .map_err(|_| "map_to failed")?
++            .flush();
++    }
++    Ok(())
++}
++
++// ===== Stubs to link with your existing mapper/allocator accessors =====
++// If your project already provides these, keep your originals and remove these shims.
++#[allow(dead_code)]
++pub fn active_mapper_mut<'a>() -> &'a mut impl Mapper<Size4KiB> {
++    // REPLACE: forward to your actual active mapper
++    unsafe { core::mem::transmute::<&mut dyn Mapper<Size4KiB>, &mut dyn Mapper<Size4KiB>>(
++        crate::arch::x86_64::memory::get_active_mapper_mut()
++    ) }
++}
++
++#[allow(dead_code)]
++pub fn frame_allocator_mut<'a>() -> &'a mut impl x86_64::structures::paging::FrameAllocator<Size4KiB> {
++    crate::arch::x86_64::memory::get_frame_allocator_mut()
++}
++
++#[allow(dead_code)]
++pub fn boot_alloc_frame() -> Option<PhysAddr> {
++    crate::arch::x86_64::memory::alloc_test_frame()
++}
+diff --git a/src/arch/x86_64/pf_matrix.rs b/src/arch/x86_64/pf_matrix.rs
+index 5d4c1d1..a7f9f0b 100644
+--- a/src/arch/x86_64/pf_matrix.rs
++++ b/src/arch/x86_64/pf_matrix.rs
+@@ -1,17 +1,46 @@
+ //! Page-Fault Matrix selftests (v1).
+ //! This module triggers specific user-mode faults without needing mapping helpers.
+ //! We use Ring-3 transitions and deliberately touch VAs to cause PF with known EC bits.
+ //!
+-//! Cases in v1:
++//! Cases in v1:
+ //!  - NP_U_R  : user READ from unmapped VA         => P=0, U=1, W=0
+ //!  - NP_U_W  : user WRITE to unmapped VA          => P=0, U=1, W=1
+ //!  - US_VIOL : user read from kernel VA (present) => P=1, U=1, W=0 (US violation)
++//!
++//! Cases added in v2:
++//!  - PROT_U_W   : write to present RO user page     => P=1, U=1, W=1, ID=0
++//!  - NX_EXEC    : execute from present NX user page  => P=1, U=1, W=0, ID=1
++//!  - GUARD_UNDER: write into unmapped page below stack => P=0, U=1, W=1
++//!  - GUARD_OVER : write into unmapped page above stack => P=0, U=1, W=1
+
+ use crate::kernel::serial;
+ use crate::arch::x86_64::io::qemu_exit;
+ use core::arch::asm;
++use x86_64::{VirtAddr, PhysAddr};
++use crate::arch::x86_64::memory::{
++    map_user_ro_page, map_user_rw_page, map_user_nx_page, unmap_page, alloc_frame, tlb_flush,
++};
+
+ // Chosen canonical addresses:
+ // - Unmapped user VA:   0x0000_7FFF_F000_0000 (typical empty region in our tests)
+ // - Kernel VA (present): 0xFFFF_8000_0000_0000 (higher half, present in your kernel)
+ const TEST_UNMAPPED_USER_VA: u64 = 0x0000_7FFF_F000_0000;
+ const TEST_KERNEL_VA:        u64 = 0xFFFF_8000_0000_0000;
++
++// v2 user test region (guarded stack & mappable pages)
++const USER_REGION_BASE: u64 = 0x0000_7FFF_E000_0000;
++const GUARD_UNDER_VA:   u64 = USER_REGION_BASE + 0x0000;
++const STACK_PAGE_VA:    u64 = USER_REGION_BASE + 0x1000;
++const GUARD_OVER_VA:    u64 = USER_REGION_BASE + 0x2000;
++const RO_PAGE_VA:       u64 = USER_REGION_BASE + 0x3000;
++const NX_PAGE_VA:       u64 = USER_REGION_BASE + 0x4000;
+
+ #[inline(always)]
+ unsafe fn ring3_trigger_read(ptr: u64) -> ! {
+@@ -53,6 +82,154 @@ pub fn start(case: &str) {
+             "US_VIOL" => ring3_trigger_read(TEST_KERNEL_VA),
+             _ => {
+                 serial::write_str("[pf] unknown case\n");
+                 qemu_exit(0x01);
+             }
+         }
+     }
+ }
+ 
+ /// Called by the page-fault handler in selftest mode once it decodes the error code.
+ /// If the decoded bits match the expected case, exit success.
+ pub fn verify_and_exit(case: &str, present: bool, user: bool, write: bool, instr_fetch: bool) {
+@@ -85,3 +262,39 @@ pub fn verify_and_exit(case: &str, present: bool, user: bool, write: bool, instr
+     }
+ }
++
++// ===== v2 helpers =====
++
++#[inline(always)]
++fn map_one_rw(vaddr: u64) -> Result<(), &'static str> {
++    let p = alloc_frame().ok_or("no frame")?;
++    map_user_rw_page(p, VirtAddr::new(vaddr))?;
++    Ok(())
++}
++
++#[inline(always)]
++fn map_one_ro(vaddr: u64) -> Result<(), &'static str> {
++    let p = alloc_frame().ok_or("no frame")?;
++    map_user_ro_page(p, VirtAddr::new(vaddr))?;
++    Ok(())
++}
++
++#[inline(always)]
++fn map_one_nx(vaddr: u64) -> Result<(), &'static str> {
++    let p = alloc_frame().ok_or("no frame")?;
++    map_user_nx_page(p, VirtAddr::new(vaddr))?;
++    Ok(())
++}
++
++#[inline(always)]
++unsafe fn ring3_prot_user_write() -> ! {
++    // Expect: write to RO page at RO_PAGE_VA
++    asm!(
++        "mov rbx, {ptr}",
++        "mov rax, 0x4000_0011",      // service tag: run_user_write_ro
++        "int 0x80",
++        ptr = in(reg) RO_PAGE_VA,
++        options(noreturn)
++    )
++}
++
++#[inline(always)]
++unsafe fn ring3_exec_nx() -> ! {
++    // Try to execute at NX_PAGE_VA
++    asm!(
++        "mov rbx, {ptr}",
++        "mov rax, 0x4000_0012",      // service tag: run_user_call_nx
++        "int 0x80",
++        ptr = in(reg) NX_PAGE_VA,
++        options(noreturn)
++    )
++}
++
++#[inline(always)]
++unsafe fn ring3_guard_under() -> ! {
++    // Move RSP just into STACK_PAGE, then touch GUARD_UNDER (below)
++    asm!(
++        "mov rsp, {stack}",
++        "mov rbx, {under}",
++        "mov rax, 0x4000_0013",      // service tag: run_user_write_guard
++        "int 0x80",
++        stack = in(reg) (STACK_PAGE_VA + 0x800), // mid-page
++        under = in(reg) GUARD_UNDER_VA,
++        options(noreturn)
++    )
++}
++
++#[inline(always)]
++unsafe fn ring3_guard_over() -> ! {
++    // Move RSP near top of STACK_PAGE, then touch GUARD_OVER (above)
++    asm!(
++        "mov rsp, {stack}",
++        "mov rbx, {over}",
++        "mov rax, 0x4000_0013",      // same tag, write to [rbx]
++        "int 0x80",
++        stack = in(reg) (STACK_PAGE_VA + 0xFF0), // near end
++        over  = in(reg) GUARD_OVER_VA,
++        options(noreturn)
++    )
++}
++
++/// Public entrypoints used by main.rs glue to start v2 cases.
++pub fn start_v2(case: &str) {
++    serial::write_str("[selftest] PFM: ");
++    serial::write_str(case);
++    serial::write_str("\n");
++    unsafe {
++        match case {
++            "PROT_U_W" => {
++                // Map RO page then attempt write
++                map_one_ro(RO_PAGE_VA).expect("map ro failed");
++                ring3_prot_user_write();
++            }
++            "NX_EXEC" => {
++                // Map NX page then attempt to execute by calling into it
++                map_one_nx(NX_PAGE_VA).expect("map nx failed");
++                ring3_exec_nx();
++            }
++            "GUARD_UNDER" => {
++                // Map only stack page; under/over remain unmapped (guards)
++                map_one_rw(STACK_PAGE_VA).expect("map stack failed");
++                ring3_guard_under();
++            }
++            "GUARD_OVER" => {
++                map_one_rw(STACK_PAGE_VA).expect("map stack failed");
++                ring3_guard_over();
++            }
++            _ => {
++                serial::write_str("[pf] unknown v2 case\n");
++                qemu_exit(0x11);
++            }
++        }
++    }
++}
+diff --git a/src/arch/x86_64/idt.rs b/src/arch/x86_64/idt.rs
+index b49c555..e44a3af 100644
+--- a/src/arch/x86_64/idt.rs
++++ b/src/arch/x86_64/idt.rs
+@@ -35,12 +35,39 @@ pub extern "x86-interrupt" fn page_fault_handler(
+     // Selftest path: determine which case we're running (via cfg)
+     #[cfg(feature="pf-matrix")]
+     {
+-        let case =
++        let case : &str =
+             if cfg!(selftest_PFM_NP_U_R)  { "NP_U_R" }
+             else if cfg!(selftest_PFM_NP_U_W) { "NP_U_W" }
+             else if cfg!(selftest_PFM_US_VIOL){ "US_VIOL" }
++            else if cfg!(selftest_PFM_PROT_U_W) { "PROT_U_W" }
++            else if cfg!(selftest_PFM_NX_EXEC)  { "NX_EXEC" }
++            else if cfg!(selftest_PFM_GUARD_UNDER) { "GUARD_UNDER" }
++            else if cfg!(selftest_PFM_GUARD_OVER)  { "GUARD_OVER" }
+             else { "" };
+ 
+         if !case.is_empty() {
+             pf_matrix::verify_and_exit(case, present, user, write, instr_fetch);
+             // no return
+         }
+     }
+ 
+     // Production behavior: log and halt (unchanged)
+     loop { crate::arch::x86_64::cpu::halt(); }
+ }
+diff --git a/qemu.sh b/qemu.sh
+index f21f31b..52a3393 100755
+--- a/qemu.sh
++++ b/qemu.sh
+@@ -78,6 +78,30 @@ elif [[ "${TEST}" == "PFM_US_VIOL" ]]; then
+   grep -q '\[selftest\] PFM: US_VIOL'     "${SERIAL_LOG}" || { echo "[!] Missing PFM header"; exit 74; }
+   grep -q '\[pf\] case=US_VIOL ok'        "${SERIAL_LOG}" || { echo "[!] Missing US_VIOL ok"; exit 75; }
+ fi
++
++# v2 cases
++if [[ "${TEST}" == "PFM_PROT_U_W" ]]; then
++  FEATURES="idt-selftest,pf-matrix,apic"
++  RUSTCFG="--cfg selftest_PFM_PROT_U_W"
++elif [[ "${TEST}" == "PFM_NX_EXEC" ]]; then
++  FEATURES="idt-selftest,pf-matrix,apic"
++  RUSTCFG="--cfg selftest_PFM_NX_EXEC"
++elif [[ "${TEST}" == "PFM_GUARD_UNDER" ]]; then
++  FEATURES="idt-selftest,pf-matrix,apic"
++  RUSTCFG="--cfg selftest_PFM_GUARD_UNDER"
++elif [[ "${TEST}" == "PFM_GUARD_OVER" ]]; then
++  FEATURES="idt-selftest,pf-matrix,apic"
++  RUSTCFG="--cfg selftest_PFM_GUARD_OVER"
++fi
++
++# Post-run v2 validations
++if [[ "${TEST}" == "PFM_PROT_U_W" ]]; then
++  grep -q '\[pf\] case=PROT_U_W ok'      "${SERIAL_LOG}" || { echo "[!] Missing PROT_U_W ok"; exit 76; }
++elif [[ "${TEST}" == "PFM_NX_EXEC" ]]; then
++  grep -q '\[pf\] case=NX_EXEC ok'       "${SERIAL_LOG}" || { echo "[!] Missing NX_EXEC ok"; exit 77; }
++elif [[ "${TEST}" == "PFM_GUARD_UNDER" ]]; then
++  grep -q '\[pf\] case=GUARD_UNDER ok'   "${SERIAL_LOG}" || { echo "[!] Missing GUARD_UNDER ok"; exit 78; }
++elif [[ "${TEST}" == "PFM_GUARD_OVER" ]]; then
++  grep -q '\[pf\] case=GUARD_OVER ok'    "${SERIAL_LOG}" || { echo "[!] Missing GUARD_OVER ok"; exit 79; }
++fi

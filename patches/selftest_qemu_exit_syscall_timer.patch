@@ -1,0 +1,250 @@
+From 13a3b8c9c0c44ec1b5f2f2f0cc7f99a3398b1234 Mon Sep 17 00:00:00 2001
+From: SIS Kernel Bot <sis@kernel.local>
+Date: Fri, 8 Aug 2025 23:59:00 +0530
+Subject: [SIS][SelfTest] QEMU exit, syscall ping, timer count, env-driven
+ selection; keep prod paths clean
+
+- Add qemu_exit() (isa-debug-exit at 0xF4) for instant CI pass/fail.
+- Handlers (DF/PF/GP/DIV0) call qemu_exit(...) before halting in selftest builds.
+- Syscall "ping" self-test path (ring0 trigger for now).
+- Timer self-test: count PIT ticks to N then exit.
+- Selftest selection via RUSTFLAGS: --cfg selftest_DF|PF|GP|DIV0|SYSCALL|TIMER
+- No impact on production builds.
+
+---
+diff --git a/src/arch/x86_64/io.rs b/src/arch/x86_64/io.rs
+index 8a1b1a1..1c2f0f0 100644
+--- a/src/arch/x86_64/io.rs
++++ b/src/arch/x86_64/io.rs
+@@ -1,5 +1,24 @@
+ //! Basic port I/O utilities.
+ 
++#[inline(always)]
++pub unsafe fn outb(port: u16, val: u8) {
++    core::arch::asm!("out dx, al", in("dx") port, in("al") val, options(nostack, preserves_flags));
++}
++
++/// Exit QEMU immediately via isa-debug-exit device at I/O port 0xF4.
++/// Use with `-device isa-debug-exit,iobase=0xf4,iosize=0x04`.
++/// Convention: 0x00 = success; non-zero = failure code.
++#[inline(always)]
++pub unsafe fn qemu_exit(code: u8) -> ! {
++    // Some QEMU variants exit with (code << 1) | 1; harness should handle both.
++    outb(0xF4, code);
++    // If device not present, fall back to halt loop to avoid undefined behavior.
++    loop {
++        crate::arch::x86_64::cpu::halt();
++    }
++}
++
+ pub unsafe fn inb(port: u16) -> u8 {
+     let val: u8;
+     core::arch::asm!("in al, dx", in("dx") port, out("al") val, options(nostack, preserves_flags));
+diff --git a/src/arch/x86_64/idt.rs b/src/arch/x86_64/idt.rs
+index b56a4f4..9c6b77b 100644
+--- a/src/arch/x86_64/idt.rs
++++ b/src/arch/x86_64/idt.rs
+@@ -1,6 +1,7 @@
+ //! Interrupt Descriptor Table (IDT) setup and handlers.
+ //! - All handlers use by-value `InterruptStackFrame` (compiler-compatible).
+ //! - No explicit return types on `extern "x86-interrupt"` functions.
+ //! - Double-fault registered via transmute to satisfy x86_64 crate `-> !` type.
++//! - In selftest builds, handlers call qemu_exit(code) before halting.
+ 
+ use x86_64::structures::idt::{
+     InterruptDescriptorTable,
+@@ -12,6 +13,7 @@ use x86_64::PrivilegeLevel;
+ use crate::arch::x86_64::{gdt, cpu};
+ use crate::kernel::{scheduler, syscall, serial};
+ use lazy_static::lazy_static;
++#[allow(unused_imports)] use crate::arch::x86_64::io::qemu_exit;
+ use pic8259::ChainedPics;
+ use spin::Mutex;
+ 
+@@ -84,6 +86,10 @@ extern "x86-interrupt" fn double_fault_handler(
+     _error_code: u64,
+ ) {
+     // Keep DF path tiny & deterministic; avoid formatted panic.
+     serial::write_str("[df] double fault — halting\n");
++    #[cfg(feature = "idt-selftest")]
++    unsafe {
++        qemu_exit(0x00); // success
++    }
+     loop { cpu::halt(); }
+ }
+ 
+@@ -93,6 +99,10 @@ extern "x86-interrupt" fn timer_interrupt_handler(
+ ) {
+     scheduler::tick();
+     unsafe { PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.as_u8()); }
++    #[cfg(all(feature = "idt-selftest", selftest_TIMER))]
++    if crate::kernel::scheduler::selftest_should_exit() {
++        unsafe { qemu_exit(0x00); } // success when N ticks reached
++    }
+ }
+ 
+ #[inline(always)]
+@@ -100,6 +110,10 @@ extern "x86-interrupt" fn divide_by_zero(
+ ) {
+     serial::write_str("[exc] divide-by-zero — halting\n");
++    #[cfg(feature = "idt-selftest")]
++    unsafe {
++        qemu_exit(0x00);
++    }
+     loop { cpu::halt(); }
+ }
+ 
+@@ -108,6 +122,10 @@ extern "x86-interrupt" fn gp_fault(
+     _stack_frame: InterruptStackFrame,
+     _error_code: u64
+ ) {
+     serial::write_str("[exc] general-protection-fault — halting\n");
++    #[cfg(feature = "idt-selftest")]
++    unsafe {
++        qemu_exit(0x00);
++    }
+     loop { cpu::halt(); }
+ }
+ 
+@@ -118,6 +136,10 @@ extern "x86-interrupt" fn page_fault(
+ ) {
+     use x86_64::registers::control::Cr2;
+     let _addr = Cr2::read(); // avoid formatting; keep deterministic
+     serial::write_str("[exc] page-fault — halting\n");
++    #[cfg(feature = "idt-selftest")]
++    unsafe {
++        qemu_exit(0x00);
++    }
+     loop { cpu::halt(); }
+ }
+ 
+@@ -125,6 +147,12 @@ extern "x86-interrupt" fn syscall_handler(
+     _stack_frame: InterruptStackFrame
+ ) {
+     // Minimal syscall dispatch; body lives in kernel::syscall
+     syscall::dispatch();
++    // Selftest: syscall "ping" expects the handler to run and then exit.
++    #[cfg(all(feature = "idt-selftest", selftest_SYSCALL))]
++    unsafe {
++        serial::write_str("[syscall] ping\n");
++        qemu_exit(0x00);
++    }
+ }
+diff --git a/src/arch/x86_64/idt_selftest.rs b/src/arch/x86_64/idt_selftest.rs
+index d2a11f3..4a221c0 100644
+--- a/src/arch/x86_64/idt_selftest.rs
++++ b/src/arch/x86_64/idt_selftest.rs
+@@ -1,6 +1,7 @@
+ //! IDT self-tests: deliberately trigger exceptions under controlled conditions.
+ //! Each test prints a clear serial banner, then triggers the exception.
+ //! Handlers should log and halt deterministically (no triple faults).
+ //! Feature-gated behind `idt-selftest`.
++//! Selection: RUSTFLAGS="--cfg selftest_TAG" with TAG in {DIV0,GP,PF,DF,SYSCALL,TIMER}
+ #![allow(dead_code)]
+ 
+ use crate::kernel::serial;
+@@ -54,6 +55,22 @@ pub fn trigger_page_fault() -> ! {
+     }
+ }
+ 
++/// Trigger: Syscall (int 0x80) from ring0 (handler & exit prove path).
++#[inline(never)]
++pub fn trigger_syscall_ping() -> ! {
++    banner("[selftest] about to trigger SYSCALL ping");
++    unsafe {
++        core::arch::asm!("int 0x80", options(nostack, preserves_flags));
++        // handler will qemu_exit(0x00). If we return here, fall back to halt.
++        core::arch::asm!("hlt");
++        loop { core::arch::asm!("hlt"); }
++    }
++}
++
++// TIMER self-test is driven by the PIT ISR. Here we just print a banner and idle.
++#[inline(never)]
++pub fn trigger_timer_wait() -> ! { banner("[selftest] about to wait for TIMER ticks"); loop { crate::arch::x86_64::cpu::halt(); } }
++
+ /// Trigger: Double Fault (#DF) via stack overflow recursion.
+ /// With DF IST configured, this should land in DF handler and halt.
+ #[inline(never)]
+@@ -82,6 +99,8 @@ pub fn run_one(tag: &str) -> ! {
+         "DIV0" => trigger_divide_by_zero(),
+         "GP"   => trigger_gp_fault(),
+         "PF"   => trigger_page_fault(),
++        "SYSCALL" => trigger_syscall_ping(),
++        "TIMER"   => trigger_timer_wait(),
+         "DF"   => trigger_double_fault(),
+         _      => {
+             serial::write_str("[selftest] unknown tag\n");
+@@ -93,5 +112,19 @@ pub fn run_one(tag: &str) -> ! {
+ /// Run in sequence; useful for quick manual testing. First one halts the CPU.
+ pub fn run_sequence() -> ! {
+-    run_one("DF")
++    // Env-driven selection (via RUSTFLAGS --cfg selftest_TAG).
++    #[cfg(selftest_DIV0)] { return run_one("DIV0"); }
++    #[cfg(selftest_GP)]   { return run_one("GP"); }
++    #[cfg(selftest_PF)]   { return run_one("PF"); }
++    #[cfg(selftest_SYSCALL)] { return run_one("SYSCALL"); }
++    #[cfg(selftest_TIMER)]   { return run_one("TIMER"); }
++    // Default if none specified:
++    run_one("DF")
+ }
+diff --git a/src/kernel/scheduler.rs b/src/kernel/scheduler.rs
+index 2bc9e0a..f1c24b3 100644
+--- a/src/kernel/scheduler.rs
++++ b/src/kernel/scheduler.rs
+@@ -1,7 +1,29 @@
+ //! Simple round-robin scheduler (skeleton).
+ use crate::kernel::serial;
+ 
++#[cfg(all(feature = "idt-selftest", selftest_TIMER))]
++static mut TICK_COUNT: core::sync::atomic::AtomicU64 = core::sync::atomic::AtomicU64::new(0);
++
+ pub fn tick() {
+     // Called from PIT ISR
+     serial::write_str("⏳");
++    #[cfg(all(feature = "idt-selftest", selftest_TIMER))]
++    unsafe {
++        use core::sync::atomic::Ordering;
++        let n = TICK_COUNT.fetch_add(1, Ordering::SeqCst) + 1;
++        if (n % 10) == 0 {
++            serial::write_str("[tick] n=10\n");
++        }
++    }
+ }
++
++#[cfg(all(feature = "idt-selftest", selftest_TIMER))]
++#[inline(always)]
++pub fn selftest_should_exit() -> bool {
++    unsafe {
++        use core::sync::atomic::Ordering;
++        TICK_COUNT.load(Ordering::SeqCst) >= 10
++    }
++}
++
+diff --git a/src/main.rs b/src/main.rs
+index 8e565c1..b478a20 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -69,6 +69,7 @@ pub extern "C" fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
+     // Optional IDT self-tests (feature-gated). Each test halts after triggering.
+     // Choose which test to run inside idt_selftest::run_sequence() or call run_one("TAG").
+     #[cfg(feature = "idt-selftest")]
+     {
+         serial::write_str("[selftest] starting IDT self-tests...\n");
+         // By default, run the DF test. Edit to run GP/PF/DIV0 as needed.
+         arch_selftest::idt_selftest::run_sequence();
+     }
+ 
+diff --git a/src/kernel/syscall.rs b/src/kernel/syscall.rs
+index 4f1a0c0..a7e9f7d 100644
+--- a/src/kernel/syscall.rs
++++ b/src/kernel/syscall.rs
+@@ -1,7 +1,16 @@
+ //! Minimal syscall dispatch.
+ use crate::kernel::serial;
+ 
+ pub fn dispatch() {
+     serial::write_str("[syscall] dispatch\n");
++    // Add handlers here; for self-test, the IDT handler emits [syscall] ping and exits.
+ }
++
