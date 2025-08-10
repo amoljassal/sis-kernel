@@ -56,6 +56,18 @@ START_MS=$(_now_ms)
 COMMON=(-nographic -serial file:"$SERIAL_LOG" -no-reboot -no-shutdown -m "$MEM" -smp "$SMP" \
         -device isa-debug-exit,iobase=0xf4,iosize=0x04 -display none)
 
+# Add Intel IOMMU device for IOMMU feature testing
+if [[ "$FEATURES" == *"iommu"* ]]; then
+    COMMON+=(-device intel-iommu,intremap=on)
+    echo "[harness] Intel IOMMU enabled for testing"
+fi
+
+# Add e1000 device for VFIO feature testing
+if [[ "$FEATURES" == *"vfio"* ]]; then
+    COMMON+=(-device e1000,netdev=net0 -netdev user,id=net0)
+    echo "[harness] e1000 device enabled for VFIO testing"
+fi
+
 # Add KVM acceleration if available
 if [[ -r /dev/kvm && -w /dev/kvm ]]; then
     COMMON+=(-enable-kvm -cpu host)

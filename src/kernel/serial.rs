@@ -76,3 +76,56 @@ pub fn write_u64(mut val: u64) {
     
     write_buf(&buf[i..]);
 }
+
+/// Convert a nibble (4 bits) to hex character
+fn nibble_to_hex(n: u8) -> u8 {
+    match n & 0xF {
+        0..=9 => b'0' + (n & 0xF),
+        10..=15 => b'A' + ((n & 0xF) - 10),
+        _ => b'?',
+    }
+}
+
+/// Write an 8-bit value as hex to the serial port.
+pub fn write_hex8(val: u8) {
+    let hi = nibble_to_hex(val >> 4);
+    let lo = nibble_to_hex(val);
+    write_char(hi);
+    write_char(lo);
+}
+
+/// Write a 16-bit value as hex to the serial port.
+pub fn write_hex16(val: u16) {
+    write_hex8((val >> 8) as u8);
+    write_hex8(val as u8);
+}
+
+/// Write a 32-bit value as hex to the serial port.
+pub fn write_hex32(val: u32) {
+    write_hex16((val >> 16) as u16);
+    write_hex16(val as u16);
+}
+
+/// Write a 64-bit value as hex to the serial port.
+pub fn write_hex64(val: u64) {
+    write_hex32((val >> 32) as u32);
+    write_hex32(val as u32);
+}
+
+/// Write formatted output to the serial port.
+pub fn write_fmt(args: core::fmt::Arguments) -> Result<(), core::fmt::Error> {
+    use core::fmt::Write;
+    
+    // Simple buffer-based formatter
+    struct SerialWriter;
+    
+    impl Write for SerialWriter {
+        fn write_str(&mut self, s: &str) -> core::fmt::Result {
+            write_str(s);
+            Ok(())
+        }
+    }
+    
+    let mut writer = SerialWriter;
+    writer.write_fmt(args)
+}

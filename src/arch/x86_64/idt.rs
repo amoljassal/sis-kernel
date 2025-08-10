@@ -16,11 +16,18 @@ use crate::kernel::{scheduler, syscall, serial};
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin::Mutex;
+use core::sync::atomic::{AtomicU32, Ordering};
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
 pub static PICS: Mutex<ChainedPics> = Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
+
+// Phase 5C-B: VFIO interrupt tracking
+#[cfg(feature = "vfio")]
+static VFIO_IRQ_COUNTER: AtomicU32 = AtomicU32::new(0);
+#[cfg(feature = "vfio")]
+pub const VFIO_IRQ_VECTOR: u8 = 0x5E;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -72,6 +79,24 @@ lazy_static! {
 
 pub fn init_idt() {
     IDT.load();
+}
+
+// Phase 5C-B: Install VFIO ISR at vector 0x5E
+#[cfg(feature = "vfio")]
+pub fn install_vfio_isr(vector: u8) {
+    // Validate vector matches our expectation
+    if vector != VFIO_IRQ_VECTOR {
+        serial::write_str("[vfio-isr] Warning: vector mismatch, using 0x5E\n");
+    }
+    
+    // Install VFIO ISR directly into IDT at vector 0x5E
+    unsafe {
+        use x86_64::structures::idt::InterruptDescriptorTable;
+        let idt_ptr = &IDT as *const InterruptDescriptorTable as *mut InterruptDescriptorTable;
+        (*idt_ptr)[VFIO_IRQ_VECTOR as usize].set_handler_fn(vfio_interrupt_handler);
+    }
+    
+    serial::write_str("[vfio-isr] ISR installed at vector 0x5E\n");
 }
 
 #[inline(always)]
@@ -293,4 +318,38 @@ extern "x86-interrupt" fn syscall_exit_handler(
     }
     // Fallback for non-selftest builds
     loop { cpu::halt(); }
+}
+
+// Phase 5C-B: VFIO MSI interrupt handler (vector 0x5E)
+#[cfg(feature = "vfio")]
+#[inline(always)]
+extern "x86-interrupt" fn vfio_interrupt_handler(
+    _stack_frame: InterruptStackFrame
+) {
+    // Increment interrupt counter
+    let count = VFIO_IRQ_COUNTER.fetch_add(1, Ordering::SeqCst);
+    
+    // Log breadcrumb with device BDF and counter
+    serial::write_str("[vfio-irq] vector 0x5E fired (dev 00:03.0) count=");
+    serial::write_u64((count + 1) as u64);
+    serial::write_str("\n");
+    
+    // Send EOI to LAPIC (always LAPIC for MSI)
+    #[cfg(feature = "apic")]
+    {
+        crate::arch::x86_64::apic::eoi();
+    }
+    #[cfg(not(feature = "apic"))]
+    {
+        // MSI requires LAPIC, but provide fallback for non-APIC builds
+        serial::write_str("[vfio-irq] Warning: MSI without APIC, no EOI sent\n");
+    }
+    
+    // Selftest exit condition: quit after first interrupt in selftest mode
+    // This allows the VFIO_MSI_SMOKE test to validate interrupt delivery
+    #[cfg(all(feature = "idt-selftest", selftest_VFIO_MSI_SMOKE))]
+    unsafe {
+        serial::write_str("[vfio-irq] Selftest exit: first MSI delivered successfully\n");
+        qemu_exit(0x00); // Success
+    }
 }

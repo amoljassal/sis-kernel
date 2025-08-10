@@ -1,29 +1,156 @@
-//! PCI enumeration and IOMMU stubs.
+//! PCI enumeration and VFIO-lite integration (Phase 5B).
 //!
-//! This module scans the PCI bus to locate GPU devices (class code
-//! 0x03) and logs their vendor and device IDs.  It assigns the
-//! first GPU to the Philosophy parent and the second GPU to the
-//! Technical parent.  In the future this module will configure the
-//! IOMMU and use VFIO to pass through GPUs to user space.
+//! This module provides PCI configuration space access and device
+//! enumeration for VFIO-lite passthrough. It maintains the original
+//! GPU scanning functionality while adding the new Phase 5B API.
 
-use crate::arch::x86_64::io;
-use crate::kernel::serial;
+use crate::arch::x86_64::io::{outl, inl};
+use crate::kernel::serial::{self, write_hex32};
+use core::fmt::Write;
 
+#[allow(dead_code)]
 const PCI_CONFIG_ADDRESS: u16 = 0xCF8;
+#[allow(dead_code)]
 const PCI_CONFIG_DATA:    u16 = 0xCFC;
 
 static mut GPU_COUNT: usize = 0;
 
-fn pci_config_read(bus: u8, device: u8, function: u8, offset: u8) -> u32 {
-    let address: u32 = 0x8000_0000
+// Phase 5B: Clean PCI config space interface
+#[inline(always)]
+fn cfg_addr(bus: u8, dev: u8, func: u8, off: u8) -> u32 {
+    let aligned = (off & !3) as u32;
+    (1u32 << 31)
         | ((bus as u32) << 16)
-        | ((device as u32) << 11)
-        | ((function as u32) << 8)
-        | ((offset as u32) & 0xFC);
-    unsafe {
-        io::outl(PCI_CONFIG_ADDRESS, address);
-        io::inl(PCI_CONFIG_DATA)
+        | ((dev as u32) << 11)
+        | ((func as u32) << 8)
+        | aligned
+}
+
+pub fn cfg_read32(bus: u8, dev: u8, func: u8, off: u8) -> u32 {
+    unsafe { outl(0xCF8, cfg_addr(bus, dev, func, off)); inl(0xCFC) }
+}
+
+pub fn cfg_write32(bus: u8, dev: u8, func: u8, off: u8, val: u32) {
+    unsafe { outl(0xCF8, cfg_addr(bus, dev, func, off)); outl(0xCFC, val); }
+}
+
+#[derive(Clone, Copy)]
+pub struct Bdf { pub bus: u8, pub dev: u8, pub func: u8 }
+
+#[derive(Clone, Copy)]
+pub struct PciId { pub vendor: u16, pub device: u16 }
+
+pub fn read_id(bdf: Bdf) -> PciId {
+    let v = cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x00);
+    PciId { vendor: (v & 0xFFFF) as u16, device: ((v >> 16) & 0xFFFF) as u16 }
+}
+
+pub fn read_bar0(bdf: Bdf) -> u64 {
+    let lo = cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x10);
+    let is_64 = (lo & 0b110) == 0b100;
+    let base_lo = (lo & !0xF) as u64;
+    if is_64 {
+        let hi = cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x14) as u64;
+        (hi << 32) | base_lo
+    } else { base_lo }
+}
+
+/// Check if BAR is I/O space (bit 0 = 1) vs MMIO (bit 0 = 0)
+pub fn bar_is_io_space(bdf: Bdf, bar_idx: u8) -> bool {
+    if bar_idx >= 6 { return false; }
+    let bar_offset = 0x10 + (bar_idx as u8 * 4);
+    let bar_val = cfg_read32(bdf.bus, bdf.dev, bdf.func, bar_offset);
+    (bar_val & 1) != 0
+}
+
+/// Get BAR size by writing all 1s and reading back
+pub fn get_bar_size(bdf: Bdf, bar_idx: u8) -> u32 {
+    if bar_idx >= 6 { return 0; }
+    let bar_offset = 0x10 + (bar_idx as u8 * 4);
+    
+    // Save original value
+    let original = cfg_read32(bdf.bus, bdf.dev, bdf.func, bar_offset);
+    
+    // Write all 1s to determine size
+    cfg_write32(bdf.bus, bdf.dev, bdf.func, bar_offset, 0xFFFFFFFF);
+    let size_mask = cfg_read32(bdf.bus, bdf.dev, bdf.func, bar_offset);
+    
+    // Restore original value
+    cfg_write32(bdf.bus, bdf.dev, bdf.func, bar_offset, original);
+    
+    // Calculate size (mask off type bits)
+    let masked = if (original & 1) != 0 {
+        // I/O space - mask off bottom 2 bits
+        size_mask & !0x3
+    } else {
+        // Memory space - mask off bottom 4 bits  
+        size_mask & !0xF
+    };
+    
+    if masked == 0 { return 0; }
+    (!masked) + 1
+}
+
+/// Walk PCI capability list to find MSI capability
+#[cfg(feature = "vfio")]
+pub fn find_msi_capability(bdf: Bdf) -> Option<u8> {
+    // Check if capabilities supported
+    let status = cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x04);
+    if (status & 0x00100000) == 0 {
+        return None; // No capabilities
     }
+    
+    // Get capabilities pointer
+    let cap_ptr = cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x34) as u8;
+    if cap_ptr == 0 { return None; }
+    
+    let mut ptr = cap_ptr;
+    let mut iterations = 0;
+    
+    // Walk capability list
+    while ptr != 0 && iterations < 16 {  // Prevent infinite loops
+        let cap_reg = cfg_read32(bdf.bus, bdf.dev, bdf.func, ptr);
+        let cap_id = (cap_reg & 0xFF) as u8;
+        let next_ptr = ((cap_reg >> 8) & 0xFF) as u8;
+        
+        match cap_id {
+            0x05 => {
+                // MSI capability found
+                serial::write_str("[vfio] msi@0x");
+                crate::kernel::serial::write_hex8(ptr);
+                serial::write_str("\n");
+                return Some(ptr);
+            },
+            _ => {
+                // Other capability, continue
+            }
+        }
+        
+        ptr = next_ptr;
+        iterations += 1;
+    }
+    
+    None
+}
+
+pub fn find_first_e1000() -> Option<Bdf> {
+    // With QEMU `-device e1000` the default is usually 00:03.0
+    for dev in 0..32u8 {
+        let bdf = Bdf { bus: 0, dev, func: 0 };
+        let id = read_id(bdf);
+        if id.vendor == 0x8086 {
+            // Classic e1000 device IDs often 0x100e under QEMU
+            serial::write_fmt(format_args!("[pci] probe 00:{:02x}.0 vendor=0x{:04x} device=0x{:04x}\n",
+                dev, id.vendor, id.device)).ok();
+            return Some(bdf);
+        }
+    }
+    None
+}
+
+// Legacy functions for backward compatibility
+fn pci_config_read(bus: u8, device: u8, function: u8, offset: u8) -> u32 {
+    cfg_read32(bus, device, function, offset)
 }
 
 fn nibble_to_hex(n: u8) -> u8 {
@@ -51,6 +178,59 @@ fn write_hex16(val: u16) {
 /// function would configure the IOMMU for passthrough.
 pub fn init() {
     serial::write_str("Scanning PCI bus for GPUs...\n");
+    
+    // Quick device discovery pass for diagnostics
+    #[cfg(feature = "vfio")]
+    {
+        serial::write_str("[vfio:list] Discovered PCI devices:\n");
+        for bus in 0..=2u8 {  // Scan first few buses for quick diagnostics
+            for dev in 0..32u8 {
+                let vendor_device = pci_config_read(bus, dev, 0, 0x00);
+                if vendor_device == 0xFFFF_FFFF { continue; }
+                let vendor = (vendor_device & 0xFFFF) as u16;
+                let device = ((vendor_device >> 16) & 0xFFFF) as u16;
+                
+                let bdf = Bdf { bus, dev, func: 0 };
+                
+                serial::write_str("  ");
+                write_hex8(bus);
+                serial::write_char(b':');
+                write_hex8(dev);
+                serial::write_str(".0 vendor=0x");
+                write_hex16(vendor);
+                serial::write_str(" device=0x");
+                write_hex16(device);
+                
+                // Show BAR0 info if present
+                let bar0 = read_bar0(bdf);
+                if bar0 != 0 {
+                    serial::write_str(" bar0=0x");
+                    write_hex16((bar0 >> 16) as u16);
+                    write_hex16((bar0 & 0xFFFF) as u16);
+                    
+                    let bar_size = get_bar_size(bdf, 0);
+                    if bar_size > 0 {
+                        serial::write_str(" size=0x");
+                        write_hex32(bar_size);
+                    }
+                    
+                    if bar_is_io_space(bdf, 0) {
+                        serial::write_str(" (I/O)");
+                    } else {
+                        serial::write_str(" (MMIO)");
+                    }
+                }
+                
+                // Check for MSI capability
+                if let Some(msi_offset) = find_msi_capability(bdf) {
+                    serial::write_str(" [msi-cap-ok]");
+                }
+                
+                serial::write_str("\n");
+            }
+        }
+    }
+    
     // Initialise VFIO subsystem if available
     match crate::kernel::vfio::init() {
         Ok(()) => serial::write_str("[PCI] VFIO initialised\n"),

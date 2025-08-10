@@ -26,3 +26,5 @@ pub mod as_isolation;
 pub mod ipc_selftest;
 #[cfg(feature = "scheduler")]
 pub mod scheduler_selftest;
+#[cfg(feature = "iommu")]
+pub mod iommu;

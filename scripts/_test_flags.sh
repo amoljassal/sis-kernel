@@ -47,6 +47,30 @@ case "${TEST:-}" in
     FEATURES_DEFAULT="ipc scheduler"
     ;;
 
+  # ---- IOMMU Phase 5A ----
+  IOMMU_PROBE|IOMMU_DENY_DEFAULT)
+    export RUSTFLAGS="--cfg selftest_${TEST}"
+    FEATURES_DEFAULT="iommu qemu-intel-iommu-sim"
+    ;;
+
+  # ---- VFIO Phase 5B ----
+  VFIO_BIND_E1000|VFIO_CFG_READ|VFIO_MAP_BAR|VFIO_IRQ_SETUP)
+    export RUSTFLAGS="--cfg selftest_${TEST}"
+    FEATURES_DEFAULT="vfio"
+    ;;
+
+  # ---- VFIO Phase 5C-A: Domain + DMA ----
+  VFIO_DOMAIN_CREATE|VFIO_DMA_STAGING)
+    export RUSTFLAGS="--cfg selftest_${TEST}"
+    FEATURES_DEFAULT="vfio qemu-intel-iommu-sim"
+    ;;
+
+  # ---- VFIO Phase 5C-B: MSI + ISR ----
+  VFIO_MSI_SMOKE)
+    export RUSTFLAGS="--cfg selftest_${TEST}"
+    FEATURES_DEFAULT="vfio apic idt-selftest"
+    ;;
+
   *)
     echo "error: unknown or missing TEST=… ($TEST)"; exit 2;;
 esac

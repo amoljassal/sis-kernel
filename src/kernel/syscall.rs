@@ -52,6 +52,34 @@ pub const SYS_VFS_OPEN: usize = 0x40;
 #[cfg(feature = "userland")]
 pub const SYS_VFS_READ: usize = 0x41;
 
+// Phase 5B: VFIO syscall numbers
+// NOTE: Using 0x50+ range to avoid conflicts with existing syscalls.
+// Future patches can add alias table if consolidation needed.
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_BIND: usize = 0x50;
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_CFG_READ: usize = 0x51;
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_CFG_WRITE: usize = 0x52;
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_MAP_BAR: usize = 0x53;
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_SETUP_IRQ: usize = 0x54;
+
+// Phase 5C-A: IOMMU domain syscalls  
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_DOMAIN_CREATE: usize = 0x55;
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_DOMAIN_MAP_STAGING: usize = 0x56;
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_ENABLE_BUSMASTER: usize = 0x57;
+
+// Phase 5C-B: MSI interrupt syscalls
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_MSI_ARM: usize = 0x58;
+#[cfg(feature = "vfio")]
+pub const SYS_VFIO_MSI_DISARM: usize = 0x59;
+
 pub fn init() {
     unsafe {
         for slot in SYSCALL_TABLE.iter_mut() {
@@ -81,6 +109,36 @@ pub fn init() {
             SYSCALL_TABLE[SYS_WAIT] = Some(sys_wait);
             SYSCALL_TABLE[SYS_VFS_OPEN] = Some(sys_vfs_open);
             SYSCALL_TABLE[SYS_VFS_READ] = Some(sys_vfs_read);
+        }
+        
+        // Phase 5B: VFIO syscalls
+        #[cfg(feature = "vfio")]
+        {
+            SYSCALL_TABLE[SYS_VFIO_BIND] = Some(sys_vfio_bind);
+            SYSCALL_TABLE[SYS_VFIO_CFG_READ] = Some(sys_vfio_cfg_read);
+            SYSCALL_TABLE[SYS_VFIO_CFG_WRITE] = Some(sys_vfio_cfg_write);
+            SYSCALL_TABLE[SYS_VFIO_MAP_BAR] = Some(sys_vfio_map_bar);
+            SYSCALL_TABLE[SYS_VFIO_SETUP_IRQ] = Some(sys_vfio_setup_irq);
+            
+            // Phase 5C-A: Domain management syscalls
+            SYSCALL_TABLE[SYS_VFIO_DOMAIN_CREATE] = Some(sys_vfio_domain_create);
+            SYSCALL_TABLE[SYS_VFIO_DOMAIN_MAP_STAGING] = Some(sys_vfio_domain_map_staging);
+            SYSCALL_TABLE[SYS_VFIO_ENABLE_BUSMASTER] = Some(sys_vfio_enable_busmaster);
+            
+            // Phase 5C-B: MSI interrupt syscalls
+            SYSCALL_TABLE[SYS_VFIO_MSI_ARM] = Some(sys_vfio_msi_arm);
+            SYSCALL_TABLE[SYS_VFIO_MSI_DISARM] = Some(sys_vfio_msi_disarm);
+        }
+    }
+}
+
+/// Manual syscall dispatch for kernel-space testing
+pub fn dispatch_manual(num: u64, arg0: u64, arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64) {
+    unsafe {
+        if let Some(handler) = SYSCALL_TABLE.get(num as usize).and_then(|h| *h) {
+            handler(arg0, arg1, arg2, arg3, arg4, arg5);
+        } else {
+            serial::write_str("[syscall] Invalid syscall number\n");
         }
     }
 }
@@ -669,4 +727,145 @@ fn sys_vfs_read(fd: u64, buf_ptr: u64, len: u64, _a3: u64, _a4: u64, _a5: u64) {
     serial::write_str("[sys_vfs_read] Read request for ");
     serial::write_u64(len);
     serial::write_str(" bytes\n");
+}
+
+// Phase 5B: VFIO syscall implementations
+#[cfg(feature = "vfio")]
+fn sys_vfio_bind(bus: u64, dev: u64, func: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_bind_device(bus as u8, dev as u8, func as u8) {
+        Ok(handle) => {
+            serial::write_str("[sys_vfio_bind] Device bound, handle=0x");
+            serial::write_hex16(handle.as_u16());
+            serial::write_str("\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_bind] Device binding failed\n");
+        }
+    }
+}
+
+#[cfg(feature = "vfio")]
+fn sys_vfio_cfg_read(handle: u64, offset: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_cfg_read(handle as u16, offset as u8) {
+        Ok(value) => {
+            serial::write_str("[sys_vfio_cfg_read] Read 0x");
+            serial::write_hex32(value);
+            serial::write_str(" from offset 0x");
+            serial::write_hex8(offset as u8);
+            serial::write_str("\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_cfg_read] Config read failed\n");
+        }
+    }
+}
+
+#[cfg(feature = "vfio")]
+fn sys_vfio_cfg_write(handle: u64, offset: u64, value: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_cfg_write(handle as u16, offset as u8, value as u32) {
+        Ok(()) => {
+            serial::write_str("[sys_vfio_cfg_write] Wrote 0x");
+            serial::write_hex32(value as u32);
+            serial::write_str(" to offset 0x");
+            serial::write_hex8(offset as u8);
+            serial::write_str("\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_cfg_write] Config write failed\n");
+        }
+    }
+}
+
+#[cfg(feature = "vfio")]
+fn sys_vfio_map_bar(handle: u64, bar_idx: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_map_bar(handle as u16, bar_idx as u8) {
+        Ok(addr) => {
+            serial::write_str("[sys_vfio_map_bar] BAR mapped at 0x");
+            serial::write_hex64(addr);
+            serial::write_str("\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_map_bar] BAR mapping failed\n");
+        }
+    }
+}
+
+#[cfg(feature = "vfio")]
+fn sys_vfio_setup_irq(handle: u64, irq_num: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_setup_irq(handle as u16, irq_num as u8) {
+        Ok(()) => {
+            serial::write_str("[sys_vfio_setup_irq] IRQ setup completed\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_setup_irq] IRQ setup failed\n");
+        }
+    }
+}
+
+// Phase 5C-A: Domain management syscall handlers
+#[cfg(feature = "vfio")]
+fn sys_vfio_domain_create(handle: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_domain_create(handle as u16) {
+        Ok(domain_id) => {
+            serial::write_str("[sys_vfio_domain_create] Domain created, id=");
+            serial::write_hex16(domain_id);
+            serial::write_str("\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_domain_create] Domain creation failed\n");
+        }
+    }
+}
+
+#[cfg(feature = "vfio")]
+fn sys_vfio_domain_map_staging(handle: u64, len: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_domain_map_staging(handle as u16, len as u32) {
+        Ok(iova) => {
+            serial::write_str("[sys_vfio_domain_map_staging] Staging mapped at IOVA 0x");
+            serial::write_hex64(iova);
+            serial::write_str("\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_domain_map_staging] Staging mapping failed\n");
+        }
+    }
+}
+
+#[cfg(feature = "vfio")]
+fn sys_vfio_enable_busmaster(handle: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_enable_busmaster(handle as u16) {
+        Ok(()) => {
+            serial::write_str("[sys_vfio_enable_busmaster] Bus master enabled\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_enable_busmaster] Bus master enable failed\n");
+        }
+    }
+}
+
+// Phase 5C-B: MSI interrupt syscall handlers
+#[cfg(feature = "vfio")]
+fn sys_vfio_msi_arm(handle: u64, vector: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_msi_arm(handle as u16, vector as u8) {
+        Ok(()) => {
+            serial::write_str("[sys_vfio_msi_arm] MSI armed for vector 0x");
+            serial::write_hex8(vector as u8);
+            serial::write_str("\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_msi_arm] MSI arming failed\n");
+        }
+    }
+}
+
+#[cfg(feature = "vfio")]
+fn sys_vfio_msi_disarm(handle: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::vfio::syscall_msi_disarm(handle as u16) {
+        Ok(()) => {
+            serial::write_str("[sys_vfio_msi_disarm] MSI disarmed\n");
+        },
+        Err(_) => {
+            serial::write_str("[sys_vfio_msi_disarm] MSI disarming failed\n");
+        }
+    }
 }

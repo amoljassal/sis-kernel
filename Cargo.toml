@@ -35,6 +35,9 @@ per-task-mm = []
 ipc = []                # Phase 2: IPC + capability tables (feature-gated)
 scheduler = []          # Phase 3: preemptive scheduler + wait queues (feature-gated)
 userland = []           # Phase 4: userland boot + VFS + minimal services (feature-gated)
+iommu = []              # Phase 5A: IOMMU detection + deny-all policy (feature-gated)
+qemu-intel-iommu-sim = [] # Phase 5A: QEMU Intel IOMMU simulation for testing
+vfio = ["iommu"]        # Phase 5B: VFIO-lite minimal passthrough (depends on IOMMU)
 
 [build-dependencies]
 # Host-side tool that builds UEFI/BIOS images (0.10.x for immediate unblock)
