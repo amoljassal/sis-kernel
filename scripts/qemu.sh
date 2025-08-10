@@ -41,9 +41,18 @@ if [[ "$BOOT" == "auto" ]]; then
 fi
 echo "[harness] BOOT=$BOOT"
 
-# 4) QEMU common flags (headless, serial log, isa-debug-exit, KVM if available)
+# Enhanced diagnostics
 SERIAL_LOG="$OUT/qemu-serial.log"
 rm -f "$SERIAL_LOG"
+
+# Simple timer (ms)
+_now_ms() { date +%s%3N 2>/dev/null || python3 - <<'PY'
+import time; print(int(time.time()*1000))
+PY
+}
+START_MS=$(_now_ms)
+
+# 4) QEMU common flags (headless, serial log, isa-debug-exit, KVM if available)
 COMMON=(-nographic -serial file:"$SERIAL_LOG" -no-reboot -no-shutdown -m "$MEM" -smp "$SMP" \
         -device isa-debug-exit,iobase=0xf4,iosize=0x04 -display none)
 
@@ -68,28 +77,67 @@ QEMU_BIN="${QEMU_BIN:-qemu-system-x86_64}"
 
 echo "[harness] timeout set to ${TIMEOUT}s"
 
+# Build QEMU command based on boot mode
 if [[ "$BOOT" == "uefi" ]]; then
   echo "[harness] launching QEMU (UEFI)…"
   if [[ -f "$UEFI_IMAGE" ]]; then
     echo "[harness] using UEFI disk image: $UEFI_IMAGE"
-    exec timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" \
+    QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" \
       -drive if=pflash,format=raw,unit=0,readonly=on,file="$OVMF_CODE" \
       -drive if=pflash,format=raw,unit=1,file="$OVMF_VARS" \
-      -drive format=raw,file="$UEFI_IMAGE"
+      -drive format=raw,file="$UEFI_IMAGE")
   else
     echo "[harness] UEFI image not found, falling back to direct kernel boot"
-    exec timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" \
+    QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" \
       -drive if=pflash,format=raw,unit=0,readonly=on,file="$OVMF_CODE" \
       -drive if=pflash,format=raw,unit=1,file="$OVMF_VARS" \
-      -kernel "$KERNEL"
+      -kernel "$KERNEL")
   fi
 else
   echo "[harness] launching QEMU (BIOS)…"
   if [[ -f "$BIOS_IMAGE" ]]; then
     echo "[harness] using BIOS disk image: $BIOS_IMAGE"
-    exec timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" -drive format=raw,file="$BIOS_IMAGE"
+    QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" -drive format=raw,file="$BIOS_IMAGE")
   else
     echo "[harness] BIOS image not found, trying direct kernel boot"
-    exec timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" -kernel "$KERNEL" -append ""
+    QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" -kernel "$KERNEL" -append "")
   fi
+fi
+
+echo "[qemu.sh] QEMU command:"
+printf ' %q' "${QEMU_CMD[@]}"; echo
+echo "[qemu.sh] Launching..."
+
+# Run QEMU and capture exit
+set +e
+"${QEMU_CMD[@]}"
+RET=$?
+set -e
+
+END_MS=$(_now_ms)
+ELAPSED=$(( END_MS - START_MS ))
+
+# Basic classification helpers
+banner_ok=0
+golden_ok=0
+grep -q "=== SIS KERNEL ENTRY ===" "$SERIAL_LOG" && banner_ok=1 || true
+grep -q "\[PASS:" "$SERIAL_LOG" && golden_ok=1 || true
+
+classification="unknown"
+if [[ $banner_ok -eq 0 ]]; then
+  classification="pre-entry"
+elif [[ $golden_ok -eq 0 ]]; then
+  classification="post-entry-pre-exit"
+else
+  classification="golden-mismatch"
+fi
+
+echo "[qemu.sh] timing: {\"test\":\"${TEST:-unknown}\",\"elapsed_ms\":$ELAPSED}" | tee -a "$SERIAL_LOG"
+
+if [[ $RET -ne 0 ]]; then
+  echo "[qemu.sh] QEMU exit code: $RET"
+  echo "[qemu.sh] failure-classification: $classification"
+  echo "[qemu.sh] tail(200) of serial log:"
+  tail -n 200 "$SERIAL_LOG" || true
+  exit $RET
 fi

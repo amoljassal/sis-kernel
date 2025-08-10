@@ -9,14 +9,17 @@ jobs:
     name: USR_* (${{ matrix.test }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    
+    env:
+      # Make warnings fail in clippy; normal build/test can stay permissive if you want.
+      CARGO_TERM_COLOR: always
 
     strategy:
       fail-fast: false
       matrix:
         test: [USR_INIT, USR_SPAWN_TWO, USR_ELF_EDGES, USR_VFS_NEG]
 
-    env:
-      RUST_TOOLCHAIN: nightly
+      RUST_TOOLCHAIN: nightly-2024-12-15
       FEATURES: userland
       TEST: ${{ matrix.test }}
       TIMEOUT: "40"          # seconds; bump if needed
@@ -25,25 +28,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache cargo registry + target
-        uses: actions/cache@v4
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          cache-on-failure: true
 
-      - name: Install Rust nightly + components
+      - name: Install Rust (pinned nightly + components)
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-          components: rust-src, llvm-tools-preview
+          toolchain: nightly-2024-12-15
+          components: rust-src, llvm-tools-preview, clippy, rustfmt
 
-      - name: Install bootimage (0.10.x compatible)
-        run: cargo install bootimage
+      - name: Install bootimage (pinned)
+        run: cargo install bootimage --version 0.10.3 --locked
+
+      # --- QUALITY GATES ---
+      - name: rustfmt (workspace)
+        run: cargo fmt --all -- --check
+
+        # Clippy may need features to see kernel paths. We lint the default profile
+        # (no tests) for speed; you can add more feature sets later if desired.
+      - name: clippy (deny warnings)
+        run: RUSTFLAGS="-D warnings" cargo clippy --all-targets --no-deps
 
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
@@ -70,3 +76,85 @@ jobs:
         with:
           name: serial-${{ matrix.test }}
           path: out/qemu-serial.log
+
+  # === READY-TO-FLIP JOBS ===
+  # Uncomment any of these blocks when the corresponding paths are green locally.
+
+  # apic-lapic-suite:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       test: [USR_INIT_APIC, LAPIC_TIMER]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: dtolnay/rust-toolchain@master
+  #       with:
+  #         toolchain: nightly-2024-12-15
+  #         components: rust-src, llvm-tools-preview
+  #     - uses: Swatinem/rust-cache@v2
+  #       with: { cache-on-failure: true }
+  #     - run: cargo install bootimage --version 0.10.3 --locked
+  #     - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
+  #     - name: Build bootimage (APIC features)
+  #       run: cargo bootimage --features userland,apic
+  #     - name: Run QEMU (APIC features)
+  #       env:
+  #         FEATURES: "userland,apic"
+  #       run: TEST=${{ matrix.test }} FEATURES="$FEATURES" ./scripts/qemu.sh
+  #     - if: always()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: serial-apic-${{ matrix.test }}
+  #         path: out/qemu-serial.log
+
+  # smp-suite:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: dtolnay/rust-toolchain@master
+  #       with:
+  #         toolchain: nightly-2024-12-15
+  #     - uses: Swatinem/rust-cache@v2
+  #       with: { cache-on-failure: true }
+  #     - run: cargo install bootimage --version 0.10.3 --locked
+  #     - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
+  #     - name: Build bootimage (-smp 2)
+  #       run: cargo bootimage --features userland,apic,smp
+  #     - name: Run QEMU (-smp 2)
+  #       env:
+  #         FEATURES: "userland,apic,smp"
+  #       run: TEST=SMP_2 FEATURES="$FEATURES" SMP=2 ./scripts/qemu.sh
+  #     - if: always()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: serial-smp
+  #         path: out/qemu-serial.log
+
+  # pfm-suite:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       test: [PFM_NP_U_R, PFM_NP_U_W, PFM_US_VIOL, PFM_PROT_U_W, PFM_NX_EXEC, PFM_GUARD_UNDER, PFM_GUARD_OVER]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: dtolnay/rust-toolchain@master
+  #       with:
+  #         toolchain: nightly-2024-12-15
+  #         components: rust-src, llvm-tools-preview
+  #     - uses: Swatinem/rust-cache@v2
+  #       with: { cache-on-failure: true }
+  #     - run: cargo install bootimage --version 0.10.3 --locked
+  #     - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
+  #     - name: Build bootimage (PFM features)
+  #       run: cargo bootimage --features userland,per-task-mm,ipc,scheduler
+  #     - name: Run QEMU (PFM features)
+  #       env:
+  #         FEATURES: "userland,per-task-mm,ipc,scheduler"
+  #       run: TEST=${{ matrix.test }} FEATURES="$FEATURES" ./scripts/qemu.sh
+  #     - if: always()
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: serial-pfm-${{ matrix.test }}
+  #         path: out/qemu-serial.log

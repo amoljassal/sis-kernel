@@ -1,4 +1,6 @@
 [toolchain]
-channel = "nightly"
-components = ["rust-src", "llvm-tools-preview", "cargo"]
+# Pin to a known-good nightly. If CI images don't have this exact build,
+# bump to the latest nightly that still compiles your tree.
+channel = "nightly-2024-12-15"
+components = ["rust-src", "llvm-tools-preview", "clippy", "rustfmt"]
 targets = ["x86_64-unknown-none"]
