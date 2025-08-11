@@ -69,6 +69,25 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         
         // Continue with full kernel initialization - placeholder for now
         serial::write_str("[kernel] memory initialized, entering main loop\n");
+        
+        // VFIO Phase 5B selftest entry points
+        #[cfg(all(feature = "vfio", selftest_VFIO_BIND_E1000))]
+        {
+            serial::write_str("[selftest] starting VFIO_BIND_E1000 test...\n");
+            match crate::kernel::user::selftest::run_vfio_bind_e1000() {
+                Ok(_) => {
+                    serial::write_str("[PASS: VFIO_BIND_E1000] Device binding successful\n");
+                    unsafe { crate::arch::x86_64::qemu_exit(0x00); } // success
+                },
+                Err(e) => {
+                    serial::write_str("[FAIL: VFIO_BIND_E1000] ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                    unsafe { crate::arch::x86_64::qemu_exit(0x01); } // failure
+                }
+            }
+        }
+        
         loop { arch_x86::cpu::halt(); }
     }
 }

@@ -67,9 +67,9 @@ START_MS=$(_now_ms)
 COMMON=(-nographic -serial file:"$SERIAL_LOG" -no-reboot -no-shutdown -m "$MEM" -smp "$SMP" \
         -device isa-debug-exit,iobase=0xf4,iosize=0x04 -display none)
 
-# Add Intel IOMMU device for IOMMU feature testing
+# Add Intel IOMMU device for IOMMU feature testing (requires q35 machine)
 if [[ "$FEATURES" == *"iommu"* ]]; then
-    COMMON+=(-device intel-iommu,intremap=on)
+    COMMON+=(-machine q35 -machine kernel-irqchip=split -device intel-iommu,intremap=on)
     echo "[harness] Intel IOMMU enabled for testing"
 fi
 
