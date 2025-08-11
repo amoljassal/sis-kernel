@@ -9,10 +9,10 @@ edition = "2021"
 
 [dependencies]
 # Runtime API used by kernel entry point
-bootloader_api = { version = "0.11.11", default-features = false }
+bootloader_api = { version = "=0.11.11", default-features = false }
 # x86_64 architecture helpers for descriptor tables, paging and
 # control registers.
-x86_64 = { version = "0.14.9", default-features = false, features = ["instructions", "abi_x86_interrupt"] }
+x86_64 = { version = "=0.14.13", default-features = false, features = ["instructions", "abi_x86_interrupt"] }
 # Serial port driver for 16550 UARTs.
 uart_16550 = { version = "0.2.0", default-features = false }
 # Simple heap allocator used by this kernel.
@@ -27,6 +27,7 @@ bitflags = { version = "2.9.1", default-features = false }
 
 [features]
 default = []
+firewall = []           # Emergency isolation for compilation issues
 idt-selftest = []
 apic = []
 smp = []
@@ -41,6 +42,6 @@ vfio = ["iommu"]        # Phase 5B: VFIO-lite minimal passthrough (depends on IO
 
 [build-dependencies]
 # Builder used only from build.rs to create the disk image
-bootloader = { version = "0.11.11", default-features = false, features = ["bios"] }
+bootloader = { version = "=0.11.11", default-features = false, features = ["bios"] }
 
 # bootimage metadata removed - using build.rs with bootloader 0.11.x builder API
