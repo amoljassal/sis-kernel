@@ -64,7 +64,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     
     #[cfg(not(feature = "firewall"))]
     {
-        // Full implementation when firewall is disabled - placeholder for now
+        serial::write_str("=== FULL BOOT MODE - INITIALIZING MEMORY ===\n");
+        
+        // Initialize memory management
+        unsafe { crate::arch::x86_64::memory::init(boot_info); }
+        
+        // Continue with full kernel initialization - placeholder for now
+        serial::write_str("[kernel] memory initialized, entering main loop\n");
         loop { arch_x86::cpu::halt(); }
     }
 }

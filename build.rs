@@ -29,6 +29,10 @@ fn main() {
     let mut config = bootloader::BootConfig::default();
     config.serial_logging = true;
     
+    // Configure frame buffer
+    config.frame_buffer.minimum_framebuffer_height = Some(480);
+    config.frame_buffer.minimum_framebuffer_width = Some(640);
+    
     let mut bios = bootloader::BiosBoot::new(&kernel_elf);
     bios.set_boot_config(&config);
     bios.create_disk_image(&out_img)

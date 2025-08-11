@@ -9,7 +9,7 @@
 //! and dynamic allocation of page tables.
 
 use bootloader_api::{BootInfo, info::{MemoryRegion, MemoryRegionKind}};
-use x86_64::{structures::paging::{Page, PhysFrame, mapper::{MapperAllSizes, MapToError}, Mapper, PageTable, Size4KiB, FrameAllocator, OffsetPageTable, MappedPageTable, PageTableFlags}, VirtAddr, PhysAddr};
+use x86_64::{structures::paging::{Page, PhysFrame, mapper::{MapperAllSizes, MapToError, RecursivePageTable}, Mapper, PageTable, Size4KiB, FrameAllocator, OffsetPageTable, PageTableFlags}, VirtAddr, PhysAddr};
 use x86_64::registers::model_specific::{Efer, EferFlags};
 use x86_64::registers::control::Cr3;
 use linked_list_allocator::LockedHeap;
@@ -35,22 +35,23 @@ static PAGE_TABLE: Once<OffsetPageTable<'static>> = Once::new();
 /// function sets up an offset page table from the physical memory
 /// offset, initialises the frame allocator from the memory map and
 /// then sets up the heap in virtual memory.
+
 enum MapperAny<'a> { 
     Offset(OffsetPageTable<'a>), 
-    Rec(MappedPageTable<'a>) 
+    Rec(RecursivePageTable<'a>) 
 }
 
 unsafe fn init_mapper(boot: &BootInfo) -> MapperAny<'static> {
     let (l4_frame, _) = Cr3::read();
 
     if let Some(off) = boot.physical_memory_offset.into_option() {
-        let l4_ptr = (off + l4_frame.start_address().as_u64()).as_mut_ptr();
+        let l4_ptr = (off + l4_frame.start_address().as_u64()) as *mut PageTable;
         let l4 = &mut *l4_ptr;
         MapperAny::Offset(OffsetPageTable::new(l4, VirtAddr::new(off)))
-    } else if let Some(idx) = boot.recursive_index {
+    } else if let Some(idx) = boot.recursive_index.into_option() {
         let va = VirtAddr::new(((idx as u64) << 39) | ((idx as u64) << 30) | ((idx as u64) << 21) | ((idx as u64) << 12));
         let l4 = &mut *va.as_mut_ptr();
-        MapperAny::Rec(MappedPageTable::new(l4))
+        MapperAny::Rec(RecursivePageTable::new(l4).expect("RecursivePageTable::new failed"))
     } else {
         use crate::kernel::serial;
         serial::write_str("[mm] no phys_offset and no recursive_index\n");
@@ -66,7 +67,7 @@ pub unsafe fn init(boot_info: &mut BootInfo) {
     serial::write_str("[boot] phys_off=");
     match po { Some(v) => serial::write_hex64(v), None => serial::write_str("none") };
     serial::write_str(" rec_idx=");
-    match ri { Some(v) => serial::write_hex8(v), None => serial::write_str("none") };
+    match ri.into_option() { Some(v) => serial::write_hex8(v as u8), None => serial::write_str("none") };
     serial::write_str("\n");
     
     let mut frame_alloc = BootInfoFrameAllocator::init(&boot_info.memory_regions);
@@ -82,7 +83,7 @@ pub unsafe fn init(boot_info: &mut BootInfo) {
 }
 
 /// Initialise the recursive page table for bootloader 0.11.x
-unsafe fn init_recursive_page_table(recursive_index: u8) -> MappedPageTable<'static> {
+unsafe fn init_recursive_page_table(recursive_index: u8) -> RecursivePageTable<'static> {
     let l4_table_virt = VirtAddr::new(
         ((recursive_index as u64) << 39) | 
         ((recursive_index as u64) << 30) | 
@@ -90,7 +91,7 @@ unsafe fn init_recursive_page_table(recursive_index: u8) -> MappedPageTable<'sta
         ((recursive_index as u64) << 12)
     );
     let l4_table = &mut *l4_table_virt.as_mut_ptr();
-    MappedPageTable::new(l4_table)
+    RecursivePageTable::new(l4_table).expect("RecursivePageTable::new failed")
 }
 
 /// Initialise the offset page table.
@@ -182,7 +183,7 @@ fn init_heap_offset(mapper: &mut OffsetPageTable<'static>, frame_allocator: &mut
 }
 
 /// Initialise the heap using recursive page table mapping
-fn init_heap_recursive(mapper: &mut MappedPageTable<'static>, frame_allocator: &mut impl FrameAllocator<Size4KiB>) -> Result<(), MapToError<Size4KiB>> {
+fn init_heap_recursive(mapper: &mut RecursivePageTable<'static>, frame_allocator: &mut impl FrameAllocator<Size4KiB>) -> Result<(), MapToError<Size4KiB>> {
     // Same heap region as offset version
     let heap_start = VirtAddr::new(0xFFFF_FFC0_0000_0000);
     let heap_end   = heap_start + HEAP_SIZE - 1usize;
