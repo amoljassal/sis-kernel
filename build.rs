@@ -3,6 +3,9 @@ use std::{env, path::PathBuf};
 fn main() {
     // Ensure we rebuild image whenever the kernel binary changes
     println!("cargo:rerun-if-changed=build.rs");
+    
+    // Force build.rs to regenerate the image *every run*
+    println!("cargo:rerun-if-env-changed=FORCE_BOOTIMG");
 
     // Where cargo puts the compiled kernel ELF
     let target_dir = PathBuf::from(env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target".into()));
@@ -15,8 +18,9 @@ fn main() {
         .join(&profile)
         .join("sis_kernel");
 
-    // Output bootable image path
+    // Output bootable image paths
     let out_img = target_dir.join("boot-bios.img");
+    let final_img = PathBuf::from("out/sis-bios.img");
 
     // Make sure the kernel ELF exists before we call the builder
     if !kernel_elf.exists() {
@@ -36,6 +40,12 @@ fn main() {
     bios.create_disk_image(&out_img)
         .expect("failed to create BIOS disk image");
 
-    // Ensure the `target/boot-bios.img` exists for qemu.sh
+    // Copy to final location and ensure parent directory exists
+    std::fs::create_dir_all(final_img.parent().unwrap()).unwrap();
+    std::fs::copy(&out_img, &final_img)
+        .expect("failed to copy BIOS image to final location");
+
+    // Ensure the images exist for qemu.sh
     println!("cargo:warning=Bootable BIOS image written to {}", out_img.display());
+    println!("cargo:warning=Final BIOS image copied to {}", final_img.display());
 }

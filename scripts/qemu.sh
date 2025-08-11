@@ -17,21 +17,36 @@ export TIMEOUT="${TIMEOUT:-30}"    # configurable timeout in seconds
 source "$HERE/_test_flags.sh"
 echo "[harness] TEST=$TEST FEATURES='$FEATURES' RUSTFLAGS='$RUSTFLAGS'"
 
-# 2) Build kernel (debug, headless) and create bootable image using build.rs
+# 2) Force build.rs to regenerate the image *every run*
+export FORCE_BOOTIMG="$(date +%s)"
+echo "[harness] FORCE_BOOTIMG=$FORCE_BOOTIMG (ensures fresh image)"
+
+# Clean just the bootloader & previous image to avoid stale artifacts
+cargo clean -p bootloader &>/dev/null || true
+rm -f "$OUT/sis-bios.img" &>/dev/null || true
+
+# Build kernel (debug, headless) and create bootable image using build.rs
 export RUSTFLAGS
-echo "[harness] cargo build (first pass)…"
+echo "[harness] cargo build with fresh image generation…"
 cargo +nightly build -Z build-std=core,alloc --target x86_64-unknown-none --features "$FEATURES"
 
-# Build.rs may not create the image on first run, so build again if needed
-IMG="$ROOT/target/boot-bios.img"
+# Sanity: print the image we will boot and its hash
+IMG="$OUT/sis-bios.img"
 if [[ ! -f "$IMG" ]]; then
-    echo "[harness] BIOS image not found, building again to trigger build.rs…"
-    cargo +nightly build -Z build-std=core,alloc --target x86_64-unknown-none --features "$FEATURES"
+  echo "[harness] ERROR: expected image not found: $IMG" >&2
+  exit 97
+fi
+
+echo "[harness] using fresh image: $IMG"
+echo "[harness] image sha256: $(sha256sum "$IMG" | awk '{print $1}')"
+
+# Bonus: ensure it's the *new* kernel by checking for old fatal string
+if strings "$IMG" 2>/dev/null | grep -q "\[mem\]\[FATAL\] No physical memory mapping"; then
+  echo "[harness] WARNING: image still contains old fatal string; rebuild likely stale" >&2
 fi
 
 KERNEL="$ROOT/target/x86_64-unknown-none/debug/sis_kernel"
-BIOS_IMAGE="$ROOT/target/boot-bios.img"
-echo "[harness] BIOS image: $BIOS_IMAGE"
+BIOS_IMAGE="$IMG"
 
 # 3) Force BIOS boot for new bootloader setup
 BOOT="bios"
