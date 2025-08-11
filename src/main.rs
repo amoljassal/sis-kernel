@@ -45,6 +45,16 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     
     // Immediate identification for debug
     serial::write_str("\n=== SIS KERNEL ENTRY ===\n");
+    
+    // Debug bootloader 0.11.x mapping options IMMEDIATELY
+    let po = boot_info.physical_memory_offset.into_option();
+    let ri = boot_info.recursive_index;
+    serial::write_str("[boot] phys_off=");
+    match po { Some(v) => serial::write_hex64(v), None => serial::write_str("none") };
+    serial::write_str(" rec_idx=");
+    match ri { Some(v) => serial::write_hex8(v), None => serial::write_str("none") };
+    serial::write_str("\n");
+    
     serial::write_str("Kernel main() reached - initializing...\n");
 
     // Set up the Global Descriptor Table and Task State Segment.
@@ -409,7 +419,7 @@ fn panic(info: &PanicInfo) -> ! {
 /// `no_std` environment.  We log the failure and halt.
 #[alloc_error_handler]
 fn alloc_error(_layout: core::alloc::Layout) -> ! {
-    serial::write_str("[alloc] Allocation error\n");
+    serial::write_str("[alloc] OOM during early boot\n");
     loop {
         arch_x86::cpu::halt();
     }

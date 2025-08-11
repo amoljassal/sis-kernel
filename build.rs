@@ -25,14 +25,13 @@ fn main() {
         return;
     }
 
-    // Create BIOS disk image with explicit config for kernel loading
-    let mut bios_boot = bootloader::BiosBoot::new(&kernel_elf);
+    // Create BIOS disk image with correct 0.11.x config
+    let mut config = bootloader::BootConfig::default();
+    config.serial_logging = true;
     
-    // Try with explicit config to ensure kernel loads
-    let config = bootloader::BootConfig::default();
-    bios_boot = bios_boot.set_boot_config(&config);
-    
-    bios_boot.create_disk_image(&out_img)
+    let mut bios = bootloader::BiosBoot::new(&kernel_elf);
+    bios.set_boot_config(&config);
+    bios.create_disk_image(&out_img)
         .expect("failed to create BIOS disk image");
 
     // Ensure the `target/boot-bios.img` exists for qemu.sh
