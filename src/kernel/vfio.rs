@@ -6,7 +6,10 @@
 
 use crate::kernel::serial;
 use core::fmt::Write;
-use core::sync::atomic::{AtomicU32, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+
+use crate::arch::x86_64::irqvec;
+use crate::arch::x86_64::idt;
 
 // VFIO capability handle type with generation
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -61,10 +64,71 @@ struct VfioHandleState {
     // Phase 5C-B: MSI state
     pub irq_vector: Option<u8>,
     pub irq_count: AtomicU32,
+    // MSI runtime:
+    pub vector: Option<u8>,
+    pub cpu: u8,
+    pub armed_epoch: u64,
+    pub t_arm_tsc: AtomicU64,
+    pub t_trigger_tsc: AtomicU64,
 }
 
 // Simple handle state tracking (Phase 5C stub - no proper hash table yet)  
 static mut HANDLE_STATES: [Option<VfioHandleState>; 16] = [const { None }; 16];
+static NEXT_GEN: AtomicU64 = AtomicU64::new(1);
+
+#[inline(always)]
+pub fn tsc() -> u64 { unsafe { core::arch::x86_64::_rdtsc() } }
+
+// Helper types and functions for patch compatibility
+use crate::kernel::pci::{Bdf, cfg_read32, cfg_write32};
+
+// Handle state manipulation helpers
+fn get_state_mut(table: &mut [Option<VfioHandleState>; 16], h: VfioHandle) -> Option<&mut VfioHandleState> {
+    // Simple lookup - in real implementation would use proper hash table
+    for state in table.iter_mut() {
+        if let Some(s) = state.as_mut() {
+            // Match by handle - simplified for now
+            return Some(s);
+        }
+    }
+    None
+}
+
+fn get_state(table: &[Option<VfioHandleState>; 16], h: VfioHandle) -> Option<&VfioHandleState> {
+    // Simple lookup - in real implementation would use proper hash table
+    for state in table.iter() {
+        if let Some(s) = state.as_ref() {
+            // Match by handle - simplified for now
+            return Some(s);
+        }
+    }
+    None
+}
+
+// MSI capability and programming helpers
+fn find_msi_cap(bdf: Bdf) -> Option<u8> {
+    crate::kernel::pci::find_msi_capability(bdf)
+}
+
+fn program_msi(bdf: Bdf, cap_offset: u8, vector: u8) {
+    let msi_addr = 0xFEE00000u32; // Standard MSI address base (BSP)
+    let msi_data = vector as u32;
+    
+    // Write MSI registers
+    cfg_write32(bdf.bus, bdf.dev, bdf.func, cap_offset + 4, msi_addr);
+    cfg_write32(bdf.bus, bdf.dev, bdf.func, cap_offset + 8, msi_data);
+    
+    // Enable MSI
+    let ctrl_reg = cfg_read32(bdf.bus, bdf.dev, bdf.func, cap_offset);
+    let new_ctrl = ctrl_reg | 0x0001;
+    cfg_write32(bdf.bus, bdf.dev, bdf.func, cap_offset, new_ctrl);
+}
+
+fn clear_msi(bdf: Bdf, cap_offset: u8) {
+    let ctrl_reg = cfg_read32(bdf.bus, bdf.dev, bdf.func, cap_offset);
+    let new_ctrl = ctrl_reg & !0x0001;
+    cfg_write32(bdf.bus, bdf.dev, bdf.func, cap_offset, new_ctrl);
+}
 
 /// Initialize VFIO subsystem
 pub fn init() -> Result<(), VfioError> {
@@ -146,6 +210,34 @@ pub fn task_cleanup() {
         // TODO Phase 5C: Implement per-task handle tracking
         // TODO Phase 5C: Close all handles owned by current task
     }
+}
+
+// Simplified handle creation for patch compatibility  
+fn create_handle_state(bdf: Bdf) -> Option<VfioHandle> {
+    unsafe {
+        for i in 0..HANDLE_STATES.len() {
+            if HANDLE_STATES[i].is_none() {
+                let h = VfioHandle::new(i as u16, 1);
+                HANDLE_STATES[i] = Some(VfioHandleState {
+                    bdf,
+                    domain_id: None,
+                    msi_offset: find_msi_cap(bdf),
+                    iova_staging: None,
+                    staging_len: 0,
+                    bus_master_enabled: false,
+                    irq_vector: None,
+                    irq_count: AtomicU32::new(0),
+                    vector: None,
+                    cpu: 0, // Simplified for single CPU case
+                    armed_epoch: 0,
+                    t_arm_tsc: AtomicU64::new(0),
+                    t_trigger_tsc: AtomicU64::new(0),
+                });
+                return Some(h);
+            }
+        }
+    }
+    None
 }
 
 /// Bind device to VFIO handle (syscall implementation)
@@ -459,8 +551,7 @@ pub fn syscall_msi_arm(handle_val: u16, vector: u8) -> Result<(), VfioError> {
             }
         };
         
-        // Install VFIO ISR before enabling MSI (force vector 0x5E for Phase 5C-B)
-        crate::arch::x86_64::idt::install_vfio_isr(0x5E);
+        // Note: ISR will be installed at runtime by new implementation
         
         // **NEW: Disable INTx before arming MSI (PCI spec recommends MSI-exclusive mode)**
         let current_cmd = crate::kernel::pci::cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x04);
@@ -613,4 +704,123 @@ pub fn syscall_msi_trigger_e1000(handle_val: u16) -> Result<(), VfioError> {
     }
     
     Ok(())
+}
+
+// New simplified MSI arm function for patch compatibility
+pub fn syscall_msi_arm_new(h: VfioHandle) -> i32 {
+    unsafe {
+        let mut table_lock = core::ptr::addr_of_mut!(HANDLE_STATES);
+        let table = &mut *table_lock;
+        let s = match get_state_mut(table, h) {
+            Some(state) => state,
+            None => return -1,
+        };
+        
+        if s.msi_offset.is_none() {
+            serial::write_str("[vfio] no MSI cap\n");
+            return -2;
+        }
+        
+        if !s.bus_master_enabled {
+            serial::write_str("[vfio] arm requires busmaster\n");
+            return -3;
+        }
+        
+        let cpu = 0usize; // Simplified for single CPU case
+        let vec = match irqvec::alloc_vector(cpu) {
+            Some(v) => v,
+            None => {
+                serial::write_str("[vfio] no free vectors\n");
+                return -4;
+            }
+        };
+        
+        program_msi(s.bdf, s.msi_offset.unwrap(), vec);
+        idt::vfio_isr_vector_install(vec);
+        s.armed_epoch = NEXT_GEN.fetch_add(1, Ordering::Relaxed);
+        let packed = ((s.armed_epoch & 0xFFFF_FFFF) << 16) | (h.as_u16() as u64);
+        idt::vfio_map_vector(vec, packed);
+        s.vector = Some(vec);
+        s.t_arm_tsc.store(tsc(), Ordering::Relaxed);
+        0
+    }
+}
+
+pub fn syscall_msi_disarm_new(h: VfioHandle) -> i32 {
+    unsafe {
+        let mut table_lock = core::ptr::addr_of_mut!(HANDLE_STATES);
+        let table = &mut *table_lock;
+        let s = match get_state_mut(table, h) {
+            Some(state) => state,
+            None => return -1,
+        };
+        
+        if let Some(cap) = s.msi_offset {
+            clear_msi(s.bdf, cap);
+        }
+        
+        if let Some(vec) = s.vector.take() {
+            idt::vfio_unmap_vector(vec);
+            irqvec::free_vector(s.cpu as usize, vec);
+        }
+        0
+    }
+}
+
+/// Called by ISR: returns (count, t_trigger_snapshot)
+pub fn on_irq(h: VfioHandle, epoch: u64, now: u64) -> (u64, u64) {
+    unsafe {
+        let table_lock = core::ptr::addr_of!(HANDLE_STATES);
+        let table = &*table_lock;
+        if let Some(s) = get_state(table, h) {
+            if s.armed_epoch == epoch {
+                let c = s.irq_count.fetch_add(1, Ordering::Relaxed) + 1;
+                let t = s.t_trigger_tsc.load(Ordering::Relaxed);
+                (c as u64, t)
+            } else { (0, 0) }
+        } else { (0, 0) }
+    }
+}
+
+/// Updated trigger function for e1000 that also records timestamp
+pub fn syscall_msi_trigger_e1000_new(h: VfioHandle) -> i32 {
+    unsafe {
+        let mut table_lock = core::ptr::addr_of_mut!(HANDLE_STATES);
+        let table = &mut *table_lock;
+        let s = match get_state_mut(table, h) {
+            Some(state) => state,
+            None => return -1,
+        };
+        
+        // Existing BAR0 IMS/ICS writes (from existing implementation)
+        let bdf = s.bdf;
+        let bar0_addr = crate::kernel::pci::read_bar0(bdf);
+        if bar0_addr == 0 {
+            return -2;
+        }
+        
+        let bar0_ptr = bar0_addr as *mut u32;
+        
+        // Set IMS and trigger via ICS
+        let ims_offset = 0x00D0 / 4;
+        let ims_ptr = bar0_ptr.add(ims_offset);
+        core::ptr::write_volatile(ims_ptr, 0x0001);
+        
+        let ics_offset = 0x00C8 / 4;
+        let ics_ptr = bar0_ptr.add(ics_offset);
+        core::ptr::write_volatile(ics_ptr, 0x0001);
+        
+        // Record trigger timestamp
+        s.t_trigger_tsc.store(tsc(), Ordering::Relaxed);
+        0
+    }
+}
+
+#[inline(always)]
+pub fn lookup_by_vector(vec: u8) -> Option<(VfioHandle, u64)> {
+    let packed = crate::arch::x86_64::idt::vfio_vector_packed_load(vec);
+    if packed == 0 { return None; }
+    let handle = VfioHandle::new((packed & 0xFFFF) as u16, 1);
+    let epoch = (packed >> 16) & 0xFFFF_FFFF;
+    Some((handle, epoch))
 }

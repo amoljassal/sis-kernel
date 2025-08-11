@@ -21,7 +21,7 @@ mod arch_selftest { pub use crate::arch::x86_64::idt_selftest as idt_selftest; }
 
 extern crate alloc;
 
-use bootloader::{entry_point, BootInfo};
+use bootloader_api::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 
 mod arch;
@@ -342,6 +342,14 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 unsafe { arch_x86::io::qemu_exit(0x01); }
             }
         }
+    }
+
+    // Phase 5C-B: MSI soak test (100 interrupts + latency histogram)
+    #[cfg(all(feature = "vfio", selftest_VFIO_MSI_SOAK))]
+    {
+        serial::write_str("[selftest] Starting VFIO_MSI_SOAK test...\n");
+        userland::selftest_vfio::run();
+        // Never returns - calls qemu_exit
     }
 
     // Phase 4.1: Userland validation suite (Part C)

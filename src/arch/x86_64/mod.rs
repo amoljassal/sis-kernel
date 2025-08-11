@@ -9,6 +9,7 @@ pub mod gdt;
 pub mod idt;
 pub mod memory;
 pub mod pit;
+pub mod irqvec;
 pub mod interrupts;
 pub mod cpu;
 pub mod context_switch;

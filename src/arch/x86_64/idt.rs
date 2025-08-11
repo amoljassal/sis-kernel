@@ -18,6 +18,9 @@ use pic8259::ChainedPics;
 use spin::Mutex;
 use core::sync::atomic::{AtomicU32, Ordering};
 
+#[inline(always)]
+fn rdtsc() -> u64 { unsafe { core::arch::x86_64::_rdtsc() } }
+
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
@@ -75,9 +78,26 @@ lazy_static! {
             .set_handler_fn(syscall_exit_handler)
             .set_privilege_level(PrivilegeLevel::Ring3);
 
-        // Phase 5C-B: VFIO MSI interrupt handler at vector 0x5E
+        // Install VFIO ISRs for vectors 0x50-0x5F
         #[cfg(feature = "vfio")]
-        idt[VFIO_IRQ_VECTOR as usize].set_handler_fn(vfio_interrupt_handler);
+        {
+            idt[0x50].set_handler_fn(vfio_isrs::vfio_vec_50);
+            idt[0x51].set_handler_fn(vfio_isrs::vfio_vec_51);
+            idt[0x52].set_handler_fn(vfio_isrs::vfio_vec_52);
+            idt[0x53].set_handler_fn(vfio_isrs::vfio_vec_53);
+            idt[0x54].set_handler_fn(vfio_isrs::vfio_vec_54);
+            idt[0x55].set_handler_fn(vfio_isrs::vfio_vec_55);
+            idt[0x56].set_handler_fn(vfio_isrs::vfio_vec_56);
+            idt[0x57].set_handler_fn(vfio_isrs::vfio_vec_57);
+            idt[0x58].set_handler_fn(vfio_isrs::vfio_vec_58);
+            idt[0x59].set_handler_fn(vfio_isrs::vfio_vec_59);
+            idt[0x5A].set_handler_fn(vfio_isrs::vfio_vec_5A);
+            idt[0x5B].set_handler_fn(vfio_isrs::vfio_vec_5B);
+            idt[0x5C].set_handler_fn(vfio_isrs::vfio_vec_5C);
+            idt[0x5D].set_handler_fn(vfio_isrs::vfio_vec_5D);
+            idt[0x5E].set_handler_fn(vfio_isrs::vfio_vec_5E);
+            idt[0x5F].set_handler_fn(vfio_isrs::vfio_vec_5F);
+        }
 
         idt
     };
@@ -87,16 +107,143 @@ pub fn init_idt() {
     IDT.load();
 }
 
-// Phase 5C-B: Install VFIO ISR at vector 0x5E
-#[cfg(feature = "vfio")]
-pub fn install_vfio_isr(vector: u8) {
-    // Validate vector matches our expectation
-    if vector != VFIO_IRQ_VECTOR {
-        serial::write_str("[vfio-isr] Warning: vector mismatch, using 0x5E\n");
+// ISRs are now pre-installed during IDT initialization
+
+// ----- VFIO runtime support: vector→handle map and TSC latency histogram -----
+#[cfg(feature="vfio")]
+mod vfio_rt {
+    use core::sync::atomic::{AtomicU64, Ordering};
+    use crate::serial;
+
+    // vector -> (handle_id | epoch<<16)
+    pub static VEC_PACKED: [AtomicU64; 256] = unsafe { core::mem::zeroed() };
+    // latency histogram: 16 buckets of log2(cycles)
+    static HIST: [AtomicU64; 16] = unsafe { core::mem::zeroed() };
+
+    #[inline] pub fn map(vec: u8, packed: u64) { VEC_PACKED[vec as usize].store(packed, Ordering::Release); }
+    #[inline] pub fn unmap(vec: u8) { VEC_PACKED[vec as usize].store(0, Ordering::Release); }
+    #[inline] pub fn load(vec: u8) -> u64 { VEC_PACKED[vec as usize].load(core::sync::atomic::Ordering::Acquire) }
+
+    #[inline]
+    fn bucket(cycles: u64) -> usize {
+        if cycles == 0 { return 0; }
+        let l = 63 - cycles.leading_zeros() as usize;
+        core::cmp::min(l, 15)
     }
-    
-    // The VFIO ISR is already installed during IDT initialization at vector 0x5E
-    serial::write_str("[vfio-isr] ISR already installed at vector 0x5E during IDT init\n");
+    #[inline]
+    pub fn hist_add(cycles: u64) {
+        HIST[bucket(cycles)].fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+    }
+    pub fn dump_hist() {
+        serial::write_str("[vfio-lat] buckets(log2 cycles): ");
+        for i in 0..16 {
+            let v = HIST[i].load(core::sync::atomic::Ordering::Relaxed);
+            crate::serial::write_hex8(i as u8);
+            serial::write_str("=");
+            crate::serial::write_hex64(v);
+            serial::write_str(" ");
+        }
+        serial::write_str("\n");
+    }
+    pub fn packed_load(vec: u8) -> u64 { load(vec) }
+}
+
+#[cfg(feature="vfio")]
+pub fn vfio_map_vector(vec: u8, packed: u64) { vfio_rt::map(vec, packed) }
+#[cfg(feature="vfio")]
+pub fn vfio_unmap_vector(vec: u8) { vfio_rt::unmap(vec) }
+#[cfg(feature="vfio")]
+pub fn vfio_vector_packed_load(vec: u8) -> u64 { vfio_rt::packed_load(vec) }
+#[cfg(feature="vfio")]
+pub fn vfio_dump_hist() { vfio_rt::dump_hist() }
+
+// ----- VFIO ISR macro: generate 16 handlers (0x50..=0x5F) that pass vector id -----
+#[cfg(feature="vfio")]
+macro_rules! make_vfio_isr {
+    ($name:ident, $vec:expr) => {
+        pub extern "x86-interrupt" fn $name(_sf: InterruptStackFrame) {
+            // Fast path: look up handle+epoch from vector mapping
+            let vec = $vec as u8;
+            let packed = vfio_vector_packed_load(vec);
+            if packed != 0 {
+                let handle = crate::kernel::vfio::VfioHandle::new((packed & 0xFFFF) as u16, 1);
+                let epoch = (packed >> 16) & 0xFFFF_FFFF;
+                let now = rdtsc();
+                let (count, t_trig) = crate::kernel::vfio::on_irq(handle, epoch, now);
+                if (count & 63) == 0 {
+                    crate::serial::write_str("[vfio-irq] vec=");
+                    crate::serial::write_hex8(vec);
+                    crate::serial::write_str(" count=");
+                    crate::serial::write_hex64(count);
+                    crate::serial::write_str("\n");
+                }
+                if t_trig != 0 && now >= t_trig {
+                    vfio_rt::hist_add(now - t_trig);
+                }
+            } else {
+                crate::serial::write_str("[vfio-irq] spurious vec=");
+                crate::serial::write_hex8($vec as u8);
+                crate::serial::write_str("\n");
+            }
+            // Send EOI
+            #[cfg(feature = "apic")]
+            {
+                crate::arch::x86_64::apic::eoi();
+            }
+            #[cfg(not(feature = "apic"))]
+            unsafe {
+                PICS.lock().notify_end_of_interrupt($vec as u8);
+            }
+        }
+    }
+}
+
+#[cfg(feature="vfio")]
+mod vfio_isrs {
+    use super::*;
+    make_vfio_isr!(vfio_vec_50, 0x50);
+    make_vfio_isr!(vfio_vec_51, 0x51);
+    make_vfio_isr!(vfio_vec_52, 0x52);
+    make_vfio_isr!(vfio_vec_53, 0x53);
+    make_vfio_isr!(vfio_vec_54, 0x54);
+    make_vfio_isr!(vfio_vec_55, 0x55);
+    make_vfio_isr!(vfio_vec_56, 0x56);
+    make_vfio_isr!(vfio_vec_57, 0x57);
+    make_vfio_isr!(vfio_vec_58, 0x58);
+    make_vfio_isr!(vfio_vec_59, 0x59);
+    make_vfio_isr!(vfio_vec_5A, 0x5A);
+    make_vfio_isr!(vfio_vec_5B, 0x5B);
+    make_vfio_isr!(vfio_vec_5C, 0x5C);
+    make_vfio_isr!(vfio_vec_5D, 0x5D);
+    make_vfio_isr!(vfio_vec_5E, 0x5E);
+    make_vfio_isr!(vfio_vec_5F, 0x5F);
+
+    pub fn handler_for(vec: u8) -> Option<extern "x86-interrupt" fn(InterruptStackFrame)> {
+        match vec {
+            0x50 => Some(vfio_vec_50),
+            0x51 => Some(vfio_vec_51),
+            0x52 => Some(vfio_vec_52),
+            0x53 => Some(vfio_vec_53),
+            0x54 => Some(vfio_vec_54),
+            0x55 => Some(vfio_vec_55),
+            0x56 => Some(vfio_vec_56),
+            0x57 => Some(vfio_vec_57),
+            0x58 => Some(vfio_vec_58),
+            0x59 => Some(vfio_vec_59),
+            0x5A => Some(vfio_vec_5A),
+            0x5B => Some(vfio_vec_5B),
+            0x5C => Some(vfio_vec_5C),
+            0x5D => Some(vfio_vec_5D),
+            0x5E => Some(vfio_vec_5E),
+            0x5F => Some(vfio_vec_5F),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(feature="vfio")]
+pub fn vfio_isr_vector_install(_vec: u8) {
+    // ISRs are pre-installed during IDT initialization - no-op
 }
 
 #[inline(always)]

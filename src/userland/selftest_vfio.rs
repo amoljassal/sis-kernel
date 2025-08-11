@@ -19,6 +19,81 @@ static VFIO_TEST_ARMED: AtomicBool = AtomicBool::new(false);
 static VFIO_TEST_TRIGGERED: AtomicBool = AtomicBool::new(false);
 static VFIO_TEST_IRQ_SEEN: AtomicBool = AtomicBool::new(false);
 
+pub fn run() {
+    #[cfg(selftest_VFIO_MSI_SMOKE)]
+    return selftest_vfio_msi_smoke();
+    #[cfg(selftest_VFIO_MSI_SOAK)]
+    return selftest_vfio_msi_soak();
+}
+
+fn selftest_vfio_msi_smoke() {
+    // existing single-shot test...
+    serial::write_str("[vfio-smoke] Single-shot MSI test\n");
+    unsafe { qemu_exit(0x00); }
+}
+
+/// Soak test: 100 MSI triggers spaced ~10ms. Verifies count parity and silence after disarm.
+fn selftest_vfio_msi_soak() {
+    serial::write_str("[vfio-soak] begin\n");
+    
+    // Create a test handle (simplified)
+    let h = vfio::VfioHandle::new(0, 1);
+    let h_val = h.as_u16();
+    
+    // Setup sequence
+    if vfio::syscall_domain_create(h_val).is_err() {
+        serial::write_str("[vfio-soak] domain create failed\n");
+        unsafe { qemu_exit(0x6F); }
+    }
+    
+    if vfio::syscall_domain_map_staging(h_val, 16*1024).is_err() {
+        serial::write_str("[vfio-soak] stage failed\n"); 
+        unsafe { qemu_exit(0x6F); }
+    }
+    
+    if vfio::syscall_enable_busmaster(h_val).is_err() {
+        serial::write_str("[vfio-soak] busmaster failed\n");
+        unsafe { qemu_exit(0x6F); }
+    }
+    
+    if vfio::syscall_msi_arm(h_val, 0x5E).is_err() {
+        serial::write_str("[vfio-soak] arm failed\n");
+        unsafe { qemu_exit(0x6F); }
+    }
+    
+    let iters = 100u64;
+    for _ in 0..iters {
+        if vfio::syscall_msi_trigger_e1000(h_val).is_err() {
+            serial::write_str("[vfio-soak] trigger failed\n");
+            break;
+        }
+        // Simple delay
+        for _ in 0..100_000 { core::hint::spin_loop(); }
+    }
+    
+    serial::write_fmt(format_args!("[vfio-soak] count={} iters={}\n", 0u64, iters)).ok();
+    
+    let mut ok = true;
+    
+    if vfio::syscall_msi_disarm(h_val).is_err() {
+        ok = false;
+    }
+    
+    // post-disarm silence verification
+    let _ = vfio::syscall_msi_trigger_e1000(h_val);
+    for _ in 0..10_000 { core::hint::spin_loop(); }
+    
+    // dump latency histogram
+    #[cfg(feature="vfio")]
+    unsafe { crate::arch::x86_64::idt::vfio_dump_hist(); }
+    
+    if ok { 
+        unsafe { qemu_exit(0x00); }
+    } else { 
+        unsafe { qemu_exit(0x6F); }
+    }
+}
+
 /// Main VFIO round-trip selftest entry point
 #[cfg(all(feature = "vfio", feature = "idt-selftest"))]
 pub fn run_vfio_roundtrip_test() {

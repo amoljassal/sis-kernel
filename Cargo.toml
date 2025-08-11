@@ -8,8 +8,8 @@ edition = "2021"
 # `rustc --print target-spec-json` for more details on the target.
 
 [dependencies]
-# Bootloader for 0.10.x with BootInfo
-bootloader = "0.10.3"
+# Runtime API used by kernel entry point
+bootloader_api = { version = "0.11.11", default-features = false }
 # x86_64 architecture helpers for descriptor tables, paging and
 # control registers.
 x86_64 = { version = "0.14.9", default-features = false, features = ["instructions", "abi_x86_interrupt"] }
@@ -40,21 +40,7 @@ qemu-intel-iommu-sim = [] # Phase 5A: QEMU Intel IOMMU simulation for testing
 vfio = ["iommu"]        # Phase 5B: VFIO-lite minimal passthrough (depends on IOMMU)
 
 [build-dependencies]
-# Host-side tool that builds UEFI/BIOS images (0.10.x for immediate unblock)
-bootloader = "0.10.3"
+# Builder used only from build.rs to create the disk image
+bootloader = { version = "0.11.11", default-features = false, features = ["bios"] }
 
-[package.metadata.bootimage]
-# QEMU command used by `cargo bootimage --run` (tweak to your setup if needed)
-run-command = [
-  "qemu-system-x86_64",
-  "-drive", "format=raw,file={bootimage}",
-  "-serial", "stdio",
-  "-machine", "q35",
-  "-cpu", "qemu64",
-  "-m", "512M",
-  "-smp", "2",
-  "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",
-  "-display", "none",
-  "-no-reboot",
-  "-no-shutdown"
-]
+# bootimage metadata removed - using build.rs with bootloader 0.11.x builder API

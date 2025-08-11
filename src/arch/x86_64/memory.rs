@@ -8,7 +8,7 @@
 //! production kernel would need to handle large pages, guard pages
 //! and dynamic allocation of page tables.
 
-use bootloader::{BootInfo, boot_info::MemoryRegion};
+use bootloader_api::{BootInfo, info::{MemoryRegion, MemoryRegionKind}};
 use x86_64::{structures::paging::{Page, PhysFrame, mapper::{MapperAllSizes, MapToError}, Mapper, PageTable, Size4KiB, FrameAllocator, OffsetPageTable, PageTableFlags}, VirtAddr, PhysAddr};
 use x86_64::registers::model_specific::{Efer, EferFlags};
 use x86_64::registers::control::Cr3;
@@ -36,12 +36,28 @@ static PAGE_TABLE: Once<OffsetPageTable<'static>> = Once::new();
 /// offset, initialises the frame allocator from the memory map and
 /// then sets up the heap in virtual memory.
 pub unsafe fn init(boot_info: &mut BootInfo) {
-    let phys_offset = VirtAddr::new(boot_info.physical_memory_offset.into_option().unwrap());
-    let mut mapper = init_offset_page_table(phys_offset);
-    let mut frame_alloc = BootInfoFrameAllocator::init(&boot_info.memory_regions);
-    init_heap(&mut mapper, &mut frame_alloc).expect("Heap initialisation failed");
-    init_global_frame_allocator(&boot_info.memory_regions);
-    PAGE_TABLE.call_once(|| mapper);
+    use crate::kernel::serial;
+    
+    // Debug: Check if physical_memory_offset is provided
+    match boot_info.physical_memory_offset.into_option() {
+        Some(offset) => {
+            serial::write_str("[mm] phys_mem_offset=0x");
+            serial::write_hex64(offset);
+            serial::write_str(" OK\n");
+            let phys_offset = VirtAddr::new(offset);
+            let mut mapper = init_offset_page_table(phys_offset);
+            let mut frame_alloc = BootInfoFrameAllocator::init(&boot_info.memory_regions);
+            init_heap(&mut mapper, &mut frame_alloc).expect("Heap initialisation failed");
+            init_global_frame_allocator(&boot_info.memory_regions);
+            PAGE_TABLE.call_once(|| mapper);
+            serial::write_str("[heap] initialized\n");
+        }
+        None => {
+            serial::write_str("[mm] ERROR: physical_memory_offset is None\n");
+            serial::write_str("[mm] bootloader_api 0.11.x requires explicit physical memory mapping\n");
+            loop { crate::arch::x86_64::cpu::halt(); }
+        }
+    }
 }
 
 /// Initialise the offset page table.
@@ -90,7 +106,7 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
         while self.current_region < regions.len() {
             let region = &regions[self.current_region];
             
-            if region.kind == bootloader::boot_info::MemoryRegionKind::Usable {
+            if region.kind == MemoryRegionKind::Usable {
                 if self.current_frame == 0 {
                     self.current_frame = region.start;
                 }

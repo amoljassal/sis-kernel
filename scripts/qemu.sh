@@ -17,29 +17,25 @@ export TIMEOUT="${TIMEOUT:-30}"    # configurable timeout in seconds
 source "$HERE/_test_flags.sh"
 echo "[harness] TEST=$TEST FEATURES='$FEATURES' RUSTFLAGS='$RUSTFLAGS'"
 
-# 2) Build kernel (debug, headless) and create bootable image
+# 2) Build kernel (debug, headless) and create bootable image using build.rs
 export RUSTFLAGS
-echo "[harness] cargo build…"
+echo "[harness] cargo build (first pass)…"
 cargo +nightly build -Z build-std=core,alloc --target x86_64-unknown-none --features "$FEATURES"
-KERNEL="$ROOT/target/x86_64-unknown-none/debug/sis_kernel"
 
-# Find the most recent disk images
-UEFI_IMAGE=$(find "$ROOT/target" -name "boot-uefi-sis_kernel.img" -printf '%T+ %p\n' | sort -r | head -1 | cut -d' ' -f2)
-BIOS_IMAGE=$(find "$ROOT/target" -name "boot-bios-sis_kernel.img" -printf '%T+ %p\n' | sort -r | head -1 | cut -d' ' -f2)
-echo "[harness] UEFI image: $UEFI_IMAGE"
+# Build.rs may not create the image on first run, so build again if needed
+IMG="$ROOT/target/boot-bios.img"
+if [[ ! -f "$IMG" ]]; then
+    echo "[harness] BIOS image not found, building again to trigger build.rs…"
+    cargo +nightly build -Z build-std=core,alloc --target x86_64-unknown-none --features "$FEATURES"
+fi
+
+KERNEL="$ROOT/target/x86_64-unknown-none/debug/sis_kernel"
+BIOS_IMAGE="$ROOT/target/boot-bios.img"
 echo "[harness] BIOS image: $BIOS_IMAGE"
 
-# 3) Decide boot path
-if [[ "$BOOT" == "auto" ]]; then
-  # Prefer UEFI if OVMF available; otherwise BIOS
-  source "$HERE/_ovmf_paths.sh"
-  if [[ -n "${OVMF_CODE}" && -n "${OVMF_VARS}" ]]; then
-    BOOT="uefi"
-  else
-    BOOT="bios"
-  fi
-fi
-echo "[harness] BOOT=$BOOT"
+# 3) Force BIOS boot for new bootloader setup
+BOOT="bios"
+echo "[harness] BOOT=$BOOT (forced BIOS for bootloader 0.11.x)"
 
 # Enhanced diagnostics
 SERIAL_LOG="$OUT/qemu-serial.log"
@@ -89,31 +85,15 @@ QEMU_BIN="${QEMU_BIN:-qemu-system-x86_64}"
 
 echo "[harness] timeout set to ${TIMEOUT}s"
 
-# Build QEMU command based on boot mode
-if [[ "$BOOT" == "uefi" ]]; then
-  echo "[harness] launching QEMU (UEFI)…"
-  if [[ -f "$UEFI_IMAGE" ]]; then
-    echo "[harness] using UEFI disk image: $UEFI_IMAGE"
-    QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" \
-      -drive if=pflash,format=raw,unit=0,readonly=on,file="$OVMF_CODE" \
-      -drive if=pflash,format=raw,unit=1,file="$OVMF_VARS" \
-      -drive format=raw,file="$UEFI_IMAGE")
-  else
-    echo "[harness] UEFI image not found, falling back to direct kernel boot"
-    QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" \
-      -drive if=pflash,format=raw,unit=0,readonly=on,file="$OVMF_CODE" \
-      -drive if=pflash,format=raw,unit=1,file="$OVMF_VARS" \
-      -kernel "$KERNEL")
-  fi
-else
-  echo "[harness] launching QEMU (BIOS)…"
-  if [[ -f "$BIOS_IMAGE" ]]; then
+# Build QEMU command for BIOS boot with disk image
+echo "[harness] launching QEMU (BIOS)…"
+if [[ -f "$BIOS_IMAGE" ]]; then
     echo "[harness] using BIOS disk image: $BIOS_IMAGE"
     QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" -drive format=raw,file="$BIOS_IMAGE")
-  else
-    echo "[harness] BIOS image not found, trying direct kernel boot"
-    QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" -kernel "$KERNEL" -append "")
-  fi
+else
+    echo "[harness] ERROR: BIOS disk image not found at $BIOS_IMAGE"
+    echo "[harness] Build may have failed or build.rs didn't create the image"
+    exit 1
 fi
 
 echo "[qemu.sh] QEMU command:"

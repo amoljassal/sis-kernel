@@ -70,6 +70,10 @@ case "${TEST:-}" in
     export RUSTFLAGS="--cfg selftest_${TEST}"
     FEATURES_DEFAULT="vfio apic idt-selftest"
     ;;
+  VFIO_MSI_SOAK)
+    export RUSTFLAGS="--cfg selftest_${TEST}"
+    FEATURES_DEFAULT="vfio apic idt-selftest"
+    ;;
 
   *)
     echo "error: unknown or missing TEST=… ($TEST)"; exit 2;;
