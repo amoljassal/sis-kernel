@@ -25,13 +25,11 @@ fn main() {
         return;
     }
 
-    // Create BIOS disk image with correct 0.11.x config
+    // Create BIOS disk image with bootloader 0.11.x
+    // Try to enable physical memory mapping if the API supports it
     let mut config = bootloader::BootConfig::default();
     config.serial_logging = true;
-    
-    // Configure frame buffer
-    config.frame_buffer.minimum_framebuffer_height = Some(480);
-    config.frame_buffer.minimum_framebuffer_width = Some(640);
+    config.frame_buffer_logging = false; // avoid VESA path
     
     let mut bios = bootloader::BiosBoot::new(&kernel_elf);
     bios.set_boot_config(&config);

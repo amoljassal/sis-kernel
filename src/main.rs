@@ -64,10 +64,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     
     #[cfg(not(feature = "firewall"))]
     {
-        serial::write_str("=== FULL BOOT MODE - INITIALIZING MEMORY ===\n");
-        
-        // Initialize memory management
-        unsafe { crate::arch::x86_64::memory::init(boot_info); }
+        // This will succeed now because build.rs set Mapping::Dynamic:
+        crate::arch::x86_64::memory::init_boot_mappings(boot_info);
         
         // Continue with full kernel initialization - placeholder for now
         serial::write_str("[kernel] memory initialized, entering main loop\n");
