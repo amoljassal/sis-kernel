@@ -70,7 +70,17 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         // Continue with full kernel initialization - placeholder for now
         serial::write_str("[kernel] memory initialized, entering main loop\n");
         
-        // VFIO Phase 5B selftest entry points
+        // Debug: Check which features are enabled
+        #[cfg(feature = "vfio")]
+        serial::write_str("[debug] VFIO feature enabled\n");
+        #[cfg(feature = "idt-selftest")]
+        serial::write_str("[debug] IDT selftest feature enabled\n");
+        #[cfg(selftest_VFIO_MSI_SMOKE)]
+        serial::write_str("[debug] VFIO_MSI_SMOKE cfg flag detected\n");
+        #[cfg(selftest_VFIO_MSI_SOAK)]
+        serial::write_str("[debug] VFIO_MSI_SOAK cfg flag detected\n");
+        
+        // VFIO Phase 5B/5C selftest entry points
         #[cfg(all(feature = "vfio", selftest_VFIO_BIND_E1000))]
         {
             serial::write_str("[selftest] starting VFIO_BIND_E1000 test...\n");
@@ -86,6 +96,18 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                     unsafe { crate::arch::x86_64::qemu_exit(0x01); } // failure
                 }
             }
+        }
+        
+        #[cfg(all(feature = "vfio", feature = "idt-selftest", selftest_VFIO_MSI_SMOKE))]
+        {
+            serial::write_str("[selftest] starting VFIO_MSI_SMOKE test...\n");
+            crate::userland::selftest_vfio::run();
+        }
+        
+        #[cfg(all(feature = "vfio", feature = "idt-selftest", selftest_VFIO_MSI_SOAK))]
+        {
+            serial::write_str("[selftest] starting VFIO_MSI_SOAK test...\n");
+            crate::userland::selftest_vfio::run();
         }
         
         loop { arch_x86::cpu::halt(); }
