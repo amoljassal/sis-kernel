@@ -33,7 +33,7 @@ mod serial_minimal;
 
 use arch::x86_64 as arch_x86;
 
-#[cfg(feature = "firewall")]
+#[cfg(not(feature = "firewall"))]
 use kernel::serial;
 
 entry_point!(kernel_main);

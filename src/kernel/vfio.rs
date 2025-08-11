@@ -56,8 +56,10 @@ static mut HANDLE_ALLOC: HandleAllocator = HandleAllocator {
 #[derive(Debug)]
 struct VfioHandleState {
     pub bdf: crate::kernel::pci::Bdf,
+    #[cfg(feature = "iommu")]
     pub domain_id: Option<crate::arch::x86_64::iommu::DomainId>,
     pub msi_offset: Option<u8>,
+    #[cfg(feature = "iommu")]
     pub iova_staging: Option<crate::arch::x86_64::iommu::Iova>,
     pub staging_len: u64,
     pub bus_master_enabled: bool,
@@ -106,8 +108,14 @@ fn get_state(table: &[Option<VfioHandleState>; 16], h: VfioHandle) -> Option<&Vf
 }
 
 // MSI capability and programming helpers
+#[cfg(feature = "vfio")]
 fn find_msi_cap(bdf: Bdf) -> Option<u8> {
     crate::kernel::pci::find_msi_capability(bdf)
+}
+
+#[cfg(not(feature = "vfio"))]
+fn find_msi_cap(_bdf: Bdf) -> Option<u8> {
+    None
 }
 
 fn program_msi(bdf: Bdf, cap_offset: u8, vector: u8) {

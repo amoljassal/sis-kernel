@@ -113,7 +113,7 @@ pub fn init_idt() {
 #[cfg(feature="vfio")]
 mod vfio_rt {
     use core::sync::atomic::{AtomicU64, Ordering};
-    use crate::serial;
+    use crate::kernel::serial;
 
     // vector -> (handle_id | epoch<<16)
     pub static VEC_PACKED: [AtomicU64; 256] = unsafe { core::mem::zeroed() };
@@ -138,9 +138,9 @@ mod vfio_rt {
         serial::write_str("[vfio-lat] buckets(log2 cycles): ");
         for i in 0..16 {
             let v = HIST[i].load(core::sync::atomic::Ordering::Relaxed);
-            crate::serial::write_hex8(i as u8);
+            serial::write_hex8(i as u8);
             serial::write_str("=");
-            crate::serial::write_hex64(v);
+            serial::write_hex64(v);
             serial::write_str(" ");
         }
         serial::write_str("\n");
@@ -171,19 +171,19 @@ macro_rules! make_vfio_isr {
                 let now = rdtsc();
                 let (count, t_trig) = crate::kernel::vfio::on_irq(handle, epoch, now);
                 if (count & 63) == 0 {
-                    crate::serial::write_str("[vfio-irq] vec=");
-                    crate::serial::write_hex8(vec);
-                    crate::serial::write_str(" count=");
-                    crate::serial::write_hex64(count);
-                    crate::serial::write_str("\n");
+                    serial::write_str("[vfio-irq] vec=");
+                    serial::write_hex8(vec);
+                    serial::write_str(" count=");
+                    serial::write_hex64(count);
+                    serial::write_str("\n");
                 }
                 if t_trig != 0 && now >= t_trig {
                     vfio_rt::hist_add(now - t_trig);
                 }
             } else {
-                crate::serial::write_str("[vfio-irq] spurious vec=");
-                crate::serial::write_hex8($vec as u8);
-                crate::serial::write_str("\n");
+                serial::write_str("[vfio-irq] spurious vec=");
+                serial::write_hex8($vec as u8);
+                serial::write_str("\n");
             }
             // Send EOI
             #[cfg(feature = "apic")]
@@ -244,6 +244,26 @@ mod vfio_isrs {
 #[cfg(feature="vfio")]
 pub fn vfio_isr_vector_install(_vec: u8) {
     // ISRs are pre-installed during IDT initialization - no-op
+}
+
+#[cfg(not(feature="vfio"))]
+pub fn vfio_isr_vector_install(_vec: u8) {
+    // No-op stub
+}
+
+#[cfg(not(feature="vfio"))]
+pub fn vfio_map_vector(_vec: u8, _packed: u64) {
+    // No-op stub
+}
+
+#[cfg(not(feature="vfio"))]
+pub fn vfio_unmap_vector(_vec: u8) {
+    // No-op stub
+}
+
+#[cfg(not(feature="vfio"))]
+pub fn vfio_vector_packed_load(_vec: u8) -> u64 {
+    0
 }
 
 #[inline(always)]
