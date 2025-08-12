@@ -308,7 +308,7 @@ pub fn tick() {
 // SMP tick handler
 #[cfg(all(feature = "apic", feature = "smp"))]
 pub fn tick_smp() {
-    let cpu_id = crate::arch::x86_64::apic::current_cpu_id();
+    let cpu_id = crate::arch::x86_64::percpu::cpu_id() as usize;
     let ticks = CPU_TICKS[cpu_id].fetch_add(1, Ordering::SeqCst);
     
     #[cfg(all(feature = "idt-selftest", selftest_SMP_2))]

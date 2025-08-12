@@ -128,6 +128,70 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         #[cfg(selftest_VFIO_MSI_SOAK)]
         serial::write_str("[debug] VFIO_MSI_SOAK cfg flag detected\n");
         
+        // Initialize APIC before SMP (required for multi-core support)
+        #[cfg(feature = "apic")]
+        {
+            serial::write_str("[debug] APIC feature enabled, initializing LAPIC/IOAPIC\n");
+            match crate::arch::x86_64::apic::init_apic() {
+                Ok(_) => serial::write_str("[kernel] APIC initialized successfully\n"),
+                Err(e) => {
+                    serial::write_str("[kernel] APIC init failed: ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                }
+            }
+            
+            match crate::arch::x86_64::apic::init_ioapic() {
+                Ok(_) => serial::write_str("[kernel] IOAPIC initialized successfully\n"),
+                Err(e) => {
+                    serial::write_str("[kernel] IOAPIC init failed: ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                }
+            }
+        }
+        
+        // Phase 6A: SMP CPU bring-up initialization
+        #[cfg(all(feature = "smp", feature = "apic"))]
+        {
+            serial::write_str("[debug] SMP feature enabled, initializing multi-core support\n");
+            match crate::arch::x86_64::smp::init_smp_phase6a() {
+                Ok(_) => {
+                    let online_count = crate::arch::x86_64::percpu::online_cpu_count();
+                    serial::write_str("[kernel] Phase 6A SMP initialization complete: ");
+                    serial::write_u64(online_count as u64);
+                    serial::write_str(" CPUs online\n");
+                },
+                Err(e) => {
+                    serial::write_str("[kernel] SMP init failed: ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                }
+            }
+        }
+        #[cfg(not(all(feature = "smp", feature = "apic")))]
+        {
+            serial::write_str("[debug] SMP not enabled (requires smp + apic features)\n");
+        }
+        
+        // Phase 6A TEST: SMP_ONLINE validation
+        #[cfg(all(feature = "smp", feature = "apic", feature = "idt-selftest", selftest_SMP_ONLINE))]
+        {
+            serial::write_str("[selftest] Starting SMP_ONLINE test...\n");
+            match crate::arch::x86_64::smp::test_smp_online() {
+                Ok(_) => {
+                    serial::write_str("[PASS: SMP_ONLINE] Phase 6A validation successful\n");
+                    unsafe { crate::arch::x86_64::io::qemu_exit(0x00); }
+                },
+                Err(e) => {
+                    serial::write_str("[FAIL: SMP_ONLINE] Phase 6A validation failed: ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                    unsafe { crate::arch::x86_64::io::qemu_exit(0x01); }
+                }
+            }
+        }
+        
         // VFIO Phase 5B/5C selftest entry points (Option A: no userland requirement)
         #[cfg(all(feature = "vfio", selftest_VFIO_BIND_E1000))]
         {

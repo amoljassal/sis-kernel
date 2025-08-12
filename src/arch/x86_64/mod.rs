@@ -17,6 +17,8 @@ pub mod context_switch;
 pub mod apic;
 #[cfg(feature = "smp")]
 pub mod smp;
+#[cfg(feature = "smp")]
+pub mod percpu;
 #[cfg(feature = "idt-selftest")]
 pub mod idt_selftest;
 #[cfg(feature = "pf-matrix")]
