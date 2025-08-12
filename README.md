@@ -275,13 +275,152 @@ The SIS Kernel follows a structured development approach:
   - **5C-B**: **Complete** - MSI arming, triggering, and interrupt service routines
   - **5C-C**: **Complete** - Professional documentation and licensing framework
   - **5C-C.2**: **BREAKTHROUGH** - Industry-grade build system resolution + MSI pipeline ready
-- **Phase 6**: **In Progress** - SMP support and cognitive extensions
+- **Phase 6**: **Ready to Begin** - SMP support and cognitive extensions
 
 ### **Code Quality Standards**
 - **Memory Safety**: All code must pass Rust's borrow checker
 - **Performance**: Zero-cost abstractions where possible
 - **Testing**: Comprehensive test coverage for all features
 - **Documentation**: Clear, comprehensive inline documentation
+
+## Phase 6: SMP & Cognitive Runtime - Development Roadmap
+
+With Phase 5 MSI/IOMMU/VFIO foundation complete, Phase 6 focuses on multi-core processing and AI-native cognitive architecture.
+
+### **Development Guardrails**
+- **Feature Gating**: All components behind `smp`, `topology`, `affinity` feature flags
+- **Test-Driven Development**: Golden exits + serial breadcrumbs on every code path
+- **QEMU Test Matrix**: `{cores:1,2,4} × {lapic: on} × {msi: on}` comprehensive validation
+
+### **Phase 6 Implementation Sequence**
+
+#### **6A: CPU Bring-up (SMP_ONLINE)**
+**Goal**: All Application Processors (APs) online with dedicated stacks, GDT/TSS/IST, LAPIC timers
+
+**Implementation**:
+- Per-CPU data structure: `PerCpu { id, lapic_id, runq, current, ticks, scratch }`
+- GS-base optimization for fast `get_cpu()` access
+- AP bootstrap: INIT/SIPI/SIPI sequence + 64-bit trampoline 
+- Per-core TSS/IST for safe double fault handling
+- LAPIC timer per core with verified EOI handling
+- IDT installation per CPU with isolated stacks
+
+**Test**: `TEST=SMP_ONLINE` - Verify `[smp] cpu=X online` messages and per-core tick counters
+
+#### **6B: SMP-Aware Scheduler (SCHED_SMP_FAIR)**
+**Goal**: Real per-core runqueues with basic load balancing
+
+**Implementation**:
+- Per-CPU runqueue with lock-free local operations
+- Work-stealing scheduler: idle cores steal from busy neighbors
+- CPU affinity masks in Task structure (`u64 cpumask`)
+- Tick accounting per core with voluntary yield optimization
+
+**Test**: `TEST=SCHED_SMP_FAIR` - Spawn 2×#cores CPU-bound tasks, verify balanced runtime distribution
+
+#### **6C: Cross-CPU IPC (IPC_XCPU_PING)**
+**Goal**: Low-latency message delivery across cores
+
+**Implementation**:
+- Cross-CPU IPC with smart wake strategies
+- IPI_RESCHED vector for lightweight scheduling signals
+- TSC-based latency measurement infrastructure
+
+**Test**: `TEST=IPC_XCPU_PING` - Measure round-trip latency between pinned tasks on different cores
+
+#### **6D: Interrupt Steering (MSI_AFFINITY)**
+**Goal**: Route device interrupts to specific CPUs
+
+**Implementation**:
+- MSI destination programming via LAPIC targeting
+- `vfio_set_irq_affinity(handle, cpu_id)` interface
+- Per-CPU interrupt counter verification
+
+**Test**: `TEST=MSI_AFFINITY` - Route interrupts to specific CPU, verify isolation
+
+#### **6E: SMP-Safe Memory Management (TLB_SHOOTDOWN)**
+**Goal**: Coherent memory management across cores
+
+**Implementation**:
+- TLB shootdown IPI protocol with atomic acknowledgment barriers
+- Timeout detection and diagnostics for stuck cores
+- Graceful fallback to single-core mode for debugging
+
+**Test**: `TEST=TLB_SHOOTDOWN` - Concurrent map/unmap operations across cores
+
+#### **6F: Locking Primitives (SYNC_PRIMS)**
+**Goal**: Scalable synchronization primitives
+
+**Implementation**:
+- Ticket spinlocks for fairness
+- IRQ-safe lock variants for interrupt contexts
+- RCU-lite for read-mostly data structures
+- Per-epoch grace period tracking
+
+**Test**: `TEST=RCU_LITE` - Validate memory safety with concurrent readers/writers
+
+#### **6G: Topology Discovery (TOPO_DISC)**
+**Goal**: NUMA-aware task and memory placement
+
+**Implementation**:
+- ACPI/MADT parsing for package/core topology
+- NUMA-lite policy for local CPU task placement
+- Per-CPU allocation preferences for small objects
+
+**Test**: `TEST=TOPO_DISC` - Verify topology detection and locality optimization
+
+#### **6H: Cognitive Runtime Foundation (COG_BASE)**
+**Goal**: AI-native dual-core cognitive architecture
+
+**Implementation**:
+- "Philosophy" and "Technical" parent tasks with fixed CPU affinity
+- Capability delegation system: `cap_delegate(sender_cap, child)`
+- Device interrupt steering (GPU → Philosophy core, NIC → Technical core)
+- Secure IPC channels between cognitive cores
+
+**Test**: `TEST=COG_BASE` - Verify cognitive core isolation and communication
+
+### **Advanced Technical Enhancements**
+
+#### **Enhanced Locking Strategy**
+- **SeqLock**: Reader-writer scenarios with rare updates
+- **Per-CPU Reference Counting**: Optimized RCU-lite implementation
+- **MCS Locks**: Highly contended path optimization
+- **Lock-free Data Structures**: Critical path optimization
+
+#### **NUMA Awareness Enhancements**
+- **Memory Allocation Locality Tracking**: NUMA-aware allocator policies
+- **CPU-Local Memory Pools**: Reduced cross-socket traffic
+- **Inter-Socket Bandwidth Monitoring**: Dynamic placement optimization
+- **Cache Coherency Optimization**: False sharing mitigation
+
+#### **Interrupt Load Balancing**
+- **Dynamic Interrupt Migration**: Load-based IRQ routing
+- **Interrupt Coalescing**: High-frequency device optimization
+- **Vector Space Management**: Efficient interrupt vector allocation
+- **Priority-Based Routing**: Critical vs. background interrupt classification
+
+#### **Performance Monitoring & Diagnostics**
+- **Per-Core Performance Counters**: Detailed CPU utilization metrics
+- **Lock Contention Analysis**: Hot path identification
+- **Memory Bandwidth Monitoring**: NUMA efficiency tracking
+- **Interrupt Storm Detection**: Automatic mitigation strategies
+
+### **Risk Mitigation Strategies**
+- **IPI Storm Prevention**: Rate-limiting and batching mechanisms
+- **Shootdown Stall Detection**: Watchdog timers with fallback modes
+- **Fairness Drift Monitoring**: Runtime balance verification
+- **Lock Contention Hotspots**: Dynamic lock type selection
+
+### **CI/CD Integration**
+```bash
+# Multi-core test matrix
+cores: [1, 2, 4]
+tests: [SMP_ONLINE, SCHED_SMP_FAIR, IPC_XCPU_PING, MSI_AFFINITY, TLB_SHOOTDOWN, RCU_LITE, COG_BASE]
+artifacts: [serial_logs, timing_json, performance_histograms]
+```
+
+**Expected Timeline**: Phase 6A-6H implementation with comprehensive validation
 
 ## Performance Characteristics
 
@@ -349,7 +488,9 @@ For security issues, please email: security@sis-kernel.org
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is currently licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**Future Licensing**: As SIS Kernel evolves toward production readiness, enterprise and commercial licensing options may become available for advanced features and professional support.
 
 ## Acknowledgments
 
