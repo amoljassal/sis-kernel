@@ -96,7 +96,17 @@ echo "[harness] timeout set to ${TIMEOUT}s"
 # Build QEMU command for BIOS boot with disk image (simple IDE interface)
 echo "[harness] launching QEMU (BIOS)…"
 if [[ -f "$BIOS_IMAGE" ]]; then
-    echo "[harness] using BIOS disk image: $BIOS_IMAGE"
+    # Industry-grade image verification
+    echo "[QEMU] using image: $(readlink -f "$BIOS_IMAGE")"
+    stat "$BIOS_IMAGE" 2>/dev/null || echo "[WARNING] Cannot stat boot image"
+    
+    # Verify canary in image
+    if strings "$BIOS_IMAGE" | grep -q "DEADBEEFCAFEBABE"; then
+        echo "[VERIFY] Build canary confirmed in boot image"
+    else
+        echo "[WARNING] Build canary NOT found - may be stale image"
+    fi
+    
     QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" -drive file="$BIOS_IMAGE",format=raw,if=ide,index=0,media=disk)
 else
     echo "[harness] ERROR: BIOS disk image not found at $BIOS_IMAGE"

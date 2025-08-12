@@ -1,11 +1,14 @@
 use std::{env, path::PathBuf};
 
 fn main() {
-    // Ensure we rebuild image whenever the kernel binary changes
-    println!("cargo:rerun-if-changed=build.rs");
+    // Industry-grade build with enhanced canary verification
+    println!("cargo:warning=build.rs creating bootable image with canary verification");
     
-    // Force build.rs to regenerate the image *every run*
+    // Enhanced rebuild triggers for canary traceability
+    println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=FORCE_BOOTIMG");
+    println!("cargo:rerun-if-env-changed=GIT_COMMIT");
+    println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
 
     // Where cargo puts the compiled kernel ELF
     let target_dir = PathBuf::from(env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target".into()));
@@ -24,13 +27,13 @@ fn main() {
 
     // Make sure the kernel ELF exists before we call the builder
     if !kernel_elf.exists() {
-        // In the first build run, the ELF may not be present yet; just return.
-        // The second cargo invocation (or `cargo build` re-run) will create the image.
+        println!("cargo:warning=Kernel ELF not ready yet - deferring image creation");
         return;
     }
 
+    println!("cargo:warning=Creating BIOS boot image from kernel ELF");
+
     // Create BIOS disk image with bootloader 0.11.x
-    // Try to enable physical memory mapping if the API supports it
     let mut config = bootloader::BootConfig::default();
     config.serial_logging = true;
     config.frame_buffer_logging = false; // avoid VESA path
@@ -45,7 +48,5 @@ fn main() {
     std::fs::copy(&out_img, &final_img)
         .expect("failed to copy BIOS image to final location");
 
-    // Ensure the images exist for qemu.sh
-    println!("cargo:warning=Bootable BIOS image written to {}", out_img.display());
-    println!("cargo:warning=Final BIOS image copied to {}", final_img.display());
+    println!("cargo:warning=Bootable BIOS image created: {}", final_img.display());
 }

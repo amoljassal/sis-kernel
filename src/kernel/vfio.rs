@@ -485,9 +485,6 @@ pub fn syscall_enable_busmaster(handle_val: u16) -> Result<(), VfioError> {
         
         // Read current command register
         let cmd_reg = crate::kernel::pci::cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x04);
-        serial::write_str("[vfio] enable_busmaster read cmd_reg=0x");
-        crate::kernel::serial::write_hex32(cmd_reg);
-        serial::write_str("\n");
         
         if (cmd_reg & 0x04) != 0 {
             serial::write_str("[vfio] busmaster=ON (already enabled)\n");
@@ -541,29 +538,48 @@ pub fn syscall_disable_busmaster(handle_val: u16) -> Result<(), VfioError> {
 
 /// Arm MSI for VFIO handle with safety preconditions (syscall implementation)
 pub fn syscall_msi_arm(handle_val: u16, vector: u8) -> Result<(), VfioError> {
-    serial::write_str("[CLAUDE-MODIFIED] NEW MSI ARM FUNCTION IS RUNNING!\n");
-    serial::write_str("[CLAUDE-MODIFIED] This proves the new code is being executed!\n");
+    serial::write_str("[msi] arm called\n");
     
     #[cfg(feature = "vfio")]
     {
         // TODO: Get BDF from handle - for now use hardcoded 00:02.0
         let bdf = crate::kernel::pci::Bdf { bus: 0, dev: 2, func: 0 };
         
-        serial::write_str("[CLAUDE-MODIFIED] arm bdf=00:02.0\n");
+        serial::write_str("[vfio] arm bdf=00:02.0\n");
+        
+        // Check bus master is enabled
+        let cmd_reg = crate::kernel::pci::cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x04);
+        if (cmd_reg & 0x04) == 0 {
+            serial::write_str("[VFIO] MSI arm denied: bus master not enabled\n");
+            return Err(VfioError::PermissionDenied);
+        }
         
         // Find MSI capability offset
         let msi_offset = match crate::kernel::pci::find_msi_capability(bdf) {
-            Some(offset) => {
-                serial::write_str("[CLAUDE-MODIFIED] MSI capability found!\n");
-                offset
-            },
+            Some(offset) => offset,
             None => {
-                serial::write_str("[CLAUDE-MODIFIED] MSI capability NOT found\n");
+                serial::write_str("[VFIO] MSI arm failed: no MSI capability\n");
                 return Err(VfioError::NotSupported);
             }
         };
         
-        serial::write_str("[CLAUDE-MODIFIED] MSI arm would succeed if fully implemented\n");
+        // **NEW: Disable INTx before arming MSI (PCI spec recommends MSI-exclusive mode)**
+        let current_cmd = crate::kernel::pci::cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x04);
+        let new_cmd = current_cmd | 0x0400;  // Set bit 10: Interrupt Disable
+        crate::kernel::pci::cfg_write32(bdf.bus, bdf.dev, bdf.func, 0x04, new_cmd);
+        
+        serial::write_fmt(format_args!(
+            "[msi] INTx disabled for MSI-exclusive mode (cmd: 0x{:04x} -> 0x{:04x})\n",
+            current_cmd & 0xFFFF, new_cmd & 0xFFFF
+        )).ok();
+        
+        // Program MSI registers (use vector 0x5E for Phase 5C-B)
+        program_msi_registers(bdf, msi_offset, 0x5E)?;
+        
+        serial::write_fmt(format_args!(
+            "[VFIO] MSI armed: handle=0x{:04x} vector=0x{:02x} cap@0x{:02x}\n",
+            handle_val, 0x5E, msi_offset
+        )).ok();
         
         Ok(())
     }

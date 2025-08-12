@@ -41,7 +41,7 @@ qemu-intel-iommu-sim = [] # Phase 5A: QEMU Intel IOMMU simulation for testing
 vfio = ["iommu"]        # Phase 5B: VFIO-lite minimal passthrough (depends on IOMMU)
 
 [build-dependencies]
-# Builder used only from build.rs to create the disk image
+# Builder restored after resolving kernel compilation bottleneck  
 bootloader = { version = "=0.11.11", default-features = false, features = ["bios"] }
 
 # bootimage metadata removed - using build.rs with bootloader 0.11.x builder API

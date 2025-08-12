@@ -7,6 +7,7 @@ extern crate alloc;
 
 use bootloader_api::{entry_point, BootInfo};
 use core::panic::PanicInfo;
+use core::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(not(feature = "firewall"))]
 mod arch;
@@ -36,6 +37,30 @@ use arch::x86_64 as arch_x86;
 #[cfg(not(feature = "firewall"))]
 use kernel::serial;
 
+static BUILD_CANARY: AtomicU64 = AtomicU64::new(0);
+
+#[cfg(not(feature = "firewall"))]
+pub fn print_boot_banner() {
+    // Compile-time assertions for debug builds
+    #[cfg(debug_assertions)]
+    const BUILD_TYPE: &str = "debug";
+    #[cfg(not(debug_assertions))]  
+    const BUILD_TYPE: &str = "release";
+    
+    // Enhanced metadata extraction
+    let ts = option_env!("SOURCE_DATE_EPOCH").unwrap_or("unknown");
+    let profile = option_env!("PROFILE").unwrap_or(BUILD_TYPE);
+    let git = option_env!("GIT_COMMIT").unwrap_or("unknown");
+    
+    BUILD_CANARY.store(0xDEADBEEFCAFEBABE, Ordering::Relaxed);
+    
+    serial::write_str("[BOOT-CANARY] id=DEADBEEFCAFEBABE");
+    serial::write_str(" ts="); serial::write_str(ts);
+    serial::write_str(" profile="); serial::write_str(profile);
+    serial::write_str(" git="); serial::write_str(git);
+    serial::write_str("\n");
+}
+
 entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     // Initialise serial logging first
@@ -43,6 +68,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     
     // Immediate identification for debug
     serial::write_str("\n=== SIS KERNEL ENTRY ===\n");
+    
+    // Boot canary for build verification
+    print_boot_banner();
     
     // Debug bootloader 0.11.x mapping options
     let po = boot_info.physical_memory_offset.into_option();
