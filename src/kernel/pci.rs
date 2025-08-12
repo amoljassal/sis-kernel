@@ -94,41 +94,53 @@ pub fn get_bar_size(bdf: Bdf, bar_idx: u8) -> u32 {
 /// Walk PCI capability list to find MSI capability
 #[cfg(feature = "vfio")]
 pub fn find_msi_capability(bdf: Bdf) -> Option<u8> {
-    // Check if capabilities supported
-    let status = cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x04);
-    if (status & 0x00100000) == 0 {
+    serial::write_str("[msi] scan bdf=");
+    serial::write_hex8(bdf.bus); serial::write_str(":");
+    serial::write_hex8(bdf.dev); serial::write_str(".");
+    serial::write_hex8(bdf.func); serial::write_str("\n");
+    
+    // Check if capabilities supported (status register at 0x06)
+    let status = (cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x04) >> 16) as u16;
+    serial::write_str("[msi] status=0x");
+    crate::kernel::serial::write_hex16(status);
+    if (status & 0x10) == 0 {
+        serial::write_str(" [no-caps]\n");
         return None; // No capabilities
     }
+    serial::write_str(" [caps-ok]\n");
     
     // Get capabilities pointer
-    let cap_ptr = cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x34) as u8;
-    if cap_ptr == 0 { return None; }
+    let cap_ptr = (cfg_read32(bdf.bus, bdf.dev, bdf.func, 0x34) & 0xFF) as u8;
+    serial::write_str("[msi] cap_ptr=0x");
+    crate::kernel::serial::write_hex8(cap_ptr);
+    serial::write_str("\n");
+    if cap_ptr == 0 { 
+        serial::write_str("[msi] no cap ptr\n");
+        return None; 
+    }
     
     let mut ptr = cap_ptr;
-    let mut iterations = 0;
+    let mut hops = 0;
     
-    // Walk capability list
-    while ptr != 0 && iterations < 16 {  // Prevent infinite loops
+    // Walk capability list with DWORD alignment per PCI spec
+    while ptr != 0 && hops < 32 {
         let cap_reg = cfg_read32(bdf.bus, bdf.dev, bdf.func, ptr);
-        let cap_id = (cap_reg & 0xFF) as u8;
-        let next_ptr = ((cap_reg >> 8) & 0xFF) as u8;
+        let id = (cap_reg & 0xFF) as u8;
+        serial::write_str("[msi] cap id=0x");
+        crate::kernel::serial::write_hex8(id);
+        serial::write_str(" @0x");
+        crate::kernel::serial::write_hex8(ptr);
+        serial::write_str("\n");
         
-        match cap_id {
-            0x05 => {
-                // MSI capability found
-                serial::write_str("[vfio] msi@0x");
-                crate::kernel::serial::write_hex8(ptr);
-                serial::write_str("\n");
-                return Some(ptr);
-            },
-            _ => {
-                // Other capability, continue
-            }
+        if id == 0x05 {
+            serial::write_str("[msi] FOUND MSI\n");
+            return Some(ptr);
         }
-        
-        ptr = next_ptr;
-        iterations += 1;
+        let next = ((cap_reg >> 8) & 0xFF) as u8;     // next cap pointer
+        ptr = next & 0xFC;                            // DWORD alignment per PCI spec
+        hops += 1;
     }
+    serial::write_str("[msi] no msi\n");
     
     None
 }

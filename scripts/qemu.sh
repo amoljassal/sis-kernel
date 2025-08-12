@@ -63,28 +63,21 @@ PY
 }
 START_MS=$(_now_ms)
 
-# 4) QEMU common flags (headless, serial log, isa-debug-exit, KVM if available)
-COMMON=(-nographic -serial file:"$SERIAL_LOG" -no-reboot -no-shutdown -m "$MEM" -smp "$SMP" \
-        -device isa-debug-exit,iobase=0xf4,iosize=0x04 -display none)
+# 4) QEMU common flags - Q35 required for IOMMU/VFIO
+COMMON=(-machine q35,kernel-irqchip=split -m 1024 -cpu qemu64 -smp 1 \
+        -serial file:"$SERIAL_LOG" -display none -no-reboot -no-shutdown \
+        -device isa-debug-exit,iobase=0xf4,iosize=0x04)
 
-# Add Intel IOMMU device for IOMMU feature testing (requires q35 machine)
+# Add Intel IOMMU device for IOMMU feature testing
 if [[ "$FEATURES" == *"iommu"* ]]; then
-    COMMON+=(-machine q35 -machine kernel-irqchip=split -device intel-iommu,intremap=on)
+    COMMON+=(-device intel-iommu,intremap=on)
     echo "[harness] Intel IOMMU enabled for testing"
 fi
 
-# Add e1000 device for VFIO feature testing
+# Add e1000e device for VFIO feature testing (MSI-capable) - force 00:02.0
 if [[ "$FEATURES" == *"vfio"* ]]; then
-    COMMON+=(-device e1000,netdev=net0 -netdev user,id=net0)
-    echo "[harness] e1000 device enabled for VFIO testing"
-fi
-
-# Add KVM acceleration if available
-if [[ -r /dev/kvm && -w /dev/kvm ]]; then
-    COMMON+=(-enable-kvm -cpu host)
-    echo "[harness] KVM acceleration enabled"
-else
-    echo "[harness] KVM not available, using TCG"
+    COMMON+=(-nic none -device e1000e,netdev=n1,mac=52:54:00:12:34:56,bus=pcie.0,addr=0x2 -netdev user,id=n1)
+    echo "[harness] e1000e device pinned to 00:02.0"
 fi
 
 # 5) Boot mode specific flags
@@ -100,11 +93,11 @@ QEMU_BIN="${QEMU_BIN:-qemu-system-x86_64}"
 
 echo "[harness] timeout set to ${TIMEOUT}s"
 
-# Build QEMU command for BIOS boot with disk image
+# Build QEMU command for BIOS boot with disk image (simple IDE interface)
 echo "[harness] launching QEMU (BIOS)…"
 if [[ -f "$BIOS_IMAGE" ]]; then
     echo "[harness] using BIOS disk image: $BIOS_IMAGE"
-    QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" -drive format=raw,file="$BIOS_IMAGE")
+    QEMU_CMD=(timeout -k 2 "${TIMEOUT}s" "$QEMU_BIN" "${COMMON[@]}" -drive file="$BIOS_IMAGE",format=raw,if=ide,index=0,media=disk)
 else
     echo "[harness] ERROR: BIOS disk image not found at $BIOS_IMAGE"
     echo "[harness] Build may have failed or build.rs didn't create the image"

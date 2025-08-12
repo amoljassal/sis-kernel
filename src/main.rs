@@ -110,7 +110,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 let id = crate::kernel::pci::read_id(bdf);
                 if id.vendor == 0x8086 {
                     serial::write_str("[selftest] Found Intel e1000 device\n");
-                    match crate::kernel::vfio::syscall_bind_device(0, 3, 0) {
+                    match crate::kernel::vfio::syscall_bind_device(0, 2, 0) {
                         Ok(_) => {
                             serial::write_str("[PASS: VFIO_BIND_E1000] Device binding successful\n");
                             unsafe { crate::arch::x86_64::io::qemu_exit(0x00); } // success
@@ -140,8 +140,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             
             let mut success = true;
             
-            // Setup sequence
-            if crate::kernel::vfio::syscall_bind_device(0, 3, 0).is_err() { success = false; }
+            // Setup sequence - e1000e device is pinned at 00:02.0  
+            if crate::kernel::vfio::syscall_bind_device(0, 2, 0).is_err() { success = false; }
             if success && crate::kernel::vfio::syscall_domain_create(h_val).is_err() { success = false; }
             if success && crate::kernel::vfio::syscall_domain_map_staging(h_val, 16*1024).is_err() { success = false; }
             if success && crate::kernel::vfio::syscall_enable_busmaster(h_val).is_err() { success = false; }
@@ -169,7 +169,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 let h_val = h.as_u16();
                 
                 let mut success = true;
-                if crate::kernel::vfio::syscall_bind_device(0, 3, 0).is_err() { success = false; }
+                if crate::kernel::vfio::syscall_bind_device(0, 2, 0).is_err() { success = false; }
                 if success && crate::kernel::vfio::syscall_domain_create(h_val).is_err() { success = false; }
                 if success && crate::kernel::vfio::syscall_enable_busmaster(h_val).is_err() { success = false; }
                 if success && crate::kernel::vfio::syscall_msi_arm(h_val, 0x5E).is_err() { success = false; }
