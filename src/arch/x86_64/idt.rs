@@ -290,7 +290,16 @@ extern "x86-interrupt" fn timer_interrupt_handler(
         crate::arch::x86_64::percpu::percpu_tick();
     }
     
-    scheduler::tick();
+    // SMP scheduler takes precedence over legacy scheduler
+    #[cfg(feature = "smp")]
+    {
+        crate::kernel::smp_scheduler::smp_timer_tick();
+    }
+    
+    #[cfg(not(feature = "smp"))]
+    {
+        scheduler::tick();
+    }
     
     // Send EOI: LAPIC if APIC feature enabled, otherwise legacy PIC
     #[cfg(feature = "apic")]

@@ -97,6 +97,14 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         
         // Continue with full kernel initialization - placeholder for now
         serial::write_str("[kernel] memory initialized, entering main loop\n");
+
+        // Initialize SMP scheduler (Phase 6B)
+        #[cfg(feature = "smp")]
+        {
+            serial::write_str("[kernel] Initializing SMP scheduler...\n");
+            crate::kernel::smp_scheduler::init_smp_scheduler();
+            serial::write_str("[kernel] SMP scheduler initialized\n");
+        }
         
         // Initialize IOMMU for VFIO tests
         #[cfg(feature = "iommu")]
@@ -185,6 +193,24 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 },
                 Err(e) => {
                     serial::write_str("[FAIL: SMP_ONLINE] Phase 6A validation failed: ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                    unsafe { crate::arch::x86_64::io::qemu_exit(0x01); }
+                }
+            }
+        }
+
+        // Phase 6B TEST: SCHED_SMP_FAIR validation
+        #[cfg(all(feature = "smp", feature = "idt-selftest", selftest_SCHED_SMP_FAIR))]
+        {
+            serial::write_str("[selftest] Starting SCHED_SMP_FAIR test...\n");
+            match crate::kernel::smp_scheduler::test_sched_smp_fair() {
+                Ok(_) => {
+                    serial::write_str("[PASS: SCHED_SMP_FAIR] Phase 6B validation successful\n");
+                    unsafe { crate::arch::x86_64::io::qemu_exit(0x00); }
+                },
+                Err(e) => {
+                    serial::write_str("[FAIL: SCHED_SMP_FAIR] Phase 6B validation failed: ");
                     serial::write_str(e);
                     serial::write_str("\n");
                     unsafe { crate::arch::x86_64::io::qemu_exit(0x01); }

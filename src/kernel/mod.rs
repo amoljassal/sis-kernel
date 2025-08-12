@@ -8,6 +8,8 @@
 pub mod serial;
 pub mod task;
 pub mod scheduler;
+#[cfg(feature = "smp")]
+pub mod smp_scheduler;
 pub mod syscall;
 pub mod pci;
 pub mod affinity;

@@ -266,10 +266,21 @@ pub fn add_task(task: &'static mut Task) {
 }
 
 pub fn spawn_child(entry: fn(), parent_role: super::task::Role) -> usize {
-    let task = Task::spawn(entry, parent_role);
-    let id = task.id;
-    add_task(task);
-    id
+    // Check if SMP scheduler is available
+    #[cfg(feature = "smp")]
+    {
+        use super::smp_scheduler::{spawn_smp_task, TaskId};
+        let task_id = spawn_smp_task(entry, "child_task", parent_role);
+        return task_id as usize;
+    }
+    
+    #[cfg(not(feature = "smp"))]
+    {
+        let task = Task::spawn(entry, parent_role);
+        let id = task.id;
+        add_task(task);
+        id
+    }
 }
 
 pub fn terminate_current() {
