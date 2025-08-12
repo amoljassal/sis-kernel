@@ -228,8 +228,10 @@ fn create_handle_state(bdf: Bdf) -> Option<VfioHandle> {
                 let h = VfioHandle::new(i as u16, 1);
                 HANDLE_STATES[i] = Some(VfioHandleState {
                     bdf,
+                    #[cfg(feature = "iommu")]
                     domain_id: None,
                     msi_offset: find_msi_cap(bdf),
+                    #[cfg(feature = "iommu")]
                     iova_staging: None,
                     staging_len: 0,
                     bus_master_enabled: false,
@@ -499,6 +501,17 @@ pub fn syscall_enable_busmaster(handle_val: u16) -> Result<(), VfioError> {
             "[vfio] busmaster=ON for handle 0x{:04x} (cmd_reg: 0x{:04x} -> 0x{:04x})\n",
             handle_val, cmd_reg & 0xFFFF, new_cmd & 0xFFFF
         )).ok();
+        
+        // CRITICAL: Update handle state to reflect bus master enabled
+        let handle = handle_from_u16(handle_val);
+        unsafe {
+            let mut table_lock = core::ptr::addr_of_mut!(HANDLE_STATES);
+            let table = &mut *table_lock;
+            if let Some(state) = get_state_mut(table, handle) {
+                state.bus_master_enabled = true;
+                serial::write_str("[vfio] handle state updated: bus_master_enabled=true\n");
+            }
+        }
         
         Ok(())
     }
