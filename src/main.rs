@@ -177,19 +177,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         #[cfg(all(feature = "smp", feature = "apic"))]
         {
             serial::write_str("[debug] SMP feature enabled, initializing multi-core support\n");
-            match crate::arch::x86_64::smp::init_smp_phase6a() {
-                Ok(_) => {
-                    let online_count = crate::arch::x86_64::percpu::online_cpu_count();
-                    serial::write_str("[kernel] Phase 6A SMP initialization complete: ");
-                    serial::write_u64(online_count as u64);
-                    serial::write_str(" CPUs online\n");
-                },
-                Err(e) => {
-                    serial::write_str("[kernel] SMP init failed: ");
-                    serial::write_str(e);
-                    serial::write_str("\n");
-                }
-            }
+            crate::arch::x86_64::smp_new::init();
+            serial::write_str("[kernel] Phase 6A SMP initialization complete\n");
         }
         #[cfg(not(all(feature = "smp", feature = "apic")))]
         {
@@ -243,6 +232,24 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 },
                 Err(e) => {
                     serial::write_str("[FAIL: IPC_XCPU_PING] Phase 6C validation failed: ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                    unsafe { crate::arch::x86_64::io::qemu_exit(0x01); }
+                }
+            }
+        }
+
+        // Phase 6D TEST: TLB_SHOOTDOWN validation
+        #[cfg(all(feature = "smp", feature = "apic", feature = "idt-selftest", selftest_TLB_SHOOTDOWN))]
+        {
+            serial::write_str("[selftest] Starting TLB_SHOOTDOWN test...\n");
+            match crate::arch::x86_64::shootdown::test_tlb_shootdown() {
+                Ok(_) => {
+                    serial::write_str("[PASS: TLB_SHOOTDOWN] Phase 6D validation successful\n");
+                    unsafe { crate::arch::x86_64::io::qemu_exit(0x00); }
+                },
+                Err(e) => {
+                    serial::write_str("[FAIL: TLB_SHOOTDOWN] Phase 6D validation failed: ");
                     serial::write_str(e);
                     serial::write_str("\n");
                     unsafe { crate::arch::x86_64::io::qemu_exit(0x01); }

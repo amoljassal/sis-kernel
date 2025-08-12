@@ -4,12 +4,31 @@
 //! efficient per-CPU data access using x86_64 GS segment base register.
 
 use core::sync::atomic::{AtomicU64, AtomicU32, Ordering};
+use core::mem::MaybeUninit;
 use x86_64::{PhysAddr, VirtAddr};
 use x86_64::registers::segmentation::{GS, Segment};
 use x86_64::registers::model_specific::Msr;
+use x86_64::structures::gdt::{GlobalDescriptorTable, Descriptor, SegmentSelector};
+use x86_64::structures::tss::TaskStateSegment;
 
 /// Maximum number of CPUs supported (can be increased later)
 pub const MAX_CPUS: usize = 64;
+
+/// IST stack size per CPU for double fault handling  
+pub const IST_STACK_SIZE: usize = 4096 * 5; // 20KB per CPU
+
+/// Double fault IST index
+pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
+
+/// GDT selectors for per-CPU GDT
+#[derive(Debug, Clone, Copy)]
+pub struct Selectors {
+    pub code_ring0: SegmentSelector,
+    pub data_ring0: SegmentSelector,
+    pub code_ring3: SegmentSelector,
+    pub data_ring3: SegmentSelector,
+    pub tss: SegmentSelector,
+}
 
 /// Per-CPU data structure containing all CPU-local state
 #[repr(C, align(64))] // Cache line aligned to prevent false sharing
@@ -38,13 +57,47 @@ pub struct PerCpu {
     /// Per-CPU stack pointer for interrupt handling
     pub interrupt_stack: u64,
     
+    /// Per-CPU double fault IST stack
+    pub double_fault_stack: [u8; IST_STACK_SIZE],
+    
+    /// Per-CPU TSS
+    pub tss: TaskStateSegment,
+    
+    /// Per-CPU GDT
+    pub gdt: (GlobalDescriptorTable, Selectors),
+    
     /// Reserved for future expansion
-    pub reserved: [u64; 16],
+    pub reserved: [u64; 8],
 }
 
 impl PerCpu {
     /// Create a new PerCpu structure for given CPU ID and LAPIC ID
-    pub const fn new(id: u32, lapic_id: u32) -> Self {
+    pub fn new(id: u32, lapic_id: u32) -> Self {
+        // Create per-CPU TSS with its own double fault IST stack
+        let mut tss = TaskStateSegment::new();
+        
+        // Initialize double fault stack
+        let double_fault_stack = [0; IST_STACK_SIZE];
+        
+        // Set up IST entry for double fault (will be updated after allocation)
+        tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = VirtAddr::new(0);
+        
+        // Create per-CPU GDT
+        let mut gdt = GlobalDescriptorTable::new();
+        let code_ring0 = gdt.add_entry(Descriptor::kernel_code_segment());
+        let data_ring0 = gdt.add_entry(Descriptor::kernel_data_segment());
+        let code_ring3 = gdt.add_entry(Descriptor::user_code_segment());
+        let data_ring3 = gdt.add_entry(Descriptor::user_data_segment());
+        let tss_selector = gdt.add_entry(Descriptor::tss_segment(&tss));
+        
+        let selectors = Selectors {
+            code_ring0,
+            data_ring0, 
+            code_ring3,
+            data_ring3,
+            tss: tss_selector,
+        };
+        
         Self {
             id,
             lapic_id,
@@ -54,7 +107,62 @@ impl PerCpu {
             runqueue_head: core::ptr::null_mut(),
             scratch: [0; 8],
             interrupt_stack: 0,
-            reserved: [0; 16],
+            double_fault_stack,
+            tss,
+            gdt: (gdt, selectors),
+            reserved: [0; 8],
+        }
+    }
+    
+    /// Initialize per-CPU IST stack pointers after allocation
+    pub fn init_ist_stacks(&mut self) {
+        // Calculate IST stack top (stacks grow downward)
+        let stack_bottom = self.double_fault_stack.as_ptr() as u64;
+        let stack_top = stack_bottom + IST_STACK_SIZE as u64;
+        
+        // Update TSS with correct IST stack pointer
+        self.tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = 
+            VirtAddr::new(stack_top);
+        
+        // Recreate GDT with updated TSS
+        let mut gdt = GlobalDescriptorTable::new();
+        let code_ring0 = gdt.add_entry(Descriptor::kernel_code_segment());
+        let data_ring0 = gdt.add_entry(Descriptor::kernel_data_segment());
+        let code_ring3 = gdt.add_entry(Descriptor::user_code_segment());
+        let data_ring3 = gdt.add_entry(Descriptor::user_data_segment());
+        let tss_selector = gdt.add_entry(Descriptor::tss_segment(&self.tss));
+        
+        let selectors = Selectors {
+            code_ring0,
+            data_ring0,
+            code_ring3, 
+            data_ring3,
+            tss: tss_selector,
+        };
+        
+        self.gdt = (gdt, selectors);
+    }
+
+    /// Install per-CPU GDT and TSS
+    pub fn install_gdt_tss(&self) {
+        use x86_64::instructions::tables::{load_tss, lgdt};
+        use x86_64::instructions::segmentation::{CS, Segment};
+        use x86_64::structures::DescriptorTablePointer;
+        
+        // Load GDT
+        let gdt_ptr = DescriptorTablePointer {
+            base: VirtAddr::new(&self.gdt.0 as *const _ as u64),
+            limit: (core::mem::size_of_val(&self.gdt.0) - 1) as u16,
+        };
+        
+        unsafe {
+            lgdt(&gdt_ptr);
+            
+            // Reload code segment
+            CS::set_reg(self.gdt.1.code_ring0);
+            
+            // Load TSS
+            load_tss(self.gdt.1.tss);
         }
     }
     
@@ -74,28 +182,16 @@ impl PerCpu {
     }
 }
 
-/// Global per-CPU data array
-static mut PER_CPU_DATA: [PerCpu; MAX_CPUS] = [
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-    PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0), PerCpu::new(0, 0),
-];
+/// Global per-CPU data array (initialized at runtime)
+static mut PER_CPU_DATA: [MaybeUninit<PerCpu>; MAX_CPUS] = unsafe {
+    MaybeUninit::uninit().assume_init()
+};
 
 /// Number of online CPUs
 static ONLINE_CPUS: AtomicU32 = AtomicU32::new(0);
+
+/// Initialization flag for per-CPU data array
+static PERCPU_INITIALIZED: AtomicU32 = AtomicU32::new(0);
 
 /// Initialize per-CPU data for a given CPU
 /// 
@@ -106,12 +202,34 @@ pub unsafe fn init_percpu(cpu_id: u32, lapic_id: u32) -> Result<(), &'static str
         return Err("CPU ID exceeds MAX_CPUS");
     }
     
+    // One-time initialization of the array for BSP (CPU 0)
+    if cpu_id == 0 {
+        let expected = 0;
+        if PERCPU_INITIALIZED.compare_exchange(expected, 1, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+            // Initialize all entries to prevent undefined behavior
+            for i in 0..MAX_CPUS {
+                PER_CPU_DATA[i] = MaybeUninit::uninit();
+            }
+        }
+    }
+    
     // Initialize the per-CPU structure
-    PER_CPU_DATA[cpu_id as usize] = PerCpu::new(cpu_id, lapic_id);
-    PER_CPU_DATA[cpu_id as usize].set_online();
+    let percpu = PerCpu::new(cpu_id, lapic_id);
+    PER_CPU_DATA[cpu_id as usize] = MaybeUninit::new(percpu);
+    
+    // Get reference to initialized structure
+    let percpu_ref = PER_CPU_DATA[cpu_id as usize].assume_init_mut();
+    
+    // Initialize IST stacks after allocation
+    percpu_ref.init_ist_stacks();
+    
+    // Install per-CPU GDT and TSS
+    percpu_ref.install_gdt_tss();
+    
+    percpu_ref.set_online();
     
     // Set up GS base to point to this CPU's data
-    let percpu_ptr = &mut PER_CPU_DATA[cpu_id as usize] as *mut PerCpu;
+    let percpu_ptr = percpu_ref as *mut PerCpu;
     
     // Use GSBASE MSR to set GS segment base
     let mut gs_base_msr = Msr::new(0xC0000101); // IA32_GS_BASE
@@ -166,7 +284,13 @@ pub fn is_cpu_online(cpu_id: u32) -> bool {
     if cpu_id as usize >= MAX_CPUS {
         return false;
     }
-    unsafe { PER_CPU_DATA[cpu_id as usize].online }
+    unsafe { 
+        // Check if this CPU slot has been initialized
+        if PERCPU_INITIALIZED.load(Ordering::SeqCst) == 0 {
+            return false;
+        }
+        PER_CPU_DATA[cpu_id as usize].assume_init_ref().online 
+    }
 }
 
 /// Per-CPU tick increment (called from LAPIC timer interrupt)
@@ -180,8 +304,13 @@ pub fn get_percpu(cpu_id: u32) -> Option<&'static mut PerCpu> {
         return None;
     }
     unsafe {
-        if PER_CPU_DATA[cpu_id as usize].online {
-            Some(&mut PER_CPU_DATA[cpu_id as usize])
+        // Check if system has been initialized
+        if PERCPU_INITIALIZED.load(Ordering::SeqCst) == 0 {
+            return None;
+        }
+        let percpu_ref = PER_CPU_DATA[cpu_id as usize].assume_init_mut();
+        if percpu_ref.online {
+            Some(percpu_ref)
         } else {
             None
         }

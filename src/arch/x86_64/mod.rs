@@ -19,6 +19,16 @@ pub mod apic;
 pub mod smp;
 #[cfg(feature = "smp")]
 pub mod percpu;
+#[cfg(feature = "smp")]
+pub mod percpu_clean;
+#[cfg(feature = "smp")]
+pub mod ipi;
+#[cfg(feature = "smp")]
+pub mod smp_new;
+#[cfg(feature = "smp")]
+pub mod shootdown;
+#[cfg(feature = "smp")]
+pub mod topology;
 #[cfg(feature = "idt-selftest")]
 pub mod idt_selftest;
 #[cfg(feature = "pf-matrix")]

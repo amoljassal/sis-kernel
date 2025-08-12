@@ -115,9 +115,34 @@ lazy_static! {
 
 pub fn init_idt() {
     IDT.load();
+    
+    // IPI handlers (SMP)
+    #[cfg(feature = "smp")]
+    {
+        // Install IPI handlers for cross-CPU communication
+        crate::arch::x86_64::ipi::install_ipi_handlers();
+    }
 }
 
 // ISRs are now pre-installed during IDT initialization
+
+/// Unsafe internal: install an x86-interrupt handler at a custom vector.
+#[cfg(feature = "smp")]
+pub unsafe fn install_ipi(handler_addr: usize, vector: u8) {
+    use x86_64::structures::idt::InterruptDescriptorTable;
+    use core::ptr;
+    
+    // We need to modify the IDT after it's been loaded
+    // This is unsafe and should only be called during early init
+    let idt_ptr = &IDT as *const _ as *mut InterruptDescriptorTable;
+    let idt = &mut *idt_ptr;
+    
+    // Safety: we transmute a function pointer by address to `extern "x86-interrupt" fn(_)`
+    let f: extern "x86-interrupt" fn(x86_64::structures::idt::InterruptStackFrame) =
+        core::mem::transmute::<usize, _>(handler_addr);
+    
+    idt[vector as usize].set_handler_fn(f);
+}
 
 // ----- VFIO runtime support: vector→handle map and TSC latency histogram -----
 #[cfg(feature="vfio")]
