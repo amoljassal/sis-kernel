@@ -105,6 +105,20 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             crate::kernel::smp_scheduler::init_smp_scheduler();
             serial::write_str("[kernel] SMP scheduler initialized\n");
         }
+
+        // Initialize Cross-CPU IPC (Phase 6C)
+        #[cfg(all(feature = "smp", feature = "ipc"))]
+        {
+            serial::write_str("[kernel] Initializing Cross-CPU IPC...\n");
+            match crate::kernel::xcpu_ipc::init_xcpu_ipc() {
+                Ok(_) => serial::write_str("[kernel] Cross-CPU IPC initialized\n"),
+                Err(e) => {
+                    serial::write_str("[kernel] Cross-CPU IPC initialization failed: ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                }
+            }
+        }
         
         // Initialize IOMMU for VFIO tests
         #[cfg(feature = "iommu")]
@@ -211,6 +225,24 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 },
                 Err(e) => {
                     serial::write_str("[FAIL: SCHED_SMP_FAIR] Phase 6B validation failed: ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                    unsafe { crate::arch::x86_64::io::qemu_exit(0x01); }
+                }
+            }
+        }
+
+        // Phase 6C TEST: IPC_XCPU_PING validation
+        #[cfg(all(feature = "smp", feature = "ipc", feature = "idt-selftest", selftest_IPC_XCPU_PING))]
+        {
+            serial::write_str("[selftest] Starting IPC_XCPU_PING test...\n");
+            match crate::kernel::xcpu_ipc::test_ipc_xcpu_ping() {
+                Ok(_) => {
+                    serial::write_str("[PASS: IPC_XCPU_PING] Phase 6C validation successful\n");
+                    unsafe { crate::arch::x86_64::io::qemu_exit(0x00); }
+                },
+                Err(e) => {
+                    serial::write_str("[FAIL: IPC_XCPU_PING] Phase 6C validation failed: ");
                     serial::write_str(e);
                     serial::write_str("\n");
                     unsafe { crate::arch::x86_64::io::qemu_exit(0x01); }

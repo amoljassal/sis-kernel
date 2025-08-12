@@ -78,6 +78,16 @@ lazy_static! {
             .set_handler_fn(syscall_exit_handler)
             .set_privilege_level(PrivilegeLevel::Ring3);
 
+        // Phase 6C: Cross-CPU IPI handlers
+        #[cfg(feature = "smp")]
+        {
+            // IPI_RESCHED vector (0xF0) for lightweight scheduling signals
+            idt[0xF0].set_handler_fn(ipi_resched_handler);
+            
+            // IPI_IPC_WAKE vector (0xF1) for cross-CPU IPC wake-up
+            idt[0xF1].set_handler_fn(ipi_ipc_wake_handler);
+        }
+
         // Install VFIO ISRs for vectors 0x50-0x5F
         #[cfg(feature = "vfio")]
         {
@@ -299,6 +309,12 @@ extern "x86-interrupt" fn timer_interrupt_handler(
     #[cfg(not(feature = "smp"))]
     {
         scheduler::tick();
+    }
+
+    // Process cross-CPU IPC messages (Phase 6C)
+    #[cfg(all(feature = "smp", feature = "ipc"))]
+    {
+        crate::kernel::xcpu_ipc::process_ipc_messages();
     }
     
     // Send EOI: LAPIC if APIC feature enabled, otherwise legacy PIC
@@ -545,5 +561,36 @@ extern "x86-interrupt" fn vfio_interrupt_handler(
     unsafe {
         serial::write_str("[vfio-irq] Selftest exit: first MSI delivered successfully\n");
         qemu_exit(0x00); // Success
+    }
+}
+
+// Phase 6C: Cross-CPU IPI handlers
+
+/// IPI handler for reschedule requests (vector 0xF0)
+#[cfg(feature = "smp")]
+extern "x86-interrupt" fn ipi_resched_handler(_stack_frame: InterruptStackFrame) {
+    // Handle reschedule IPI
+    crate::kernel::smp_scheduler::handle_resched_ipi();
+    
+    // Send EOI to LAPIC
+    #[cfg(feature = "apic")]
+    {
+        crate::arch::x86_64::apic::eoi();
+    }
+}
+
+/// IPI handler for cross-CPU IPC wake-up (vector 0xF1)
+#[cfg(feature = "smp")]
+extern "x86-interrupt" fn ipi_ipc_wake_handler(_stack_frame: InterruptStackFrame) {
+    // Handle IPC wake-up IPI
+    #[cfg(feature = "ipc")]
+    {
+        crate::kernel::xcpu_ipc::handle_ipc_ipi();
+    }
+    
+    // Send EOI to LAPIC
+    #[cfg(feature = "apic")]
+    {
+        crate::arch::x86_64::apic::eoi();
     }
 }

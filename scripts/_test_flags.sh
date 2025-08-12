@@ -41,6 +41,12 @@ case "${TEST:-}" in
     FEATURES_DEFAULT="apic smp idt-selftest"
     ;;
 
+  # ---- SMP Phase 6C: Cross-CPU IPC ----
+  IPC_XCPU_PING)
+    export RUSTFLAGS="--cfg selftest_IPC_XCPU_PING"
+    FEATURES_DEFAULT="apic smp ipc idt-selftest"
+    ;;
+
   # ---- Page Fault Matrix v1/v2 ----
   PFM_NP_U_R|PFM_NP_U_W|PFM_US_VIOL|PFM_PROT_U_W|PFM_NX_EXEC|PFM_GUARD_UNDER|PFM_GUARD_OVER)
     export RUSTFLAGS="--cfg selftest_${TEST}"

@@ -10,6 +10,8 @@ pub mod task;
 pub mod scheduler;
 #[cfg(feature = "smp")]
 pub mod smp_scheduler;
+#[cfg(all(feature = "smp", feature = "ipc"))]
+pub mod xcpu_ipc;
 pub mod syscall;
 pub mod pci;
 pub mod affinity;

@@ -213,7 +213,8 @@ const ICR_DEST_PHYSICAL:      u32 = 0 << 11;
 const ICR_NO_SHORTHAND:       u32 = 0 << 18;
 
 /// Send IPI to target APIC ID with given ICR low bits.
-pub unsafe fn send_ipi(apic_id: u32, icr_low: u32) {
+/// Raw IPI send function (low-level)
+pub unsafe fn send_ipi_raw(apic_id: u32, icr_low: u32) {
     // Write hi then low.
     lapic_write(LAPIC_REG_ICR_HIGH, apic_id << 24);
     lapic_write(LAPIC_REG_ICR_LOW,  icr_low | ICR_NO_SHORTHAND);
@@ -223,15 +224,31 @@ pub unsafe fn send_ipi(apic_id: u32, icr_low: u32) {
     }
 }
 
+/// Send regular IPI with specific vector to target CPU
+/// Used for cross-CPU communication and scheduling signals
+pub fn send_ipi(target_cpu: u32, vector: u8) {
+    unsafe {
+        let target_apic_id = cpu_to_apic_id(target_cpu);
+        send_ipi_raw(target_apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (vector as u32));
+    }
+}
+
+/// Convert CPU ID to APIC ID (simplified 1:1 mapping for most systems)
+pub fn cpu_to_apic_id(cpu_id: u32) -> u32 {
+    // In most systems, CPU ID == APIC ID, but this could be more complex
+    // For Phase 6C, we use simple 1:1 mapping
+    cpu_id
+}
+
 /// INIT + SIPI + SIPI sequence to a given APIC ID; `vector` is 4K-aligned physical page / 0x1000.
 pub unsafe fn start_ap(apic_id: u32, vector: u8) {
     // INIT (deasserted INIT IPI with ASSERT level is enough in QEMU)
-    send_ipi(apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | ICR_LEVEL_ASSERT | ICR_DELIVERY_INIT);
+    send_ipi_raw(apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | ICR_LEVEL_ASSERT | ICR_DELIVERY_INIT);
     // Small delay
     for _ in 0..100000 { core::hint::spin_loop(); }
     // SIPI #1
-    send_ipi(apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (ICR_DELIVERY_STARTUP | (vector as u32)));
+    send_ipi_raw(apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (ICR_DELIVERY_STARTUP | (vector as u32)));
     for _ in 0..100000 { core::hint::spin_loop(); }
     // SIPI #2 (recommended)
-    send_ipi(apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (ICR_DELIVERY_STARTUP | (vector as u32)));
+    send_ipi_raw(apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (ICR_DELIVERY_STARTUP | (vector as u32)));
 }

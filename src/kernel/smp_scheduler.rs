@@ -562,3 +562,9 @@ pub fn test_sched_smp_fair() -> Result<(), &'static str> {
         Err("Task distribution failed")
     }
 }
+
+/// Handle reschedule IPI (called from IDT handler)
+pub fn handle_resched_ipi() {
+    // Reschedule IPI received - trigger immediate reschedule
+    SMP_SCHEDULER.schedule();
+}
