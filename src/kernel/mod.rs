@@ -15,6 +15,11 @@ pub mod xcpu_ipc;
 pub mod syscall;
 pub mod pci;
 pub mod affinity;
+#[cfg(feature = "scheduler")]
+pub mod simple_scheduler;
+pub mod current;
+pub mod task_table;
+pub mod spawn;
 pub mod vfio;
 #[cfg(feature = "ipc")]
 pub mod caps;

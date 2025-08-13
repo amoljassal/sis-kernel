@@ -82,6 +82,10 @@ pub const SYS_VFIO_MSI_DISARM: usize = 0x59;
 #[cfg(feature = "vfio")]
 pub const SYS_VFIO_MSI_TRIGGER_E1000: usize = 0x5A;
 
+// Phase 6B: CPU affinity syscall (aligned with patch)
+#[cfg(feature = "affinity")]
+pub const SYS_SET_AFFINITY: u64 = 0x61;
+
 pub fn init() {
     unsafe {
         for slot in SYSCALL_TABLE.iter_mut() {
@@ -131,6 +135,12 @@ pub fn init() {
             SYSCALL_TABLE[SYS_VFIO_MSI_ARM] = Some(sys_vfio_msi_arm);
             SYSCALL_TABLE[SYS_VFIO_MSI_DISARM] = Some(sys_vfio_msi_disarm);
             SYSCALL_TABLE[SYS_VFIO_MSI_TRIGGER_E1000] = Some(sys_vfio_msi_trigger_e1000);
+        }
+        
+        // Phase 6B: CPU affinity syscall
+        #[cfg(feature = "affinity")]
+        {
+            SYSCALL_TABLE[SYS_SET_AFFINITY as usize] = Some(sys_set_affinity);
         }
     }
 }
@@ -882,5 +892,37 @@ fn sys_vfio_msi_trigger_e1000(handle: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u6
         Err(_) => {
             serial::write_str("[sys_vfio_msi_trigger_e1000] e1000 MSI trigger failed\n");
         }
+    }
+}
+
+// Phase 6B: CPU affinity syscall implementation (matching patch)
+#[cfg(feature = "affinity")]
+fn sys_set_affinity(mask: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    serial::write_str("[sys_set_affinity] Setting CPU affinity mask=0x");
+    serial::write_hex64(mask);
+    serial::write_str("\n");
+    
+    // mask == 0 => unconstrained
+    let cur_tid = crate::kernel::current::tid();
+    let t = crate::kernel::task_table::get(cur_tid);
+    let mut guard = t.lock();
+    let task = &mut *guard;
+    task.cpu_affinity_mask = mask;
+    
+    // If currently running on a disallowed CPU, bounce it out
+    let cur = unsafe { crate::arch::x86_64::percpu_clean::this().cpu_id };
+    let allowed = if mask == 0 { true } else { ((mask >> cur) & 1) != 0 };
+    core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
+    
+    if !allowed {
+        // Demote to Ready and enqueue on an allowed CPU.
+        task.state = crate::kernel::task::State::Ready;
+        let tid = task.id as u64;
+        drop(guard);
+        if let Some(tref) = crate::kernel::task_table::get(tid).try_lock_for_enqueue() {
+            // SAFE: enqueue uses tid only
+            crate::kernel::simple_scheduler::enqueue_task(&*tref);
+        }
+        crate::kernel::simple_scheduler::set_need_resched();
     }
 }

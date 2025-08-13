@@ -20,6 +20,12 @@ mod arch {
 
 #[cfg(not(feature = "firewall"))]
 mod kernel;
+#[cfg(not(feature = "firewall"))]
+mod selftest;
+#[cfg(not(feature = "firewall"))]
+mod time;
+#[cfg(not(feature = "firewall"))]
+mod qemu;
 #[cfg(feature = "firewall")]
 mod kernel {
     pub mod serial {
@@ -177,9 +183,11 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         #[cfg(all(feature = "smp", feature = "apic"))]
         {
             serial::write_str("[debug] SMP feature enabled, initializing multi-core support\n");
-            crate::arch::x86_64::smp_new::init();
+            crate::arch::x86_64::smp::init();
             serial::write_str("[kernel] Phase 6A SMP initialization complete\n");
         }
+        
+        // Phase 6B: Simple scheduler runqueues use lazy initialization (no explicit init needed)
         #[cfg(not(all(feature = "smp", feature = "apic")))]
         {
             serial::write_str("[debug] SMP not enabled (requires smp + apic features)\n");
@@ -255,6 +263,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                     unsafe { crate::arch::x86_64::io::qemu_exit(0x01); }
                 }
             }
+        }
+
+        // Phase 6B TEST: SMP_AFFINITY validation (matching patch)
+        #[cfg(all(feature = "affinity", feature = "smp", feature = "scheduler", selftest_SMP_AFFINITY))]
+        {
+            serial::write_str("[selftest] SMP_AFFINITY start\n");
+            crate::selftest::smp_affinity::run();
         }
         
         // VFIO Phase 5B/5C selftest entry points (Option A: no userland requirement)

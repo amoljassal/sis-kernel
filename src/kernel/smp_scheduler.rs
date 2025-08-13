@@ -14,6 +14,8 @@ use core::mem::MaybeUninit;
 use spin::{Mutex, RwLock};
 use crate::kernel::{serial, task::{Task, State, Role, BlockReason}};
 use crate::arch::x86_64::percpu;
+#[cfg(feature="affinity")]
+use crate::arch::x86_64::smp::ipi;
 
 /// Task ID type for SMP scheduler
 pub type TaskId = u64;
@@ -160,6 +162,14 @@ impl CpuScheduler {
         }
     }
 
+    /// Check if CPU is allowed by task affinity
+    #[cfg(feature="affinity")]
+    fn is_cpu_allowed(mask: u64, cpu: u32) -> bool {
+        if mask == 0 { return true; } // 0 => unconstrained
+        let bit = 1u64 << cpu;
+        (mask & bit) != 0
+    }
+
     /// Enqueue task on this CPU
     pub fn enqueue(&self, task_id: TaskId) {
         if self.runqueue.push_local(task_id).is_err() {
@@ -261,6 +271,48 @@ impl SmpScheduler {
         // The per_cpu array is already initialized in new()
     }
 
+    /// Enqueue task with affinity-aware CPU selection
+    pub fn enqueue_task_affinity(&self, task_id: TaskId) {
+        #[cfg(feature="affinity")]
+        {
+            let task_table = self.task_table.read();
+            if let Some(Some(task)) = task_table.iter().find(|slot| {
+                slot.as_ref().map(|t| t.id as u64 == task_id).unwrap_or(false)
+            }) {
+                let current_cpu = percpu::cpu_id();
+                let mut target_cpu = current_cpu;
+                
+                // Check if current CPU is allowed by affinity
+                if !CpuScheduler::is_cpu_allowed(task.cpu_affinity_mask, current_cpu) {
+                    // Find first allowed CPU
+                    target_cpu = 0;
+                    for c in 0..MAX_SMP_CPUS as u32 {
+                        if CpuScheduler::is_cpu_allowed(task.cpu_affinity_mask, c) {
+                            target_cpu = c;
+                            break;
+                        }
+                    }
+                }
+                
+                drop(task_table);
+                
+                if target_cpu != current_cpu {
+                    // Cross-CPU enqueue with resched IPI
+                    self.per_cpu[target_cpu as usize].enqueue(task_id);
+                    unsafe { ipi::send_resched(target_cpu); }
+                } else {
+                    // Local CPU enqueue
+                    self.per_cpu[current_cpu as usize].enqueue(task_id);
+                }
+                return;
+            }
+        }
+        
+        // Fallback: enqueue on current CPU
+        let current_cpu = percpu::cpu_id() as usize;
+        self.per_cpu[current_cpu].enqueue(task_id);
+    }
+
     /// Create new task and assign to least loaded CPU
     pub fn spawn_task(&self, entry: fn(), name: &'static str, role: Role) -> TaskId {
         let task_id = self.next_task_id.fetch_add(1, Ordering::SeqCst);
@@ -282,15 +334,12 @@ impl SmpScheduler {
             }
         }
 
-        // Assign to least loaded CPU
-        let target_cpu = self.find_least_loaded_cpu().unwrap_or(0);
-        self.per_cpu[target_cpu].enqueue(task_id);
+        // Assign using affinity-aware enqueue
+        self.enqueue_task_affinity(task_id);
 
         serial::write_str("[smp-sched] Task ");
         serial::write_u64(task_id);
-        serial::write_str(" spawned on CPU ");
-        serial::write_u64(target_cpu as u64);
-        serial::write_str("\n");
+        serial::write_str(" spawned using affinity-aware placement\n");
 
         task_id
     }
@@ -395,7 +444,7 @@ impl SmpScheduler {
         let current_task = cpu_sched.current_task.swap(0, Ordering::AcqRel);
         
         if current_task != 0 {
-            // Mark task as Ready and re-enqueue
+            // Mark task as Ready and re-enqueue with affinity check
             {
                 let mut task_table = self.task_table.write();
                 if let Some(Some(task)) = task_table.iter_mut().find(|slot| {
@@ -405,7 +454,7 @@ impl SmpScheduler {
                 }
             }
             
-            cpu_sched.enqueue(current_task);
+            self.enqueue_task_affinity(current_task);
         }
 
         // Schedule next task

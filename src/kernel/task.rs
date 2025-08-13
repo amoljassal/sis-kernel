@@ -75,6 +75,11 @@ pub struct Task {
     pub priority: u8,
     pub affinity_core: usize,
     pub affinity_gpu: Option<usize>,
+    /// CPU affinity hint (last CPU we ran on - best-effort hint)
+    pub cpu_hint: u32,
+    /// Allowed CPUs bitmask (LSB = CPU0). 0 => no constraint (treated as all bits set).
+    #[cfg(feature="affinity")]
+    pub cpu_affinity_mask: u64,
     pub next: Option<&'static mut Task>,
     pub kstack_top: u64,
     
@@ -152,6 +157,9 @@ impl Task {
             priority,
             affinity_core: core,
             affinity_gpu: gpu,
+            cpu_hint: 0,
+            #[cfg(feature="affinity")]
+            cpu_affinity_mask: 0, // 0 means "no constraint" -> treated as all CPUs later
             next: None,
             kstack_top: stack_top as u64,
             

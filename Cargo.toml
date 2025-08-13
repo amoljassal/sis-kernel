@@ -31,6 +31,7 @@ firewall = []           # Emergency isolation for compilation issues
 idt-selftest = []
 apic = []
 smp = []
+affinity = ["smp","scheduler"] # Phase 6B: CPU affinity support (requires SMP + scheduler)
 pf-matrix = []
 per-task-mm = []
 ipc = []                # Phase 2: IPC + capability tables (feature-gated)

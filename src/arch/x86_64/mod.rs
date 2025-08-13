@@ -24,8 +24,6 @@ pub mod percpu_clean;
 #[cfg(feature = "smp")]
 pub mod ipi;
 #[cfg(feature = "smp")]
-pub mod smp_new;
-#[cfg(feature = "smp")]
 pub mod shootdown;
 #[cfg(feature = "smp")]
 pub mod topology;

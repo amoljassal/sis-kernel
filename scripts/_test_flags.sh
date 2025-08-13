@@ -53,6 +53,12 @@ case "${TEST:-}" in
     FEATURES_DEFAULT="apic smp idt-selftest"
     ;;
 
+  # ---- SMP Phase 6B: CPU Affinity ----
+  SMP_AFFINITY)
+    export RUSTFLAGS="--cfg selftest_SMP_AFFINITY"
+    FEATURES_DEFAULT="apic smp scheduler affinity"
+    ;;
+
   # ---- Page Fault Matrix v1/v2 ----
   PFM_NP_U_R|PFM_NP_U_W|PFM_US_VIOL|PFM_PROT_U_W|PFM_NX_EXEC|PFM_GUARD_UNDER|PFM_GUARD_OVER)
     export RUSTFLAGS="--cfg selftest_${TEST}"

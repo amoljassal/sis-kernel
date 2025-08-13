@@ -9,6 +9,9 @@ fn main() {
     println!("cargo:rerun-if-env-changed=FORCE_BOOTIMG");
     println!("cargo:rerun-if-env-changed=GIT_COMMIT");
     println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
+    
+    // AP trampoline assembly handling
+    println!("cargo:rerun-if-changed=src/arch/x86_64/smp/ap_trampoline.S");
 
     // Where cargo puts the compiled kernel ELF
     let target_dir = PathBuf::from(env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target".into()));
