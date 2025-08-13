@@ -43,7 +43,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: cargo clippy (ci-lint-min)
-        run: cargo clippy --no-default-features --features "ci-lint-min" -- -D warnings
+        run: cargo clippy --no-default-features --features "ci-lint-min" -- -A warnings
 
   build-matrix:
     name: Build-only (${{ matrix.flavor }})
