@@ -1,14 +1,12 @@
 // src/arch/x86_64/memory.rs
 #![allow(dead_code)]
 
-use x86_64::{
-    VirtAddr, PhysAddr,
-    registers::control::Cr3,
-    structures::paging::{
-        OffsetPageTable, PageTable, PhysFrame, FrameAllocator, Size4KiB,
-    },
-};
 use bootloader_api::BootInfo;
+use x86_64::{
+    registers::control::Cr3,
+    structures::paging::{FrameAllocator, OffsetPageTable, PageTable, PhysFrame, Size4KiB},
+    PhysAddr, VirtAddr,
+};
 
 use crate::kernel::serial;
 use core::ptr::NonNull;
@@ -27,7 +25,7 @@ unsafe fn init_offset_page_table(phys_offset: VirtAddr) -> OffsetPageTable<'stat
 }
 
 /// Initialize paging mapper from BootInfo:
-/// 1) Prefer physical_memory_offset (bootloader 0.11.x + Mapping::Dynamic) 
+/// 1) Prefer physical_memory_offset (bootloader 0.11.x + Mapping::Dynamic)
 /// 2) (Optional) If you later enable recursive mapping, handle recursive_index here
 /// 3) Fallback: Use identity mapping (phys == virt) for bootloader 0.11.x
 pub fn init_boot_mappings(boot_info: &'static BootInfo) {
@@ -52,7 +50,9 @@ pub fn init_boot_mappings(boot_info: &'static BootInfo) {
                     serial::write_str("\n");
                     // If/when you enable recursive mapping mode, initialize it here.
                     // For now, we fall through to identity mapping.
-                    serial::write_str("[mem] recursive mapping available but using identity fallback\n");
+                    serial::write_str(
+                        "[mem] recursive mapping available but using identity fallback\n",
+                    );
                 }
                 None => {
                     serial::write_str("none\n");

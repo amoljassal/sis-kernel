@@ -1,8 +1,8 @@
 //! Minimal initfs provider. Part A prefers *inline table* (no linker tricks)
 //! so tests are hermetic. A real `.initfs` link-section can be supported later.
 #![allow(dead_code)]
-use core::cmp::min;
 use super::testbins::TEST_FILES;
+use core::cmp::min;
 
 #[derive(Clone, Copy)]
 pub struct Entry {
@@ -29,7 +29,9 @@ impl InitFs {
                 // So here we just expose an empty placeholder; VFS falls back to TEST_FILES.
                 ENTRIES_BUF = Some(&[]);
             }
-            Self { entries: ENTRIES_BUF.unwrap() }
+            Self {
+                entries: ENTRIES_BUF.unwrap(),
+            }
         }
     }
 
@@ -46,7 +48,10 @@ impl InitFs {
         }
         for tf in TEST_FILES {
             if tf.path == path {
-                return Some(Entry { name: tf.path, data: tf.data });
+                return Some(Entry {
+                    name: tf.path,
+                    data: tf.data,
+                });
             }
         }
         None

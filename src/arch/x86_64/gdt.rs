@@ -5,10 +5,10 @@
 //! user space execution.  A TSS is required for handling double
 //! faults and for enabling the `syscall`/`sysret` instructions.
 
-use x86_64::structures::gdt::{GlobalDescriptorTable, Descriptor, SegmentSelector};
+use lazy_static::lazy_static;
+use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
-use lazy_static::lazy_static;
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 
@@ -34,7 +34,6 @@ lazy_static! {
         tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = stack_end;
         tss
     };
-
     static ref GDT: (GlobalDescriptorTable, Selectors) = {
         let mut gdt = GlobalDescriptorTable::new();
         let code_ring0 = gdt.add_entry(Descriptor::kernel_code_segment());
@@ -42,13 +41,16 @@ lazy_static! {
         let code_ring3 = gdt.add_entry(Descriptor::user_code_segment());
         let data_ring3 = gdt.add_entry(Descriptor::user_data_segment());
         let tss_selector = gdt.add_entry(Descriptor::tss_segment(&TSS));
-        (gdt, Selectors { 
-            code_ring0, 
-            data_ring0, 
-            code_ring3, 
-            data_ring3, 
-            tss: tss_selector 
-        })
+        (
+            gdt,
+            Selectors {
+                code_ring0,
+                data_ring0,
+                code_ring3,
+                data_ring3,
+                tss: tss_selector,
+            },
+        )
     };
 }
 

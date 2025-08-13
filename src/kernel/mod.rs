@@ -5,31 +5,31 @@
 //! for creating and managing tasks, dispatching system calls,
 //! scanning PCI devices and logging via the serial port.
 
-pub mod serial;
-pub mod types;
-pub mod task;
+pub mod affinity;
+#[cfg(feature = "ipc")]
+pub mod caps;
+pub mod current;
+#[cfg(feature = "ipc")]
+pub mod ipc;
+pub mod pci;
 pub mod scheduler;
+pub mod serial;
+#[cfg(feature = "scheduler")]
+pub mod simple_scheduler;
 #[cfg(feature = "smp")]
 pub mod smp_scheduler;
+pub mod spawn;
+pub mod syscall;
+pub mod task;
+pub mod task_table;
+pub mod types;
+pub mod vfio;
+#[cfg(feature = "scheduler")]
+pub mod waitqueue;
 #[cfg(all(feature = "smp", feature = "ipc"))]
 pub mod xcpu_ipc;
 #[cfg(feature = "smp")]
 pub mod xcpu_mbox;
-pub mod syscall;
-pub mod pci;
-pub mod affinity;
-#[cfg(feature = "scheduler")]
-pub mod simple_scheduler;
-pub mod current;
-pub mod task_table;
-pub mod spawn;
-pub mod vfio;
-#[cfg(feature = "ipc")]
-pub mod caps;
-#[cfg(feature = "ipc")]
-pub mod ipc;
-#[cfg(feature = "scheduler")]
-pub mod waitqueue;
 
 #[cfg(feature = "userland")]
 pub mod user;

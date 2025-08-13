@@ -10,7 +10,9 @@ use core::arch::asm;
 /// the processor into a low‑power state.
 #[inline]
 pub fn halt() {
-    unsafe { asm!("hlt", options(nomem, nostack, preserves_flags)); }
+    unsafe {
+        asm!("hlt", options(nomem, nostack, preserves_flags));
+    }
 }
 
 /// Hint to the CPU that the code is in a spin‑loop.  Modern CPUs
@@ -18,7 +20,9 @@ pub fn halt() {
 /// hyper‑threaded environments.
 #[inline]
 pub fn pause() {
-    unsafe { asm!("pause", options(nomem, nostack, preserves_flags)); }
+    unsafe {
+        asm!("pause", options(nomem, nostack, preserves_flags));
+    }
 }
 
 /// Read the CPUID instruction with the given EAX input.  Returns
@@ -97,7 +101,7 @@ pub fn rdtsc_serialized() -> u64 {
         // Serialize again to ensure TSC read completes
         asm!(
             "push rbx",
-            "cpuid", 
+            "cpuid",
             "pop rbx",
             in("eax") 0,
             lateout("eax") _,

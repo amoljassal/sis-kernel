@@ -44,7 +44,7 @@ case "${TEST:-}" in
   # ---- SMP Phase 6C: Cross-CPU IPC ----
   IPC_XCPU_PING)
     export RUSTFLAGS="--cfg selftest_IPC_XCPU_PING"
-    FEATURES_DEFAULT="apic smp ipc idt-selftest"
+    FEATURES_DEFAULT="apic smp"
     ;;
 
   # ---- SMP Phase 6D: TLB Shootdown ----

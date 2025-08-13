@@ -5,7 +5,7 @@ use crate::kernel::serial;
 
 // Chosen high vectors (not overlapping exceptions or timer)
 pub const IPI_RESCHED: u8 = 0xF0;
-pub const IPI_TLB: u8      = 0xF1;
+pub const IPI_TLB: u8 = 0xF1;
 
 #[cfg(feature = "smp")]
 pub fn install_ipi_handlers() {
@@ -20,8 +20,10 @@ pub fn install_ipi_handlers() {
 #[cfg(feature = "smp")]
 extern "x86-interrupt" fn ISR_resched(_sf: x86_64::structures::idt::InterruptStackFrame) {
     // Minimal: just mark need_resched; scheduler tick will switch
-    crate::arch::x86_64::percpu_clean::this().need_resched.store(true, core::sync::atomic::Ordering::Release);
-    
+    crate::arch::x86_64::percpu_clean::this()
+        .need_resched
+        .store(true, core::sync::atomic::Ordering::Release);
+
     // Send EOI to LAPIC
     #[cfg(feature = "apic")]
     {
@@ -32,7 +34,7 @@ extern "x86-interrupt" fn ISR_resched(_sf: x86_64::structures::idt::InterruptSta
 #[cfg(feature = "smp")]
 extern "x86-interrupt" fn ISR_tlb(_sf: x86_64::structures::idt::InterruptStackFrame) {
     crate::arch::x86_64::shootdown::ack_tlb_ipi();
-    
+
     // Send EOI to LAPIC
     #[cfg(feature = "apic")]
     {

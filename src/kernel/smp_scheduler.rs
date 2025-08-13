@@ -7,15 +7,18 @@
 //! - CPU affinity and priority inheritance support
 //! - Integration with Phase 6A per-CPU infrastructure
 
+use crate::arch::x86_64::percpu;
+#[cfg(feature = "affinity")]
+use crate::arch::x86_64::smp::ipi;
+use crate::kernel::{
+    serial,
+    task::{BlockReason, Role, State, Task},
+};
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
-use core::sync::atomic::{AtomicU64, AtomicU32, AtomicUsize, Ordering};
 use core::mem::MaybeUninit;
+use core::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use spin::{Mutex, RwLock};
-use crate::kernel::{serial, task::{Task, State, Role, BlockReason}};
-use crate::arch::x86_64::percpu;
-#[cfg(feature="affinity")]
-use crate::arch::x86_64::smp::ipi;
 
 /// Task ID type for SMP scheduler
 pub type TaskId = u64;
@@ -60,12 +63,12 @@ impl WorkStealingQueue {
     pub fn push_local(&self, task_id: TaskId) -> Result<(), TaskId> {
         let head = self.head.load(Ordering::Relaxed);
         let tail = self.tail.load(Ordering::Acquire);
-        
+
         // Check if queue is full
         if head.wrapping_sub(tail) >= self.buffer.len() {
             return Err(task_id); // Queue full
         }
-        
+
         // Store task at head position
         self.buffer[head & self.mask].store(task_id, Ordering::Relaxed);
         self.head.store(head.wrapping_add(1), Ordering::Release);
@@ -76,24 +79,24 @@ impl WorkStealingQueue {
     pub fn pop_local(&self) -> Option<TaskId> {
         let head = self.head.load(Ordering::Relaxed);
         let tail = self.tail.load(Ordering::Acquire);
-        
+
         if head == tail {
             return None; // Queue empty
         }
-        
+
         let new_head = head.wrapping_sub(1);
         self.head.store(new_head, Ordering::Relaxed);
-        
+
         // Load task from new head position
         let task_id = self.buffer[new_head & self.mask].load(Ordering::Relaxed);
-        
+
         // Check for race with stealer
         if self.tail.load(Ordering::Acquire) > new_head {
             // Race detected, restore head and retry
             self.head.store(head, Ordering::Relaxed);
             return None;
         }
-        
+
         Some(task_id)
     }
 
@@ -101,21 +104,25 @@ impl WorkStealingQueue {
     pub fn steal(&self) -> Option<TaskId> {
         let tail = self.tail.load(Ordering::Acquire);
         let head = self.head.load(Ordering::Acquire);
-        
+
         if tail >= head {
             return None; // Queue empty or race
         }
-        
+
         // Load task from tail position
         let task_id = self.buffer[tail & self.mask].load(Ordering::Relaxed);
-        
+
         // Try to advance tail atomically
-        if self.tail.compare_exchange_weak(
-            tail, 
-            tail.wrapping_add(1), 
-            Ordering::Release, 
-            Ordering::Relaxed
-        ).is_ok() {
+        if self
+            .tail
+            .compare_exchange_weak(
+                tail,
+                tail.wrapping_add(1),
+                Ordering::Release,
+                Ordering::Relaxed,
+            )
+            .is_ok()
+        {
             Some(task_id)
         } else {
             None // Lost race with other stealer
@@ -163,9 +170,11 @@ impl CpuScheduler {
     }
 
     /// Check if CPU is allowed by task affinity
-    #[cfg(feature="affinity")]
+    #[cfg(feature = "affinity")]
     fn is_cpu_allowed(mask: u64, cpu: u32) -> bool {
-        if mask == 0 { return true; } // 0 => unconstrained
+        if mask == 0 {
+            return true;
+        } // 0 => unconstrained
         let bit = 1u64 << cpu;
         (mask & bit) != 0
     }
@@ -209,7 +218,7 @@ impl CpuScheduler {
             }
 
             self.steal_attempts.fetch_add(1, Ordering::Relaxed);
-            
+
             if let Some(task_id) = SMP_SCHEDULER.per_cpu[target_cpu].runqueue.steal() {
                 self.steal_successes.fetch_add(1, Ordering::Relaxed);
                 self.migrations_in.fetch_add(1, Ordering::Relaxed);
@@ -240,7 +249,7 @@ impl SmpScheduler {
         // Initialize per-CPU schedulers
         const INIT_CPU_SCHED: CpuScheduler = CpuScheduler::new(0);
         let mut per_cpu = [INIT_CPU_SCHED; MAX_SMP_CPUS];
-        
+
         // Set correct CPU IDs (const limitation workaround)
         let mut i = 0;
         while i < MAX_SMP_CPUS {
@@ -273,15 +282,17 @@ impl SmpScheduler {
 
     /// Enqueue task with affinity-aware CPU selection
     pub fn enqueue_task_affinity(&self, task_id: TaskId) {
-        #[cfg(feature="affinity")]
+        #[cfg(feature = "affinity")]
         {
             let task_table = self.task_table.read();
             if let Some(Some(task)) = task_table.iter().find(|slot| {
-                slot.as_ref().map(|t| t.id as u64 == task_id).unwrap_or(false)
+                slot.as_ref()
+                    .map(|t| t.id as u64 == task_id)
+                    .unwrap_or(false)
             }) {
                 let current_cpu = percpu::cpu_id();
                 let mut target_cpu = current_cpu;
-                
+
                 // Check if current CPU is allowed by affinity
                 if !CpuScheduler::is_cpu_allowed(task.cpu_affinity_mask, current_cpu) {
                     // Find first allowed CPU
@@ -293,13 +304,15 @@ impl SmpScheduler {
                         }
                     }
                 }
-                
+
                 drop(task_table);
-                
+
                 if target_cpu != current_cpu {
                     // Cross-CPU enqueue with resched IPI
                     self.per_cpu[target_cpu as usize].enqueue(task_id);
-                    unsafe { ipi::send_resched(target_cpu); }
+                    unsafe {
+                        ipi::send_resched(target_cpu);
+                    }
                 } else {
                     // Local CPU enqueue
                     self.per_cpu[current_cpu as usize].enqueue(task_id);
@@ -307,7 +320,7 @@ impl SmpScheduler {
                 return;
             }
         }
-        
+
         // Fallback: enqueue on current CPU
         let current_cpu = percpu::cpu_id() as usize;
         self.per_cpu[current_cpu].enqueue(task_id);
@@ -316,10 +329,10 @@ impl SmpScheduler {
     /// Create new task and assign to least loaded CPU
     pub fn spawn_task(&self, entry: fn(), name: &'static str, role: Role) -> TaskId {
         let task_id = self.next_task_id.fetch_add(1, Ordering::SeqCst);
-        
+
         // Create task (simplified for Phase 6B)
         let task = Task::new(role, entry);
-        
+
         // Store task in global task table with our SMP task ID
         {
             let mut task_table = self.task_table.write();
@@ -370,7 +383,9 @@ impl SmpScheduler {
         }
 
         self.per_cpu[target_cpu].enqueue(task_id);
-        self.per_cpu[target_cpu].migrations_in.fetch_add(1, Ordering::Relaxed);
+        self.per_cpu[target_cpu]
+            .migrations_in
+            .fetch_add(1, Ordering::Relaxed);
 
         // Source CPU migration_out will be updated by the migrating CPU
     }
@@ -378,24 +393,28 @@ impl SmpScheduler {
     /// Schedule next task on current CPU
     pub fn schedule(&self) -> Option<TaskId> {
         let cpu_id = percpu::cpu_id();
-        
+
         if cpu_id as usize >= MAX_SMP_CPUS {
             return None;
         }
 
         let cpu_sched = &self.per_cpu[cpu_id as usize];
-        
+
         // Try to get next task
         if let Some(task_id) = cpu_sched.dequeue() {
             // Set as current task
             cpu_sched.current_task.store(task_id, Ordering::Release);
-            cpu_sched.quantum_left.store(DEFAULT_TIMESLICE, Ordering::Relaxed);
-            
+            cpu_sched
+                .quantum_left
+                .store(DEFAULT_TIMESLICE, Ordering::Relaxed);
+
             // Update task state
             {
                 let mut task_table = self.task_table.write();
                 if let Some(Some(task)) = task_table.iter_mut().find(|slot| {
-                    slot.as_ref().map(|t| t.id as u64 == task_id).unwrap_or(false)
+                    slot.as_ref()
+                        .map(|t| t.id as u64 == task_id)
+                        .unwrap_or(false)
                 }) {
                     task.state = State::Running;
                 }
@@ -412,14 +431,14 @@ impl SmpScheduler {
     /// Handle timer tick for current CPU
     pub fn on_timer_tick(&self) {
         let cpu_id = percpu::cpu_id();
-        
+
         if cpu_id as usize >= MAX_SMP_CPUS {
             return;
         }
 
         let cpu_sched = &self.per_cpu[cpu_id as usize];
         let current_task = cpu_sched.current_task.load(Ordering::Acquire);
-        
+
         if current_task == 0 {
             // No task running, try to schedule
             self.schedule();
@@ -428,7 +447,7 @@ impl SmpScheduler {
 
         // Decrement time quantum
         let quantum = cpu_sched.quantum_left.fetch_sub(1, Ordering::Relaxed);
-        
+
         if quantum <= 1 {
             // Time slice expired, preempt current task
             self.preempt_current_task(cpu_id);
@@ -442,18 +461,20 @@ impl SmpScheduler {
     fn preempt_current_task(&self, cpu_id: u32) {
         let cpu_sched = &self.per_cpu[cpu_id as usize];
         let current_task = cpu_sched.current_task.swap(0, Ordering::AcqRel);
-        
+
         if current_task != 0 {
             // Mark task as Ready and re-enqueue with affinity check
             {
                 let mut task_table = self.task_table.write();
                 if let Some(Some(task)) = task_table.iter_mut().find(|slot| {
-                    slot.as_ref().map(|t| t.id as u64 == current_task).unwrap_or(false)
+                    slot.as_ref()
+                        .map(|t| t.id as u64 == current_task)
+                        .unwrap_or(false)
                 }) {
                     task.state = State::Ready;
                 }
             }
-            
+
             self.enqueue_task_affinity(current_task);
         }
 
@@ -498,8 +519,12 @@ impl SmpScheduler {
             // Try to steal work from overloaded CPU
             if let Some(task_id) = self.per_cpu[max_cpu].runqueue.steal() {
                 self.per_cpu[min_cpu].enqueue(task_id);
-                self.per_cpu[max_cpu].migrations_out.fetch_add(1, Ordering::Relaxed);
-                self.per_cpu[min_cpu].migrations_in.fetch_add(1, Ordering::Relaxed);
+                self.per_cpu[max_cpu]
+                    .migrations_out
+                    .fetch_add(1, Ordering::Relaxed);
+                self.per_cpu[min_cpu]
+                    .migrations_in
+                    .fetch_add(1, Ordering::Relaxed);
             }
         }
     }
@@ -557,18 +582,18 @@ pub fn get_smp_stats() -> (usize, u64, u64, u64, u64) {
 #[cfg(all(feature = "idt-selftest", selftest_SCHED_SMP_FAIR))]
 pub fn test_sched_smp_fair() -> Result<(), &'static str> {
     serial::write_str("[test] SCHED_SMP_FAIR: Starting SMP scheduler validation\n");
-    
+
     // Initialize SMP scheduler on all online CPUs
     let online_cpus = percpu::online_cpu_count();
     for cpu_id in 0..online_cpus {
         SMP_SCHEDULER.init_cpu(cpu_id);
     }
-    
+
     // Spawn test tasks on multiple CPUs
     let task1 = spawn_smp_task(|| {}, "test_task_1", Role::Technical);
     let task2 = spawn_smp_task(|| {}, "test_task_2", Role::Philosophy);
     let task3 = spawn_smp_task(|| {}, "test_task_3", Role::Child);
-    
+
     serial::write_str("[test] SCHED_SMP_FAIR: Spawned tasks ");
     serial::write_u64(task1);
     serial::write_str(", ");
@@ -576,16 +601,18 @@ pub fn test_sched_smp_fair() -> Result<(), &'static str> {
     serial::write_str(", ");
     serial::write_u64(task3);
     serial::write_str("\n");
-    
+
     // Wait for scheduling and load balancing
-    for _ in 0..1000000 { core::hint::spin_loop(); }
-    
+    for _ in 0..1000000 {
+        core::hint::spin_loop();
+    }
+
     // Check load distribution across CPUs
     let mut total_tasks = 0;
     for cpu_id in 0..online_cpus {
-        let (queue_len, steal_attempts, steal_successes, migrations_in, migrations_out) = 
+        let (queue_len, steal_attempts, steal_successes, migrations_in, migrations_out) =
             SMP_SCHEDULER.get_stats(cpu_id);
-        
+
         serial::write_str("[test] CPU ");
         serial::write_u64(cpu_id as u64);
         serial::write_str(": queue=");
@@ -599,10 +626,10 @@ pub fn test_sched_smp_fair() -> Result<(), &'static str> {
         serial::write_str("/");
         serial::write_u64(migrations_out);
         serial::write_str("\n");
-        
+
         total_tasks += queue_len;
     }
-    
+
     if total_tasks >= 3 {
         serial::write_str("[test] SCHED_SMP_FAIR: PASS - Tasks distributed across CPUs\n");
         Ok(())

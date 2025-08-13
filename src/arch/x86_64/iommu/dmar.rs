@@ -1,9 +1,9 @@
 // Intel DMAR (DMA Remapping) ACPI Table Parser
 // Phase 5A: Detection and capability logging only
 
-use core::mem;
 use crate::kernel::serial;
 use alloc::vec::Vec;
+use core::mem;
 
 /// DMAR ACPI table signature
 const DMAR_SIGNATURE: [u8; 4] = *b"DMAR";
@@ -55,7 +55,7 @@ impl DmarParser {
         // In a full implementation, this would:
         // 1. Parse RSDP -> RSDT/XSDT -> DMAR table
         // 2. Walk through all ACPI tables looking for DMAR
-        
+
         // For Phase 5A, we'll use a simplified approach that checks
         // common ACPI memory regions where DMAR might be located
         Self::search_acpi_region(0xE0000, 0x20000) // BIOS area
@@ -67,9 +67,9 @@ impl DmarParser {
     fn search_acpi_region(start: usize, size: usize) -> Option<DmarCapabilities> {
         // Phase 5A: stub implementation
         // In Phase 5B, this would actually map and scan memory
-        
+
         serial::write_str("[dmar] Searching ACPI region for DMAR table\n");
-        
+
         // For QEMU with -device intel-iommu, simulate finding DMAR
         // This is a placeholder that would be replaced with real ACPI parsing
         if cfg!(feature = "qemu-intel-iommu-sim") {
@@ -81,7 +81,7 @@ impl DmarParser {
                 host_address_width: 48, // Common value
             });
         }
-        
+
         serial::write_str("[dmar] No DMAR table found in region\n");
         None
     }
@@ -93,9 +93,9 @@ impl DmarParser {
         // 1. Validate ACPI table checksum
         // 2. Parse remapping hardware units
         // 3. Extract capabilities and base addresses
-        
+
         serial::write_str("[dmar] DMAR table parsing (stub)\n");
-        
+
         Ok(DmarCapabilities {
             dma_remapping: true,
             interrupt_remapping: false, // Conservative default
@@ -112,7 +112,9 @@ impl DmarParser {
     }
 
     /// Parse remapping hardware units from DMAR
-    fn parse_hardware_units(_dmar_ptr: *const DmarHeader) -> Result<Vec<DmarHardwareUnit>, &'static str> {
+    fn parse_hardware_units(
+        _dmar_ptr: *const DmarHeader,
+    ) -> Result<Vec<DmarHardwareUnit>, &'static str> {
         // Phase 5A: return empty vector (stub)
         // Phase 5B: parse actual hardware units
         Ok(Vec::new())

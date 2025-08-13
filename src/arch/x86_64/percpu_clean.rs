@@ -33,7 +33,9 @@ pub fn init_bsp(lapic_id: u32) {
         BSP_PCPU.lapic_id = lapic_id;
         // Point GS base to BSP per-cpu
         let base = &BSP_PCPU as *const _ as u64;
-        unsafe { Msr::new(0xC0000101).write(base); } // IA32_GS_BASE
+        unsafe {
+            Msr::new(0xC0000101).write(base);
+        } // IA32_GS_BASE
     }
 }
 
@@ -49,7 +51,8 @@ pub fn this() -> &'static PerCpu {
 pub fn this() -> &'static PerCpu {
     // Minimal shim for non-smp builds: a single static
     static PCPU: PerCpu = PerCpu {
-        cpu_id: 0, lapic_id: 0,
+        cpu_id: 0,
+        lapic_id: 0,
         ticks: AtomicU64::new(0),
         need_resched: AtomicBool::new(false),
         scratch: 0,

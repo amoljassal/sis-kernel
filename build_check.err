@@ -1,0 +1,36 @@
+   Compiling sis_kernel v0.1.0 (/home/apple/sis-kernel)
+warning: sis_kernel@0.1.0: boot.rs: kernel ELF not found, skipping image creation
+error[E0599]: no variant or associated item named `tss_segment_from_raw` found for enum `Descriptor` in the current scope
+   --> src/arch/x86_64/percpu.rs:137:39
+    |
+137 |             gdt.add_entry(Descriptor::tss_segment_from_raw(
+    |                                       ^^^^^^^^^^^^^^^^^^^^ variant or associated item not found in `Descriptor`
+    |
+note: if you're trying to build a new `Descriptor` consider using one of the following associated functions:
+      Descriptor::kernel_code_segment
+      Descriptor::kernel_data_segment
+      Descriptor::user_data_segment
+      Descriptor::user_code_segment
+      and 2 others
+   --> /home/apple/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/x86_64-0.14.13/src/structures/gdt.rs:298:5
+    |
+298 |     pub const fn kernel_code_segment() -> Descriptor {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+305 |     pub const fn kernel_data_segment() -> Descriptor {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+312 |     pub const fn user_data_segment() -> Descriptor {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+319 |     pub const fn user_code_segment() -> Descriptor {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+help: there is an associated function `tss_segment` with a similar name
+   --> /home/apple/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/x86_64-0.14.13/src/structures/gdt.rs:332:5
+    |
+332 |     pub fn tss_segment(tss: &'static TaskStateSegment) -> Descriptor {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0599`.
+warning: sis_kernel@0.1.0: boot.rs: kernel ELF not found, skipping image creation
+error: could not compile `sis_kernel` (bin "sis_kernel") due to 1 previous error

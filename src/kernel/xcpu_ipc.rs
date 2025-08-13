@@ -7,12 +7,12 @@
 //! - Smart wake strategies integrated with Phase 6B SMP scheduler
 //! - Capability-based security model for message authorization
 
-use core::sync::atomic::{AtomicU64, AtomicU32, AtomicUsize, Ordering};
-use core::mem::MaybeUninit;
-use spin::RwLock;
-use alloc::boxed::Box;
+use crate::arch::x86_64::{apic, percpu};
 use crate::kernel::serial;
-use crate::arch::x86_64::{percpu, apic};
+use alloc::boxed::Box;
+use core::mem::MaybeUninit;
+use core::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use spin::RwLock;
 
 /// Maximum number of CPUs supported for IPC
 pub const MAX_IPC_CPUS: usize = 64;
@@ -79,7 +79,7 @@ impl XCpuMessage {
             payload: [0; MAX_MSG_SIZE],
             payload_len: payload.len().min(MAX_MSG_SIZE),
         };
-        
+
         msg.payload[..msg.payload_len].copy_from_slice(&payload[..msg.payload_len]);
         msg
     }
@@ -100,8 +100,14 @@ impl XCpuMessage {
     pub fn ping_id(&self) -> u64 {
         if self.payload_len >= 8 {
             u64::from_le_bytes([
-                self.payload[0], self.payload[1], self.payload[2], self.payload[3],
-                self.payload[4], self.payload[5], self.payload[6], self.payload[7]
+                self.payload[0],
+                self.payload[1],
+                self.payload[2],
+                self.payload[3],
+                self.payload[4],
+                self.payload[5],
+                self.payload[6],
+                self.payload[7],
             ])
         } else {
             0
@@ -137,17 +143,17 @@ impl XCpuMessageQueue {
     pub fn send(&self, msg: XCpuMessage) -> Result<(), XCpuMessage> {
         let tail = self.tail.load(Ordering::Relaxed);
         let head = self.head.load(Ordering::Acquire);
-        
+
         // Check if queue is full
         if tail.wrapping_sub(head) >= MSG_QUEUE_SIZE {
             return Err(msg); // Queue full
         }
-        
+
         // Store message at tail position
         unsafe {
             self.buffer[tail & self.mask].as_mut_ptr().write(msg);
         }
-        
+
         // Advance tail atomically
         self.tail.store(tail.wrapping_add(1), Ordering::Release);
         Ok(())
@@ -157,16 +163,14 @@ impl XCpuMessageQueue {
     pub fn receive(&self) -> Option<XCpuMessage> {
         let head = self.head.load(Ordering::Relaxed);
         let tail = self.tail.load(Ordering::Acquire);
-        
+
         if head == tail {
             return None; // Queue empty
         }
-        
+
         // Load message from head position
-        let msg = unsafe {
-            self.buffer[head & self.mask].as_ptr().read()
-        };
-        
+        let msg = unsafe { self.buffer[head & self.mask].as_ptr().read() };
+
         // Advance head atomically
         self.head.store(head.wrapping_add(1), Ordering::Release);
         Some(msg)
@@ -236,7 +240,7 @@ impl CpuIpcState {
 
         // Get target CPU's inbox
         let target_inbox = &XCPU_IPC.per_cpu[msg.dst_cpu as usize].inbox[self.cpu_id as usize];
-        
+
         // Send message
         if target_inbox.send(msg).is_err() {
             return Err("Target CPU inbox full");
@@ -268,14 +272,14 @@ impl CpuIpcState {
     pub fn receive_message(&self) -> Option<XCpuMessage> {
         // Try to receive from all CPU inboxes (round-robin)
         let online_cpus = percpu::online_cpu_count() as usize;
-        
+
         for i in 0..online_cpus.min(MAX_IPC_CPUS) {
             if let Some(msg) = self.inbox[i].receive() {
                 self.messages_received.fetch_add(1, Ordering::Relaxed);
                 return Some(msg);
             }
         }
-        
+
         None
     }
 
@@ -307,7 +311,7 @@ impl XCpuIpcSystem {
     const fn new() -> Self {
         const INIT_CPU_IPC: CpuIpcState = CpuIpcState::new(0);
         let mut per_cpu = [INIT_CPU_IPC; MAX_IPC_CPUS];
-        
+
         // Initialize per-CPU states with correct IDs
         let mut i = 0;
         while i < MAX_IPC_CPUS {
@@ -325,7 +329,7 @@ impl XCpuIpcSystem {
     /// Initialize IPC system for current CPU
     pub fn init_cpu(&self) -> Result<(), &'static str> {
         let cpu_id = percpu::cpu_id();
-        
+
         if cpu_id as usize >= MAX_IPC_CPUS {
             return Err("CPU ID exceeds maximum");
         }
@@ -364,15 +368,17 @@ impl XCpuIpcSystem {
     pub fn ping(&self, target_cpu: u32) -> Result<u64, &'static str> {
         let src_cpu = percpu::cpu_id();
         let ping_id = self.global_msg_counter.fetch_add(1, Ordering::SeqCst);
-        
+
         // Record ping time
         let ping_time = unsafe { core::arch::x86_64::_rdtsc() };
-        self.per_cpu[src_cpu as usize].last_ping_time.store(ping_time, Ordering::Relaxed);
-        
+        self.per_cpu[src_cpu as usize]
+            .last_ping_time
+            .store(ping_time, Ordering::Relaxed);
+
         // Send ping message
         let ping_msg = XCpuMessage::ping(src_cpu, target_cpu, ping_id);
         self.send(ping_msg)?;
-        
+
         Ok(ping_id)
     }
 
@@ -380,7 +386,7 @@ impl XCpuIpcSystem {
     pub fn handle_ping(&self, ping_msg: XCpuMessage) -> Result<(), &'static str> {
         let src_cpu = percpu::cpu_id();
         let pong_msg = XCpuMessage::pong(src_cpu, ping_msg.src_cpu, ping_msg.ping_id());
-        
+
         self.send(pong_msg)
     }
 
@@ -388,14 +394,16 @@ impl XCpuIpcSystem {
     pub fn handle_pong(&self, pong_msg: XCpuMessage) {
         let cpu_id = percpu::cpu_id();
         let cpu_state = &self.per_cpu[cpu_id as usize];
-        
+
         let ping_time = cpu_state.last_ping_time.load(Ordering::Relaxed);
         if ping_time != 0 {
             let pong_time = unsafe { core::arch::x86_64::_rdtsc() };
             let latency = pong_time.saturating_sub(ping_time);
-            
+
             // Update latency statistics
-            cpu_state.total_latency.fetch_add(latency, Ordering::Relaxed);
+            cpu_state
+                .total_latency
+                .fetch_add(latency, Ordering::Relaxed);
             cpu_state.latency_samples.fetch_add(1, Ordering::Relaxed);
             cpu_state.last_ping_time.store(0, Ordering::Relaxed);
         }
@@ -412,10 +420,10 @@ impl XCpuIpcSystem {
                         serial::write_str(e);
                         serial::write_str("\n");
                     }
-                },
+                }
                 MessageType::Pong => {
                     self.handle_pong(msg);
-                },
+                }
                 _ => {
                     // Handle other message types as needed
                 }
@@ -427,10 +435,10 @@ impl XCpuIpcSystem {
     pub fn get_average_latency(&self) -> u64 {
         let cpu_id = percpu::cpu_id();
         let cpu_state = &self.per_cpu[cpu_id as usize];
-        
+
         let total = cpu_state.total_latency.load(Ordering::Relaxed);
         let samples = cpu_state.latency_samples.load(Ordering::Relaxed);
-        
+
         if samples > 0 {
             total / samples
         } else {
@@ -493,7 +501,9 @@ pub fn get_ipc_stats() -> (u64, u64, u64, u64, u64, u64) {
 pub fn handle_ipc_ipi() {
     let cpu_id = percpu::cpu_id();
     if (cpu_id as usize) < MAX_IPC_CPUS {
-        XCPU_IPC.per_cpu[cpu_id as usize].ipi_received.fetch_add(1, Ordering::Relaxed);
+        XCPU_IPC.per_cpu[cpu_id as usize]
+            .ipi_received
+            .fetch_add(1, Ordering::Relaxed);
         // Process any pending messages
         XCPU_IPC.process_messages();
     }
@@ -503,19 +513,19 @@ pub fn handle_ipc_ipi() {
 #[cfg(all(feature = "idt-selftest", selftest_IPC_XCPU_PING))]
 pub fn test_ipc_xcpu_ping() -> Result<(), &'static str> {
     serial::write_str("[test] IPC_XCPU_PING: Starting cross-CPU IPC validation\n");
-    
+
     // Initialize IPC on all online CPUs
     let online_cpus = percpu::online_cpu_count();
     for _cpu_id in 0..online_cpus {
         // IPC initialization happens per-CPU during runtime
         // This test will be triggered from specific CPU contexts
     }
-    
+
     let src_cpu = percpu::cpu_id();
     serial::write_str("[test] IPC_XCPU_PING: Source CPU ");
     serial::write_u64(src_cpu as u64);
     serial::write_str("\n");
-    
+
     // Test ping to other CPUs
     let mut successful_pings = 0;
     for target_cpu in 0..online_cpus {
@@ -523,13 +533,13 @@ pub fn test_ipc_xcpu_ping() -> Result<(), &'static str> {
             serial::write_str("[test] Pinging CPU ");
             serial::write_u64(target_cpu as u64);
             serial::write_str("...");
-            
+
             match ping_cpu(target_cpu) {
                 Ok(ping_id) => {
                     serial::write_str(" sent ping_id=");
                     serial::write_u64(ping_id);
                     successful_pings += 1;
-                },
+                }
                 Err(e) => {
                     serial::write_str(" ERROR: ");
                     serial::write_str(e);
@@ -538,19 +548,19 @@ pub fn test_ipc_xcpu_ping() -> Result<(), &'static str> {
             serial::write_str("\n");
         }
     }
-    
+
     // Wait for responses and process messages
     for _ in 0..1000000 {
         process_ipc_messages();
         core::hint::spin_loop();
     }
-    
+
     // Check latency measurements
     let avg_latency = get_average_latency();
     serial::write_str("[test] Average round-trip latency: ");
     serial::write_u64(avg_latency);
     serial::write_str(" TSC cycles\n");
-    
+
     // Get statistics
     let (sent, received, ipi_sent, ipi_received, total_latency, samples) = get_ipc_stats();
     serial::write_str("[test] IPC Stats: sent=");
@@ -564,7 +574,7 @@ pub fn test_ipc_xcpu_ping() -> Result<(), &'static str> {
     serial::write_str(" latency_samples=");
     serial::write_u64(samples);
     serial::write_str("\n");
-    
+
     if successful_pings > 0 && samples > 0 {
         serial::write_str("[test] IPC_XCPU_PING: PASS - Cross-CPU communication successful\n");
         Ok(())

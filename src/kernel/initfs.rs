@@ -19,9 +19,7 @@ pub struct FileEntry<'a> {
 
 pub fn available() -> bool {
     // If there is no blob, start == end
-    unsafe {
-        (&__initfs_end as *const u8 as usize) > (&__initfs_start as *const u8 as usize)
-    }
+    unsafe { (&__initfs_end as *const u8 as usize) > (&__initfs_start as *const u8 as usize) }
 }
 
 pub fn find(path: &str) -> Option<FileEntry<'static>> {
@@ -70,18 +68,25 @@ fn parse_hex(s: &[u8]) -> Option<usize> {
     Some(v)
 }
 
-fn align4(n: usize) -> usize { (n + 3) & !3 }
+fn align4(n: usize) -> usize {
+    (n + 3) & !3
+}
 
 impl Iterator for Iter {
     type Item = FileEntry<'static>;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.cur >= self.end { return None; }
+        if self.cur >= self.end {
+            return None;
+        }
         // newc header is 110 bytes ASCII
         const HDR: usize = 110;
         let p = self.cur as *const u8;
         unsafe {
             // trailer?
-            if self.cur + HDR > self.end { self.cur = self.end; return None; }
+            if self.cur + HDR > self.end {
+                self.cur = self.end;
+                return None;
+            }
             if core::slice::from_raw_parts(p, 6) != b"070701" {
                 // not a newc header; abort iteration
                 self.cur = self.end;
@@ -91,7 +96,10 @@ impl Iterator for Iter {
             let filesize = parse_hex(core::slice::from_raw_parts(p.add(54), 8))?;
             let path_start = self.cur + HDR;
             let path_end = path_start + namesize;
-            if path_end > self.end { self.cur = self.end; return None; }
+            if path_end > self.end {
+                self.cur = self.end;
+                return None;
+            }
             let path_bytes = core::slice::from_raw_parts(path_start as *const u8, namesize);
             // path is NUL-terminated
             let path_bytes = &path_bytes[..path_bytes.len().saturating_sub(1)];
@@ -100,7 +108,10 @@ impl Iterator for Iter {
             // advance to file data (4-byte aligned)
             let data_start = align4(path_end);
             let data_end = data_start + filesize;
-            if data_end > self.end { self.cur = self.end; return None; }
+            if data_end > self.end {
+                self.cur = self.end;
+                return None;
+            }
             let data = core::slice::from_raw_parts(data_start as *const u8, filesize);
 
             // advance cursor to next header (data end aligned)

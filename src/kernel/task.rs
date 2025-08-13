@@ -78,11 +78,11 @@ pub struct Task {
     /// CPU affinity hint (last CPU we ran on - best-effort hint)
     pub cpu_hint: u32,
     /// Allowed CPUs bitmask (LSB = CPU0). 0 => no constraint (treated as all bits set).
-    #[cfg(feature="affinity")]
+    #[cfg(feature = "affinity")]
     pub cpu_affinity_mask: u64,
     pub next: Option<&'static mut Task>,
     pub kstack_top: u64,
-    
+
     // Phase 1: per-task address space fields
     #[cfg(feature = "per-task-mm")]
     pub cr3_root: Option<PhysFrame>,
@@ -92,11 +92,11 @@ pub struct Task {
     pub guard_pages: (u64, u64),
     #[cfg(feature = "per-task-mm")]
     pub mm_stats: TaskMmStats,
-    
+
     // Phase 2: IPC capability table
     #[cfg(feature = "ipc")]
     pub ctable: CTable,
-    
+
     // Phase 3: scheduling priority boost
     #[cfg(feature = "scheduler")]
     pub priority_boost: bool,
@@ -134,21 +134,25 @@ impl Task {
         // Generate a simple ID.  In a real kernel this would be
         // generated atomically.
         static mut COUNTER: usize = 0;
-        let id = unsafe { let id = COUNTER; COUNTER += 1; id };
+        let id = unsafe {
+            let id = COUNTER;
+            COUNTER += 1;
+            id
+        };
         // Determine the affinity for the task.  Parent tasks
         // receive a fixed GPU assignment (GPU0 for Philosophy,
         // GPU1 for Technical).  Child tasks inherit their parent.
         let (priority, core, gpu) = match role {
             Role::Philosophy => (1, 0, Some(0)),
-            Role::Technical  => (1, 0, Some(1)),
-            Role::Child      => (1, 0, None),
+            Role::Technical => (1, 0, Some(1)),
+            Role::Child => (1, 0, None),
         };
         let task = Task {
             id,
             name: match role {
                 Role::Philosophy => "philosophy_parent",
-                Role::Technical  => "technical_parent",
-                Role::Child      => "child",
+                Role::Technical => "technical_parent",
+                Role::Child => "child",
             },
             role,
             stack,
@@ -158,11 +162,11 @@ impl Task {
             affinity_core: core,
             affinity_gpu: gpu,
             cpu_hint: 0,
-            #[cfg(feature="affinity")]
+            #[cfg(feature = "affinity")]
             cpu_affinity_mask: 0, // 0 means "no constraint" -> treated as all CPUs later
             next: None,
             kstack_top: stack_top as u64,
-            
+
             // Phase 1: initialize per-task MM fields
             #[cfg(feature = "per-task-mm")]
             cr3_root: None,
@@ -172,11 +176,11 @@ impl Task {
             guard_pages: (0, 0),
             #[cfg(feature = "per-task-mm")]
             mm_stats: TaskMmStats::default(),
-            
+
             // Phase 2: initialize IPC capability table
             #[cfg(feature = "ipc")]
             ctable: CTable::new(),
-            
+
             // Phase 3: initialize scheduler priority boost
             #[cfg(feature = "scheduler")]
             priority_boost: match role {

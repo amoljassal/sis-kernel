@@ -8,11 +8,11 @@
 use crate::arch::x86_64::io;
 
 const PIT_CHANNEL0_PORT: u16 = 0x40;
-const PIT_COMMAND_PORT:  u16 = 0x43;
+const PIT_COMMAND_PORT: u16 = 0x43;
 const PIC_MASTER_COMMAND: u16 = 0x20;
-const PIC_MASTER_DATA:    u16 = 0x21;
-const PIC_SLAVE_COMMAND:  u16 = 0xA0;
-const PIC_SLAVE_DATA:     u16 = 0xA1;
+const PIC_MASTER_DATA: u16 = 0x21;
+const PIC_SLAVE_COMMAND: u16 = 0xA0;
+const PIC_SLAVE_DATA: u16 = 0xA1;
 
 /// Remap the PIC so that IRQs are delivered at vector offsets
 /// starting from 32.  Without remapping, hardware interrupts could
@@ -22,16 +22,16 @@ fn pic_remap() {
         let mask1 = io::inb(PIC_MASTER_DATA);
         let mask2 = io::inb(PIC_SLAVE_DATA);
         io::outb(PIC_MASTER_COMMAND, 0x11);
-        io::outb(PIC_SLAVE_COMMAND,  0x11);
+        io::outb(PIC_SLAVE_COMMAND, 0x11);
         io::outb(PIC_MASTER_DATA, 0x20);
-        io::outb(PIC_SLAVE_DATA,  0x28);
+        io::outb(PIC_SLAVE_DATA, 0x28);
         io::outb(PIC_MASTER_DATA, 0x04);
-        io::outb(PIC_SLAVE_DATA,  0x02);
+        io::outb(PIC_SLAVE_DATA, 0x02);
         io::outb(PIC_MASTER_DATA, 0x01);
-        io::outb(PIC_SLAVE_DATA,  0x01);
+        io::outb(PIC_SLAVE_DATA, 0x01);
         // Restore saved masks
         io::outb(PIC_MASTER_DATA, mask1);
-        io::outb(PIC_SLAVE_DATA,  mask2);
+        io::outb(PIC_SLAVE_DATA, mask2);
     }
 }
 
@@ -52,5 +52,7 @@ pub fn init(frequency: u32) {
 
 /// Acknowledge the timer interrupt by sending an End Of Interrupt (EOI) to the PIC.
 pub fn ack() {
-    unsafe { io::outb(PIC_MASTER_COMMAND, 0x20); }
+    unsafe {
+        io::outb(PIC_MASTER_COMMAND, 0x20);
+    }
 }

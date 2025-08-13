@@ -3,30 +3,30 @@
 //!
 //! QEMU tip: use `-machine q35` (already in your harness). IOAPIC is present by default on q35.
 
-use core::ptr::{read_volatile, write_volatile};
-use x86_64::{PhysAddr, VirtAddr};
-use x86_64::registers::model_specific::Msr;
-use crate::kernel::serial;
 use crate::arch::x86_64::memory;
+use crate::kernel::serial;
+use core::ptr::{read_volatile, write_volatile};
+use x86_64::registers::model_specific::Msr;
+use x86_64::{PhysAddr, VirtAddr};
 
 // ===== xAPIC MSR =====
 const IA32_APIC_BASE: u32 = 0x1B;
 const IA32_APIC_BASE_ENABLE: u64 = 1 << 11; // APIC global enable bit
-const IA32_APIC_BASE_BSP: u64    = 1 << 8;
+const IA32_APIC_BASE_BSP: u64 = 1 << 8;
 const IA32_APIC_BASE_DEFAULT: u64 = 0xFEE0_0000;
 
 // ===== LAPIC registers (offsets from base) =====
-const LAPIC_REG_ID: u32       = 0x020;
-const LAPIC_REG_VERSION: u32  = 0x030;
-const LAPIC_REG_TPR: u32      = 0x080;
-const LAPIC_REG_EOI: u32      = 0x0B0;
-const LAPIC_REG_SVR: u32      = 0x0F0;
-const LAPIC_REG_LVT_TIMER: u32= 0x320;
-const LAPIC_REG_LVT_LINT0: u32= 0x350;
-const LAPIC_REG_LVT_LINT1: u32= 0x360;
+const LAPIC_REG_ID: u32 = 0x020;
+const LAPIC_REG_VERSION: u32 = 0x030;
+const LAPIC_REG_TPR: u32 = 0x080;
+const LAPIC_REG_EOI: u32 = 0x0B0;
+const LAPIC_REG_SVR: u32 = 0x0F0;
+const LAPIC_REG_LVT_TIMER: u32 = 0x320;
+const LAPIC_REG_LVT_LINT0: u32 = 0x350;
+const LAPIC_REG_LVT_LINT1: u32 = 0x360;
 const LAPIC_REG_TMR_INIT: u32 = 0x380;
 const LAPIC_REG_TMR_CURR: u32 = 0x390;
-const LAPIC_REG_TMR_DIV: u32  = 0x3E0;
+const LAPIC_REG_TMR_DIV: u32 = 0x3E0;
 
 // LVT bits
 const LVT_MASKED: u32 = 1 << 16;
@@ -36,12 +36,12 @@ const SVR_APIC_ENABLE: u32 = 1 << 8;
 // ===== IOAPIC MMIO =====
 const IOAPIC_DEFAULT_PHYS: u64 = 0xFEC0_0000;
 const IOAPIC_REGSEL: usize = 0x00;
-const IOAPIC_IOWIN:  usize = 0x10;
+const IOAPIC_IOWIN: usize = 0x10;
 
 // IOAPIC register indices
-const IOAPIC_REG_ID:      u32 = 0x00;
-const IOAPIC_REG_VER:     u32 = 0x01;
-const IOAPIC_REG_REDIR0:  u32 = 0x10; // first redir entry (low 32 bits)
+const IOAPIC_REG_ID: u32 = 0x00;
+const IOAPIC_REG_VER: u32 = 0x01;
+const IOAPIC_REG_REDIR0: u32 = 0x10; // first redir entry (low 32 bits)
 
 // We keep MMIO mappings here after map.
 static mut LAPIC_BASE_VA: Option<*mut u32> = None;
@@ -53,17 +53,21 @@ unsafe fn lapic_mmio() -> *mut u32 {
 }
 
 #[inline(always)]
-pub fn lapic_base_is_mapped() -> bool { 
-    unsafe { LAPIC_BASE_VA.is_some() } 
+pub fn lapic_base_is_mapped() -> bool {
+    unsafe { LAPIC_BASE_VA.is_some() }
 }
 
 #[inline(always)]
 unsafe fn ioapic_regsel() -> *mut u32 {
-    IOAPIC_BASE_VA.expect("IOAPIC not mapped").byte_add(IOAPIC_REGSEL)
+    IOAPIC_BASE_VA
+        .expect("IOAPIC not mapped")
+        .byte_add(IOAPIC_REGSEL)
 }
 #[inline(always)]
 unsafe fn ioapic_iowin() -> *mut u32 {
-    IOAPIC_BASE_VA.expect("IOAPIC not mapped").byte_add(IOAPIC_IOWIN)
+    IOAPIC_BASE_VA
+        .expect("IOAPIC not mapped")
+        .byte_add(IOAPIC_IOWIN)
 }
 
 #[inline(always)]
@@ -97,19 +101,23 @@ unsafe fn map_apic_mmio() -> Result<(), &'static str> {
     let apic_msr = Msr::new(IA32_APIC_BASE);
     let base_val = apic_msr.read();
     let lapic_phys = (base_val & 0xFFFF_F000) as u64; // page-aligned phys
-    let lapic_phys = if lapic_phys == 0 { IA32_APIC_BASE_DEFAULT } else { lapic_phys };
+    let lapic_phys = if lapic_phys == 0 {
+        IA32_APIC_BASE_DEFAULT
+    } else {
+        lapic_phys
+    };
 
     // For simplicity, use identity mapping in higher half
     let lapic_va = VirtAddr::new(0xFFFF_FF80_0000_0000u64 + lapic_phys);
     let ioapic_va = VirtAddr::new(0xFFFF_FF80_0000_0000u64 + IOAPIC_DEFAULT_PHYS);
-    
+
     // Map using existing memory infrastructure
     memory::map_user_page(lapic_va).ok(); // Try to map, ignore errors for now
     memory::map_user_page(ioapic_va).ok();
-    
+
     LAPIC_BASE_VA = Some(lapic_va.as_mut_ptr());
     IOAPIC_BASE_VA = Some(ioapic_va.as_mut_ptr());
-    
+
     Ok(())
 }
 
@@ -150,7 +158,7 @@ pub fn init_ioapic() -> Result<(), &'static str> {
     unsafe {
         let ver = ioapic_read_reg(IOAPIC_REG_VER);
         let max_redir = ((ver >> 16) & 0xFF) as usize;
-        let id  = ioapic_read_reg(IOAPIC_REG_ID);
+        let id = ioapic_read_reg(IOAPIC_REG_ID);
         let _id = (id >> 24) & 0xF;
         let _entries = max_redir + 1;
         serial::write_str("[init] IOAPIC present\n");
@@ -161,8 +169,8 @@ pub fn init_ioapic() -> Result<(), &'static str> {
         let lo_index = IOAPIC_REG_REDIR0 + (irq0 * 2) as u32;
         let hi_index = lo_index + 1;
         // Route to LAPIC ID 0 (BSP), vector 0x20 (but masked).
-        ioapic_write_reg(hi_index, 0x00 << 24);     // dest APIC ID
-        ioapic_write_reg(lo_index, 0x20 | (1<<16)); // masked=1
+        ioapic_write_reg(hi_index, 0x00 << 24); // dest APIC ID
+        ioapic_write_reg(lo_index, 0x20 | (1 << 16)); // masked=1
     }
     Ok(())
 }
@@ -198,29 +206,31 @@ pub fn init_lapic_timer_periodic(initial_count: u32, divide: u32) -> Result<(), 
 
 /// Send EOI (APIC path).
 pub fn eoi() {
-    unsafe { lapic_write(LAPIC_REG_EOI, 0); }
+    unsafe {
+        lapic_write(LAPIC_REG_EOI, 0);
+    }
 }
 
 // ===== IPI support (SMP) =====
-const LAPIC_REG_ICR_LOW:  u32 = 0x300;
+const LAPIC_REG_ICR_LOW: u32 = 0x300;
 const LAPIC_REG_ICR_HIGH: u32 = 0x310;
 
-const ICR_DELIVERY_INIT:      u32 = 0b101 << 8;
-const ICR_DELIVERY_STARTUP:   u32 = 0b110 << 8;
-const ICR_LEVEL_ASSERT:       u32 = 1 << 14;
-const ICR_TRIGGER_EDGE:       u32 = 0 << 15;
-const ICR_DEST_PHYSICAL:      u32 = 0 << 11;
-const ICR_NO_SHORTHAND:       u32 = 0 << 18;
+const ICR_DELIVERY_INIT: u32 = 0b101 << 8;
+const ICR_DELIVERY_STARTUP: u32 = 0b110 << 8;
+const ICR_LEVEL_ASSERT: u32 = 1 << 14;
+const ICR_TRIGGER_EDGE: u32 = 0 << 15;
+const ICR_DEST_PHYSICAL: u32 = 0 << 11;
+const ICR_NO_SHORTHAND: u32 = 0 << 18;
 
 /// Send IPI to target APIC ID with given ICR low bits.
 /// Raw IPI send function (low-level)
 pub unsafe fn send_ipi_raw(apic_id: u32, icr_low: u32) {
     // Write hi then low.
     lapic_write(LAPIC_REG_ICR_HIGH, apic_id << 24);
-    lapic_write(LAPIC_REG_ICR_LOW,  icr_low | ICR_NO_SHORTHAND);
+    lapic_write(LAPIC_REG_ICR_LOW, icr_low | ICR_NO_SHORTHAND);
     // Busy-wait until delivery finished (bit12: Delivery Status).
-    while (lapic_read(LAPIC_REG_ICR_LOW) & (1 << 12)) != 0 { 
-        core::hint::spin_loop(); 
+    while (lapic_read(LAPIC_REG_ICR_LOW) & (1 << 12)) != 0 {
+        core::hint::spin_loop();
     }
 }
 
@@ -229,7 +239,10 @@ pub unsafe fn send_ipi_raw(apic_id: u32, icr_low: u32) {
 pub fn send_ipi(target_cpu: u32, vector: u8) {
     unsafe {
         let target_apic_id = cpu_to_apic_id(target_cpu);
-        send_ipi_raw(target_apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (vector as u32));
+        send_ipi_raw(
+            target_apic_id,
+            ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (vector as u32),
+        );
     }
 }
 
@@ -243,12 +256,25 @@ pub fn cpu_to_apic_id(cpu_id: u32) -> u32 {
 /// INIT + SIPI + SIPI sequence to a given APIC ID; `vector` is 4K-aligned physical page / 0x1000.
 pub unsafe fn start_ap(apic_id: u32, vector: u8) {
     // INIT (deasserted INIT IPI with ASSERT level is enough in QEMU)
-    send_ipi_raw(apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | ICR_LEVEL_ASSERT | ICR_DELIVERY_INIT);
+    send_ipi_raw(
+        apic_id,
+        ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | ICR_LEVEL_ASSERT | ICR_DELIVERY_INIT,
+    );
     // Small delay
-    for _ in 0..100000 { core::hint::spin_loop(); }
+    for _ in 0..100000 {
+        core::hint::spin_loop();
+    }
     // SIPI #1
-    send_ipi_raw(apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (ICR_DELIVERY_STARTUP | (vector as u32)));
-    for _ in 0..100000 { core::hint::spin_loop(); }
+    send_ipi_raw(
+        apic_id,
+        ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (ICR_DELIVERY_STARTUP | (vector as u32)),
+    );
+    for _ in 0..100000 {
+        core::hint::spin_loop();
+    }
     // SIPI #2 (recommended)
-    send_ipi_raw(apic_id, ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (ICR_DELIVERY_STARTUP | (vector as u32)));
+    send_ipi_raw(
+        apic_id,
+        ICR_DEST_PHYSICAL | ICR_TRIGGER_EDGE | (ICR_DELIVERY_STARTUP | (vector as u32)),
+    );
 }

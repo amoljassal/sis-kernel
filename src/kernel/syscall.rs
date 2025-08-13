@@ -6,23 +6,31 @@
 //! convention.  The kernel validates the signature of privileged
 //! syscalls and routes directives to the appropriate parent tasks.
 
-use crate::kernel::{serial, scheduler};
-#[cfg(feature = "userland")]
-use crate::userland::vfs;
 #[cfg(not(feature = "userland"))]
 use crate::kernel::vfs;
+use crate::kernel::{scheduler, serial};
+#[cfg(feature = "userland")]
+use crate::userland::vfs;
 use alloc::vec::Vec;
 use core::slice;
 
 // Normalize widths once at the syscall boundary, then pass typed.
 #[inline]
-fn u64_to_usize(a: u64) -> usize { a as usize }
+fn u64_to_usize(a: u64) -> usize {
+    a as usize
+}
 #[inline]
-fn u64_to_u32(a: u64) -> u32 { a as u32 }
+fn u64_to_u32(a: u64) -> u32 {
+    a as u32
+}
 #[inline]
-fn u64_to_u16(a: u64) -> u16 { a as u16 }
+fn u64_to_u16(a: u64) -> u16 {
+    a as u16
+}
 #[inline]
-fn u64_to_u8(a: u64) -> u8 { a as u8 }
+fn u64_to_u8(a: u64) -> u8 {
+    a as u8
+}
 
 #[cfg(feature = "ipc")]
 use crate::kernel::ipc;
@@ -34,13 +42,13 @@ pub type SyscallHandler = fn(u64, u64, u64, u64, u64, u64);
 
 static mut SYSCALL_TABLE: [Option<SyscallHandler>; 128] = [None; 128];
 
-pub const SYS_WRITE: usize      = 1;
-pub const SYS_EXIT: usize       = 2;
-pub const SYS_CLASSIFY: usize   = 3;
-pub const SYS_SPAWN: usize      = 4;
+pub const SYS_WRITE: usize = 1;
+pub const SYS_EXIT: usize = 2;
+pub const SYS_CLASSIFY: usize = 3;
+pub const SYS_SPAWN: usize = 4;
 pub const SYS_SIS_EXECUTE: usize = 5;
-pub const SYS_SIS_VERIFY: usize  = 6;
-pub const SYS_SIS_LOG: usize     = 7;
+pub const SYS_SIS_VERIFY: usize = 6;
+pub const SYS_SIS_LOG: usize = 7;
 
 // Phase 2: IPC syscall numbers
 #[cfg(feature = "ipc")]
@@ -76,7 +84,7 @@ pub const SYS_VFIO_MAP_BAR: usize = 0x53;
 #[cfg(feature = "vfio")]
 pub const SYS_VFIO_SETUP_IRQ: usize = 0x54;
 
-// Phase 5C-A: IOMMU domain syscalls  
+// Phase 5C-A: IOMMU domain syscalls
 #[cfg(feature = "vfio")]
 pub const SYS_VFIO_DOMAIN_CREATE: usize = 0x55;
 #[cfg(feature = "vfio")]
@@ -101,14 +109,14 @@ pub fn init() {
         for slot in SYSCALL_TABLE.iter_mut() {
             *slot = None;
         }
-        SYSCALL_TABLE[SYS_WRITE]      = Some(sys_write);
-        SYSCALL_TABLE[SYS_EXIT]       = Some(sys_exit);
-        SYSCALL_TABLE[SYS_CLASSIFY]   = Some(sys_classify);
-        SYSCALL_TABLE[SYS_SPAWN]      = Some(sys_spawn);
+        SYSCALL_TABLE[SYS_WRITE] = Some(sys_write);
+        SYSCALL_TABLE[SYS_EXIT] = Some(sys_exit);
+        SYSCALL_TABLE[SYS_CLASSIFY] = Some(sys_classify);
+        SYSCALL_TABLE[SYS_SPAWN] = Some(sys_spawn);
         SYSCALL_TABLE[SYS_SIS_EXECUTE] = Some(sys_sis_execute);
-        SYSCALL_TABLE[SYS_SIS_VERIFY]  = Some(sys_sis_verify);
-        SYSCALL_TABLE[SYS_SIS_LOG]     = Some(sys_sis_log);
-        
+        SYSCALL_TABLE[SYS_SIS_VERIFY] = Some(sys_sis_verify);
+        SYSCALL_TABLE[SYS_SIS_LOG] = Some(sys_sis_log);
+
         // Phase 2: IPC syscalls
         #[cfg(feature = "ipc")]
         {
@@ -117,7 +125,7 @@ pub fn init() {
             SYSCALL_TABLE[SYS_IPC_RECV] = Some(sys_ipc_recv);
             SYSCALL_TABLE[SYS_IPC_CLOSE] = Some(sys_ipc_close);
         }
-        
+
         // Phase 4: Userland syscalls
         #[cfg(feature = "userland")]
         {
@@ -126,7 +134,7 @@ pub fn init() {
             SYSCALL_TABLE[SYS_VFS_OPEN] = Some(sys_vfs_open);
             SYSCALL_TABLE[SYS_VFS_READ] = Some(sys_vfs_read);
         }
-        
+
         // Phase 5B: VFIO syscalls
         #[cfg(feature = "vfio")]
         {
@@ -135,18 +143,18 @@ pub fn init() {
             SYSCALL_TABLE[SYS_VFIO_CFG_WRITE] = Some(sys_vfio_cfg_write);
             SYSCALL_TABLE[SYS_VFIO_MAP_BAR] = Some(sys_vfio_map_bar);
             SYSCALL_TABLE[SYS_VFIO_SETUP_IRQ] = Some(sys_vfio_setup_irq);
-            
+
             // Phase 5C-A: Domain management syscalls
             SYSCALL_TABLE[SYS_VFIO_DOMAIN_CREATE] = Some(sys_vfio_domain_create);
             SYSCALL_TABLE[SYS_VFIO_DOMAIN_MAP_STAGING] = Some(sys_vfio_domain_map_staging);
             SYSCALL_TABLE[SYS_VFIO_ENABLE_BUSMASTER] = Some(sys_vfio_enable_busmaster);
-            
+
             // Phase 5C-B: MSI interrupt syscalls
             SYSCALL_TABLE[SYS_VFIO_MSI_ARM] = Some(sys_vfio_msi_arm);
             SYSCALL_TABLE[SYS_VFIO_MSI_DISARM] = Some(sys_vfio_msi_disarm);
             SYSCALL_TABLE[SYS_VFIO_MSI_TRIGGER_E1000] = Some(sys_vfio_msi_trigger_e1000);
         }
-        
+
         // Phase 6B: CPU affinity syscall
         #[cfg(feature = "affinity")]
         {
@@ -179,13 +187,13 @@ pub fn dispatch() {
         let mut arg4: u64;
         let mut arg5: u64;
         core::arch::asm!(
-            "mov {0}, rax", 
-            "mov {1}, rdi", 
-            "mov {2}, rsi", 
-            "mov {3}, rdx", 
-            "mov {4}, rcx", 
-            "mov {5}, r8", 
-            "mov {6}, r9", 
+            "mov {0}, rax",
+            "mov {1}, rdi",
+            "mov {2}, rsi",
+            "mov {3}, rdx",
+            "mov {4}, rcx",
+            "mov {5}, r8",
+            "mov {6}, r9",
             out(reg) num,
             out(reg) arg0,
             out(reg) arg1,
@@ -209,7 +217,7 @@ pub fn dispatch() {
                 _ => { /* continue to normal dispatch */ }
             }
         }
-        
+
         let idx = num as usize;
         if idx < SYSCALL_TABLE.len() {
             if let Some(handler) = SYSCALL_TABLE[idx] {
@@ -228,10 +236,10 @@ fn sys_write(_fd: u64, buf: u64, len: u64, _c: u64, _d: u64, _e: u64) {
         serial::write_str("[sys_write] Invalid parameters\n");
         return;
     }
-    
-    let slice = unsafe { 
+
+    let slice = unsafe {
         // Safety: We've validated that buf is non-zero and len is reasonable
-        slice::from_raw_parts(buf as *const u8, len as usize) 
+        slice::from_raw_parts(buf as *const u8, len as usize)
     };
     serial::write_buf(slice);
 }
@@ -254,7 +262,7 @@ fn sys_classify(buf: u64, len: u64, _b: u64, _c: u64, _d: u64, _e: u64) {
         serial::write_str("[sys_classify] Invalid parameters\n");
         return;
     }
-    
+
     let mut technical = false;
     unsafe {
         let slice = core::slice::from_raw_parts(buf as *const u8, len as usize);
@@ -267,15 +275,15 @@ fn sys_classify(buf: u64, len: u64, _b: u64, _c: u64, _d: u64, _e: u64) {
             }
         };
         let directive_lower = directive.to_ascii_lowercase();
-        
+
         // Enhanced classification for SIS workflows
-        technical = directive_lower.contains("plot") 
-                 || directive_lower.contains("solve")
-                 || directive_lower.contains("=")
-                 || directive_lower.contains("math")
-                 || directive_lower.contains("calculate")
-                 || directive_lower.contains("find")
-                 || directive_lower.contains("search");
+        technical = directive_lower.contains("plot")
+            || directive_lower.contains("solve")
+            || directive_lower.contains("=")
+            || directive_lower.contains("math")
+            || directive_lower.contains("calculate")
+            || directive_lower.contains("find")
+            || directive_lower.contains("search");
     }
     if technical {
         serial::write_str("[syscall] SIS: Routed to technical parent\n");
@@ -298,7 +306,11 @@ mod tests {
         let bytes = s.as_bytes();
         for i in 0..bytes.len() {
             if i + 3 < bytes.len() {
-                if bytes[i] == b'p' && bytes[i+1] == b'l' && bytes[i+2] == b'o' && bytes[i+3] == b't' {
+                if bytes[i] == b'p'
+                    && bytes[i + 1] == b'l'
+                    && bytes[i + 2] == b'o'
+                    && bytes[i + 3] == b't'
+                {
                     return true;
                 }
             }
@@ -331,7 +343,9 @@ fn sys_spawn(role_id: u64, _arg1: u64, _arg2: u64, _a: u64, _b: u64, _c: u64) {
     // function pointer in a register which we would execute.
     fn child_stub() {
         serial::write_str("[child] Hello from a spawned task!\n");
-        loop { crate::arch::x86_64::cpu::pause(); }
+        loop {
+            crate::arch::x86_64::cpu::pause();
+        }
     }
     let id = crate::kernel::scheduler::spawn_child(child_stub, parent_role);
     serial::write_str("[syscall] Spawned task ");
@@ -339,7 +353,10 @@ fn sys_spawn(role_id: u64, _arg1: u64, _arg2: u64, _a: u64, _b: u64, _c: u64) {
     let mut buffer = [0u8; 20];
     let mut i = buffer.len();
     let mut n = id;
-    if n == 0 { i -= 1; buffer[i] = b'0'; }
+    if n == 0 {
+        i -= 1;
+        buffer[i] = b'0';
+    }
     while n > 0 {
         i -= 1;
         buffer[i] = b'0' + (n % 10) as u8;
@@ -352,24 +369,37 @@ fn sys_spawn(role_id: u64, _arg1: u64, _arg2: u64, _a: u64, _b: u64, _c: u64) {
 /// Execute a SIS directive in the kernel space.  This syscall receives
 /// a directive from Python SIS and routes it to the appropriate parent
 /// task for processing.  Returns status code in kernel log.
-fn sys_sis_execute(directive_ptr: u64, directive_len: u64, sig_ptr: u64, sig_len: u64, _d: u64, _e: u64) {
+fn sys_sis_execute(
+    directive_ptr: u64,
+    directive_len: u64,
+    sig_ptr: u64,
+    sig_len: u64,
+    _d: u64,
+    _e: u64,
+) {
     // Validate input parameters
-    if directive_ptr == 0 || directive_len == 0 || directive_len > 4096 ||
-       sig_ptr == 0 || sig_len == 0 || sig_len > 256 {
+    if directive_ptr == 0
+        || directive_len == 0
+        || directive_len > 4096
+        || sig_ptr == 0
+        || sig_len == 0
+        || sig_len > 256
+    {
         serial::write_str("[sys_sis_execute] Invalid parameters\n");
         return;
     }
-    
+
     unsafe {
-        let directive_slice = core::slice::from_raw_parts(directive_ptr as *const u8, directive_len as usize);
+        let directive_slice =
+            core::slice::from_raw_parts(directive_ptr as *const u8, directive_len as usize);
         let sig_slice = core::slice::from_raw_parts(sig_ptr as *const u8, sig_len as usize);
-        
+
         // Verify cryptographic signature (placeholder for now)
         if !verify_signature(directive_slice, sig_slice) {
             serial::write_str("[sys_sis_execute] Invalid signature - access denied\n");
             return;
         }
-        
+
         let directive = match core::str::from_utf8(directive_slice) {
             Ok(s) => s,
             Err(_) => {
@@ -380,29 +410,32 @@ fn sys_sis_execute(directive_ptr: u64, directive_len: u64, sig_ptr: u64, sig_len
         serial::write_str("[sys_sis_execute] Executing SIS directive: ");
         serial::write_buf(directive_slice);
         serial::write_str("\n");
-        
+
         // Route to appropriate parent task based on classification
         sys_classify(directive_ptr, directive_len, 0, 0, 0, 0);
-        
-        // Determine the parent role for task spawning  
+
+        // Determine the parent role for task spawning
         let directive = match core::str::from_utf8(directive_slice) {
             Ok(s) => s,
             Err(_) => {
-                serial::write_str("[sys_sis_execute] Invalid UTF-8 in directive (role determination)\n");
+                serial::write_str(
+                    "[sys_sis_execute] Invalid UTF-8 in directive (role determination)\n",
+                );
                 return;
             }
         };
         let directive_lower = directive.to_ascii_lowercase();
-        let parent_role = if directive_lower.contains("plot") 
-                           || directive_lower.contains("solve")
-                           || directive_lower.contains("=")
-                           || directive_lower.contains("math")
-                           || directive_lower.contains("calculate") {
+        let parent_role = if directive_lower.contains("plot")
+            || directive_lower.contains("solve")
+            || directive_lower.contains("=")
+            || directive_lower.contains("math")
+            || directive_lower.contains("calculate")
+        {
             crate::kernel::task::Role::Technical
         } else {
             crate::kernel::task::Role::Philosophy
         };
-        
+
         // Spawn a child task to handle this SIS directive
         fn sis_directive_handler() {
             serial::write_str("[sis_task] Processing SIS directive in kernel task\n");
@@ -410,16 +443,21 @@ fn sys_sis_execute(directive_ptr: u64, directive_len: u64, sig_ptr: u64, sig_len
             // 1. Communicate back to Python SIS with results
             // 2. Handle GPU/hardware acceleration
             // 3. Manage memory and resources
-            loop { crate::arch::x86_64::cpu::pause(); }
+            loop {
+                crate::arch::x86_64::cpu::pause();
+            }
         }
-        
+
         let task_id = crate::kernel::scheduler::spawn_child(sis_directive_handler, parent_role);
         serial::write_str("[sys_sis_execute] Spawned kernel task ID: ");
         // Print task ID
         let mut buffer = [0u8; 10];
         let mut i = buffer.len();
         let mut n = task_id as u64;
-        if n == 0 { i -= 1; buffer[i] = b'0'; }
+        if n == 0 {
+            i -= 1;
+            buffer[i] = b'0';
+        }
         while n > 0 {
             i -= 1;
             buffer[i] = b'0' + (n % 10) as u8;
@@ -438,7 +476,7 @@ fn sys_sis_verify(plan_ptr: u64, plan_len: u64, _b: u64, _c: u64, _d: u64, _e: u
         serial::write_str("[sys_sis_verify] Invalid parameters\n");
         return;
     }
-    
+
     unsafe {
         let plan_slice = core::slice::from_raw_parts(plan_ptr as *const u8, plan_len as usize);
         serial::write_str("[sys_sis_verify] Verifying SIS plan (");
@@ -446,7 +484,10 @@ fn sys_sis_verify(plan_ptr: u64, plan_len: u64, _b: u64, _c: u64, _d: u64, _e: u
         let mut buffer = [0u8; 10];
         let mut i = buffer.len();
         let mut n = plan_len;
-        if n == 0 { i -= 1; buffer[i] = b'0'; }
+        if n == 0 {
+            i -= 1;
+            buffer[i] = b'0';
+        }
         while n > 0 {
             i -= 1;
             buffer[i] = b'0' + (n % 10) as u8;
@@ -459,18 +500,32 @@ fn sys_sis_verify(plan_ptr: u64, plan_len: u64, _b: u64, _c: u64, _d: u64, _e: u
 
 /// Log SIS operation results to kernel memory.  This provides a secure
 /// audit trail of all SIS operations executed through the kernel.
-fn sys_sis_log(operation_ptr: u64, operation_len: u64, result_ptr: u64, result_len: u64, _d: u64, _e: u64) {
+fn sys_sis_log(
+    operation_ptr: u64,
+    operation_len: u64,
+    result_ptr: u64,
+    result_len: u64,
+    _d: u64,
+    _e: u64,
+) {
     // Validate input parameters
-    if operation_ptr == 0 || operation_len == 0 || operation_len > 2048 ||
-       result_ptr == 0 || result_len == 0 || result_len > 4096 {
+    if operation_ptr == 0
+        || operation_len == 0
+        || operation_len > 2048
+        || result_ptr == 0
+        || result_len == 0
+        || result_len > 4096
+    {
         serial::write_str("[sys_sis_log] Invalid parameters\n");
         return;
     }
-    
+
     unsafe {
-        let operation_slice = core::slice::from_raw_parts(operation_ptr as *const u8, operation_len as usize);
-        let result_slice = core::slice::from_raw_parts(result_ptr as *const u8, result_len as usize);
-        
+        let operation_slice =
+            core::slice::from_raw_parts(operation_ptr as *const u8, operation_len as usize);
+        let result_slice =
+            core::slice::from_raw_parts(result_ptr as *const u8, result_len as usize);
+
         serial::write_str("[sys_sis_log] Operation: ");
         serial::write_buf(operation_slice);
         serial::write_str(" Result: ");
@@ -480,7 +535,7 @@ fn sys_sis_log(operation_ptr: u64, operation_len: u64, result_ptr: u64, result_l
 }
 
 /// Verify that a syscall directive has been signed by the Sovereign.
-/// Uses ECDSA with P256 curve and SHA256 hashing to verify 
+/// Uses ECDSA with P256 curve and SHA256 hashing to verify
 /// signatures from the Python SIS layer.
 #[allow(dead_code)]
 fn verify_signature(message: &[u8], signature: &[u8]) -> bool {
@@ -489,25 +544,25 @@ fn verify_signature(message: &[u8], signature: &[u8]) -> bool {
         serial::write_str("[verify_signature] Invalid signature length\n");
         return false;
     }
-    
+
     // Validate message length
     if message.len() == 0 || message.len() > 4096 {
         serial::write_str("[verify_signature] Invalid message length\n");
         return false;
     }
-    
+
     // TODO: In production, implement proper ECDSA verification with stored public key
     // This would require:
     // 1. A secure key storage mechanism in kernel space
     // 2. Proper ECDSA signature verification using the ecdsa crate
     // 3. SHA256 hashing of the message before verification
-    
+
     // For development, perform basic integrity checks using simple checksum
     let mut checksum = 0u8;
     for byte in message.iter().take(8) {
         checksum = checksum.wrapping_add(*byte);
     }
-    
+
     // Basic signature structure validation
     if signature[0] == checksum {
         serial::write_str("[verify_signature] Basic signature validation passed\n");
@@ -522,9 +577,8 @@ fn verify_signature(message: &[u8], signature: &[u8]) -> bool {
 
 #[cfg(feature = "ipc")]
 fn sys_ipc_chan_create(flags: u64, max_msgs: u64, msg_size: u64, _c: u64, _d: u64, _e: u64) {
-    let result = unsafe { 
-        ipc::sys_chan_create(flags as u32, max_msgs as usize, msg_size as usize) 
-    };
+    let result =
+        unsafe { ipc::sys_chan_create(flags as u32, max_msgs as usize, msg_size as usize) };
     // Note: Current syscall system doesn't have return values, so we just log
     match result {
         Ok(cap_id) => {
@@ -532,7 +586,10 @@ fn sys_ipc_chan_create(flags: u64, max_msgs: u64, msg_size: u64, _c: u64, _d: u6
             let mut buffer = [0u8; 10];
             let mut i = buffer.len();
             let mut n = cap_id as u64;
-            if n == 0 { i -= 1; buffer[i] = b'0'; }
+            if n == 0 {
+                i -= 1;
+                buffer[i] = b'0';
+            }
             while n > 0 {
                 i -= 1;
                 buffer[i] = b'0' + (n % 10) as u8;
@@ -547,13 +604,17 @@ fn sys_ipc_chan_create(flags: u64, max_msgs: u64, msg_size: u64, _c: u64, _d: u6
             let mut buffer = [0u8; 10];
             let mut i = buffer.len();
             let mut n = (-errno) as u64;
-            if n == 0 { i -= 1; buffer[i] = b'0'; }
+            if n == 0 {
+                i -= 1;
+                buffer[i] = b'0';
+            }
             while n > 0 {
                 i -= 1;
                 buffer[i] = b'0' + (n % 10) as u8;
                 n /= 10;
             }
-            i -= 1; buffer[i] = b'-';
+            i -= 1;
+            buffer[i] = b'-';
             serial::write_buf(&buffer[i..]);
             serial::write_str("\n");
         }
@@ -562,16 +623,17 @@ fn sys_ipc_chan_create(flags: u64, max_msgs: u64, msg_size: u64, _c: u64, _d: u6
 
 #[cfg(feature = "ipc")]
 fn sys_ipc_send(cap_id: u64, user_ptr: u64, len: u64, _c: u64, _d: u64, _e: u64) {
-    let result = unsafe { 
-        ipc::sys_send(cap_id as u32, user_ptr, len as usize) 
-    };
+    let result = unsafe { ipc::sys_send(cap_id as u32, user_ptr, len as usize) };
     match result {
         Ok(bytes_sent) => {
             serial::write_str("[ipc] Send successful, bytes=");
             let mut buffer = [0u8; 10];
             let mut i = buffer.len();
             let mut n = bytes_sent as u64;
-            if n == 0 { i -= 1; buffer[i] = b'0'; }
+            if n == 0 {
+                i -= 1;
+                buffer[i] = b'0';
+            }
             while n > 0 {
                 i -= 1;
                 buffer[i] = b'0' + (n % 10) as u8;
@@ -585,13 +647,17 @@ fn sys_ipc_send(cap_id: u64, user_ptr: u64, len: u64, _c: u64, _d: u64, _e: u64)
             let mut buffer = [0u8; 10];
             let mut i = buffer.len();
             let mut n = (-errno) as u64;
-            if n == 0 { i -= 1; buffer[i] = b'0'; }
+            if n == 0 {
+                i -= 1;
+                buffer[i] = b'0';
+            }
             while n > 0 {
                 i -= 1;
                 buffer[i] = b'0' + (n % 10) as u8;
                 n /= 10;
             }
-            i -= 1; buffer[i] = b'-';
+            i -= 1;
+            buffer[i] = b'-';
             serial::write_buf(&buffer[i..]);
             serial::write_str("\n");
         }
@@ -600,16 +666,17 @@ fn sys_ipc_send(cap_id: u64, user_ptr: u64, len: u64, _c: u64, _d: u64, _e: u64)
 
 #[cfg(feature = "ipc")]
 fn sys_ipc_recv(cap_id: u64, user_ptr: u64, len: u64, timeout_us: u64, _d: u64, _e: u64) {
-    let result = unsafe { 
-        ipc::sys_recv(cap_id as u32, user_ptr, len as usize, timeout_us) 
-    };
+    let result = unsafe { ipc::sys_recv(cap_id as u32, user_ptr, len as usize, timeout_us) };
     match result {
         Ok(bytes_recv) => {
             serial::write_str("[ipc] Recv successful, bytes=");
             let mut buffer = [0u8; 10];
             let mut i = buffer.len();
             let mut n = bytes_recv as u64;
-            if n == 0 { i -= 1; buffer[i] = b'0'; }
+            if n == 0 {
+                i -= 1;
+                buffer[i] = b'0';
+            }
             while n > 0 {
                 i -= 1;
                 buffer[i] = b'0' + (n % 10) as u8;
@@ -623,13 +690,17 @@ fn sys_ipc_recv(cap_id: u64, user_ptr: u64, len: u64, timeout_us: u64, _d: u64, 
             let mut buffer = [0u8; 10];
             let mut i = buffer.len();
             let mut n = (-errno) as u64;
-            if n == 0 { i -= 1; buffer[i] = b'0'; }
+            if n == 0 {
+                i -= 1;
+                buffer[i] = b'0';
+            }
             while n > 0 {
                 i -= 1;
                 buffer[i] = b'0' + (n % 10) as u8;
                 n /= 10;
             }
-            i -= 1; buffer[i] = b'-';
+            i -= 1;
+            buffer[i] = b'-';
             serial::write_buf(&buffer[i..]);
             serial::write_str("\n");
         }
@@ -638,9 +709,7 @@ fn sys_ipc_recv(cap_id: u64, user_ptr: u64, len: u64, timeout_us: u64, _d: u64, 
 
 #[cfg(feature = "ipc")]
 fn sys_ipc_close(cap_id: u64, _a: u64, _b: u64, _c: u64, _d: u64, _e: u64) {
-    let result = unsafe { 
-        ipc::sys_close(cap_id as u32) 
-    };
+    let result = unsafe { ipc::sys_close(cap_id as u32) };
     match result {
         Ok(()) => serial::write_str("[ipc] Close successful\n"),
         Err(errno) => {
@@ -648,13 +717,17 @@ fn sys_ipc_close(cap_id: u64, _a: u64, _b: u64, _c: u64, _d: u64, _e: u64) {
             let mut buffer = [0u8; 10];
             let mut i = buffer.len();
             let mut n = (-errno) as u64;
-            if n == 0 { i -= 1; buffer[i] = b'0'; }
+            if n == 0 {
+                i -= 1;
+                buffer[i] = b'0';
+            }
             while n > 0 {
                 i -= 1;
                 buffer[i] = b'0' + (n % 10) as u8;
                 n /= 10;
             }
-            i -= 1; buffer[i] = b'-';
+            i -= 1;
+            buffer[i] = b'-';
             serial::write_buf(&buffer[i..]);
             serial::write_str("\n");
         }
@@ -664,12 +737,16 @@ fn sys_ipc_close(cap_id: u64, _a: u64, _b: u64, _c: u64, _d: u64, _e: u64) {
 // Phase 4: Userland syscall implementations
 #[cfg(feature = "userland")]
 fn sys_spawn_exec(a0: u64, a1: u64, a2: u64, _a3: u64, _a4: u64, _a5: u64) {
-    match crate::kernel::user::proc::sys_spawn_exec(a0 as *const u8, a1 as *const u8, a2 as *const u8) {
+    match crate::kernel::user::proc::sys_spawn_exec(
+        a0 as *const u8,
+        a1 as *const u8,
+        a2 as *const u8,
+    ) {
         Ok(pid) => {
             serial::write_str("[sys_spawn_exec] Success, PID=");
             serial::write_u64(pid);
             serial::write_str("\n");
-        },
+        }
         Err(errno) => {
             serial::write_str("[sys_spawn_exec] Error, errno=");
             serial::write_u64((-errno) as u64);
@@ -685,7 +762,7 @@ fn sys_wait(pid: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
             serial::write_str("[sys_wait] Process exited with code=");
             serial::write_u64(exit_code as u64);
             serial::write_str("\n");
-        },
+        }
         Err(errno) => {
             serial::write_str("[sys_wait] Error, errno=");
             serial::write_u64((-errno) as u64);
@@ -701,7 +778,9 @@ fn sys_vfs_open(path_ptr: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64)
         let mut len = 0usize;
         let mut p = path_ptr as *const u8;
         while len < 4096 {
-            if core::ptr::read(p) == 0 { break; }
+            if core::ptr::read(p) == 0 {
+                break;
+            }
             len += 1;
             p = p.add(1);
         }
@@ -709,7 +788,7 @@ fn sys_vfs_open(path_ptr: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64)
             serial::write_str("[sys_vfs_open] Invalid path\n");
             return;
         }
-        
+
         let start = (path_ptr as *const u8);
         let slice = core::slice::from_raw_parts(start, len);
         let path = match core::str::from_utf8(slice) {
@@ -719,13 +798,13 @@ fn sys_vfs_open(path_ptr: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64)
                 return;
             }
         };
-        
+
         match vfs::open(path) {
             Some(_file) => {
                 serial::write_str("[sys_vfs_open] File opened: ");
                 serial::write_str(path);
                 serial::write_str("\n");
-            },
+            }
             None => {
                 serial::write_str("[sys_vfs_open] File not found: ");
                 serial::write_str(path);
@@ -746,7 +825,7 @@ fn sys_vfs_read(fd: u64, buf_ptr: u64, len: u64, _a3: u64, _a4: u64, _a5: u64) {
         serial::write_str("[sys_vfs_read] Invalid parameters\n");
         return;
     }
-    
+
     serial::write_str("[sys_vfs_read] Read request for ");
     serial::write_u64(len);
     serial::write_str(" bytes\n");
@@ -760,7 +839,7 @@ fn sys_vfio_bind(bus: u64, dev: u64, func: u64, _a3: u64, _a4: u64, _a5: u64) {
             serial::write_str("[sys_vfio_bind] Device bound, handle=0x");
             serial::write_hex16(handle.as_u16());
             serial::write_str("\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_bind] Device binding failed\n");
         }
@@ -776,7 +855,7 @@ fn sys_vfio_cfg_read(handle: u64, offset: u64, _a2: u64, _a3: u64, _a4: u64, _a5
             serial::write_str(" from offset 0x");
             serial::write_hex8(offset as u8);
             serial::write_str("\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_cfg_read] Config read failed\n");
         }
@@ -792,7 +871,7 @@ fn sys_vfio_cfg_write(handle: u64, offset: u64, value: u64, _a3: u64, _a4: u64, 
             serial::write_str(" to offset 0x");
             serial::write_hex8(offset as u8);
             serial::write_str("\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_cfg_write] Config write failed\n");
         }
@@ -806,7 +885,7 @@ fn sys_vfio_map_bar(handle: u64, bar_idx: u64, _a2: u64, _a3: u64, _a4: u64, _a5
             serial::write_str("[sys_vfio_map_bar] BAR mapped at 0x");
             serial::write_hex64(addr);
             serial::write_str("\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_map_bar] BAR mapping failed\n");
         }
@@ -818,7 +897,7 @@ fn sys_vfio_setup_irq(handle: u64, irq_num: u64, _a2: u64, _a3: u64, _a4: u64, _
     match crate::kernel::vfio::syscall_setup_irq(handle as u16, irq_num as u8) {
         Ok(()) => {
             serial::write_str("[sys_vfio_setup_irq] IRQ setup completed\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_setup_irq] IRQ setup failed\n");
         }
@@ -833,7 +912,7 @@ fn sys_vfio_domain_create(handle: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _
             serial::write_str("[sys_vfio_domain_create] Domain created, id=");
             serial::write_hex16(domain_id);
             serial::write_str("\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_domain_create] Domain creation failed\n");
         }
@@ -847,7 +926,7 @@ fn sys_vfio_domain_map_staging(handle: u64, len: u64, _a2: u64, _a3: u64, _a4: u
             serial::write_str("[sys_vfio_domain_map_staging] Staging mapped at IOVA 0x");
             serial::write_hex64(iova);
             serial::write_str("\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_domain_map_staging] Staging mapping failed\n");
         }
@@ -859,7 +938,7 @@ fn sys_vfio_enable_busmaster(handle: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64
     match crate::kernel::vfio::syscall_enable_busmaster(handle as u16) {
         Ok(()) => {
             serial::write_str("[sys_vfio_enable_busmaster] Bus master enabled\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_enable_busmaster] Bus master enable failed\n");
         }
@@ -874,7 +953,7 @@ fn sys_vfio_msi_arm(handle: u64, vector: u64, _a2: u64, _a3: u64, _a4: u64, _a5:
             serial::write_str("[sys_vfio_msi_arm] MSI armed for vector 0x");
             serial::write_hex8(vector as u8);
             serial::write_str("\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_msi_arm] MSI arming failed\n");
         }
@@ -886,7 +965,7 @@ fn sys_vfio_msi_disarm(handle: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5:
     match crate::kernel::vfio::syscall_msi_disarm(handle as u16) {
         Ok(()) => {
             serial::write_str("[sys_vfio_msi_disarm] MSI disarmed\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_msi_disarm] MSI disarming failed\n");
         }
@@ -898,7 +977,7 @@ fn sys_vfio_msi_trigger_e1000(handle: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u6
     match crate::kernel::vfio::syscall_msi_trigger_e1000(handle as u16) {
         Ok(()) => {
             serial::write_str("[sys_vfio_msi_trigger_e1000] e1000 MSI trigger sent\n");
-        },
+        }
         Err(_) => {
             serial::write_str("[sys_vfio_msi_trigger_e1000] e1000 MSI trigger failed\n");
         }
@@ -911,19 +990,23 @@ fn sys_set_affinity(mask: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64)
     serial::write_str("[sys_set_affinity] Setting CPU affinity mask=0x");
     serial::write_hex64(mask);
     serial::write_str("\n");
-    
+
     // mask == 0 => unconstrained
     let cur_tid = crate::kernel::current::tid();
     let t = crate::kernel::task_table::get(cur_tid);
     let mut guard = t.lock();
     let task = &mut *guard;
     task.cpu_affinity_mask = mask;
-    
+
     // If currently running on a disallowed CPU, bounce it out
     let cur = unsafe { crate::arch::x86_64::percpu_clean::this().cpu_id };
-    let allowed = if mask == 0 { true } else { ((mask >> cur) & 1) != 0 };
+    let allowed = if mask == 0 {
+        true
+    } else {
+        ((mask >> cur) & 1) != 0
+    };
     core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
-    
+
     if !allowed {
         // Demote to Ready and enqueue on an allowed CPU.
         task.state = crate::kernel::task::State::Ready;

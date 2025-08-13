@@ -2,15 +2,15 @@
 //! Lock-free per-CPU ring buffers for tiny u64 messages.
 #![allow(dead_code)]
 
-use core::sync::atomic::{AtomicUsize, Ordering};
 use core::cell::UnsafeCell;
+use core::sync::atomic::{AtomicUsize, Ordering};
 
-#[cfg(feature = "smp")]
-use crate::kernel::serial;
 #[cfg(feature = "smp")]
 use crate::arch::x86_64::percpu_clean as percpu;
 #[cfg(feature = "smp")]
 use crate::arch::x86_64::smp::ipi;
+#[cfg(feature = "smp")]
+use crate::kernel::serial;
 
 // Conservative max CPU count (align with your percpu/topology)
 pub const MAX_CPUS: usize = 64;
@@ -77,7 +77,7 @@ impl Mailbox {
 }
 
 #[cfg(feature = "smp")]
-static mut MBOXES: [core::mem::MaybeUninit<Aligned<Mailbox>>; MAX_CPUS] = 
+static mut MBOXES: [core::mem::MaybeUninit<Aligned<Mailbox>>; MAX_CPUS] =
     unsafe { core::mem::MaybeUninit::uninit().assume_init() };
 
 #[cfg(feature = "smp")]
@@ -87,11 +87,14 @@ static MBOXES_INIT: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicB
 #[inline]
 fn mb_for_cpu(cpu: usize) -> &'static Mailbox {
     use core::sync::atomic::Ordering;
-    
+
     // Initialize mailboxes on first use
     if !MBOXES_INIT.load(Ordering::Acquire) {
         // Use compare_exchange to ensure only one thread initializes
-        if MBOXES_INIT.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_ok() {
+        if MBOXES_INIT
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_ok()
+        {
             unsafe {
                 for i in 0..MAX_CPUS {
                     MBOXES[i] = core::mem::MaybeUninit::new(Aligned(Mailbox::new()));
@@ -99,7 +102,7 @@ fn mb_for_cpu(cpu: usize) -> &'static Mailbox {
             }
         }
     }
-    
+
     // SAFE: array is initialized; cpu index validated by caller
     unsafe { &MBOXES.get_unchecked(cpu).assume_init_ref().0 }
 }
@@ -107,8 +110,7 @@ fn mb_for_cpu(cpu: usize) -> &'static Mailbox {
 /// Enqueue a message to target APIC id and poke with IPI.
 #[cfg(feature = "smp")]
 pub fn send(apic_id: u32, msg: u64) -> Result<(), i64> {
-    let target_cpu = crate::arch::x86_64::topology::cpu_index_from_apic(apic_id)
-        .ok_or(-22i64)?;
+    let target_cpu = crate::arch::x86_64::topology::cpu_index_from_apic(apic_id).ok_or(-22i64)?;
     let mb = mb_for_cpu(target_cpu);
     mb.ring.try_push(msg).map_err(|_| -11i64)?;
     ipi::send_mailbox_ipi(apic_id);
@@ -128,7 +130,11 @@ pub fn try_recv() -> Option<u64> {
 pub fn drain(max: usize) -> usize {
     let mut n = 0usize;
     while n < max {
-        if try_recv().is_some() { n += 1; } else { break; }
+        if try_recv().is_some() {
+            n += 1;
+        } else {
+            break;
+        }
     }
     n
 }

@@ -1,0 +1,948 @@
+   Compiling sis_kernel v0.1.0 (/home/apple/sis-kernel)
+warning: sis_kernel@0.1.0: boot.rs: kernel ELF not found, skipping image creation
+warning: unused import: `scheduler`
+  --> src/arch/x86_64/idt.rs:14:21
+   |
+14 | use crate::kernel::{scheduler, syscall, serial};
+   |                     ^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `AtomicU32` and `Ordering`
+  --> src/arch/x86_64/idt.rs:19:26
+   |
+19 | use core::sync::atomic::{AtomicU32, Ordering};
+   |                          ^^^^^^^^^  ^^^^^^^^
+
+warning: unused import: `core::ptr`
+   --> src/arch/x86_64/idt.rs:133:9
+    |
+133 |     use core::ptr;
+    |         ^^^^^^^^^
+
+warning: unexpected `cfg` condition name: `selftest_RING3`
+   --> src/arch/x86_64/idt.rs:501:45
+    |
+501 |         #[cfg(all(feature = "idt-selftest", selftest_RING3))]
+    |                                             ^^^^^^^^^^^^^^
+    |
+    = help: expected names are: `docsrs`, `feature`, and `test` and 31 more
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_RING3)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_RING3)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition name: `selftest_SYSCALL`
+   --> src/arch/x86_64/idt.rs:508:45
+    |
+508 |         #[cfg(all(feature = "idt-selftest", selftest_SYSCALL))]
+    |                                             ^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SYSCALL)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SYSCALL)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_RING3`
+   --> src/arch/x86_64/idt.rs:513:45
+    |
+513 |         #[cfg(all(feature = "idt-selftest", selftest_RING3))]
+    |                                             ^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_RING3)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_RING3)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_RING3_RT`
+   --> src/arch/x86_64/idt.rs:530:41
+    |
+530 |     #[cfg(all(feature = "idt-selftest", selftest_RING3_RT))]
+    |                                         ^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_RING3_RT)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_RING3_RT)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `PhysAddr`
+ --> src/arch/x86_64/memory.rs:5:15
+  |
+5 |     VirtAddr, PhysAddr,
+  |               ^^^^^^^^
+
+warning: unused import: `core::ptr::NonNull`
+  --> src/arch/x86_64/memory.rs:14:5
+   |
+14 | use core::ptr::NonNull;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::arch::asm`
+  --> src/arch/x86_64/context_switch.rs:12:5
+   |
+12 | use core::arch::asm;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `PhysAddr`
+ --> src/arch/x86_64/apic.rs:7:14
+  |
+7 | use x86_64::{PhysAddr, VirtAddr};
+  |              ^^^^^^^^
+
+warning: unexpected `cfg` condition name: `selftest_SMP_ONLINE`
+  --> src/arch/x86_64/smp/mod.rs:28:28
+   |
+28 | #[cfg(all(feature = "smp", selftest_SMP_ONLINE))]
+   |                            ^^^^^^^^^^^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SMP_ONLINE)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SMP_ONLINE)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `PhysAddr`
+ --> src/arch/x86_64/percpu.rs:8:14
+  |
+8 | use x86_64::{PhysAddr, VirtAddr};
+  |              ^^^^^^^^
+
+warning: unused import: `GS`
+ --> src/arch/x86_64/percpu.rs:9:39
+  |
+9 | use x86_64::registers::segmentation::{GS, Segment};
+  |                                       ^^
+
+warning: unused import: `Ordering`
+ --> src/arch/x86_64/percpu_clean.rs:4:49
+  |
+4 | use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+  |                                                 ^^^^^^^^
+
+warning: unexpected `cfg` condition name: `selftest_TLB_SHOOTDOWN`
+   --> src/arch/x86_64/shootdown.rs:101:28
+    |
+101 | #[cfg(all(feature = "smp", selftest_TLB_SHOOTDOWN))]
+    |                            ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_TLB_SHOOTDOWN)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_TLB_SHOOTDOWN)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_SCHEDULER_PREEMPT`
+  --> src/arch/x86_64/scheduler_selftest.rs:29:7
+   |
+29 | #[cfg(selftest_SCHEDULER_PREEMPT)]
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SCHEDULER_PREEMPT)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SCHEDULER_PREEMPT)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `alloc::vec::Vec`
+ --> src/kernel/task.rs:9:5
+  |
+9 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ptr::NonNull`
+  --> src/kernel/task.rs:10:5
+   |
+10 | use core::ptr::NonNull;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: unexpected `cfg` condition name: `selftest_TIMER`
+  --> src/kernel/scheduler.rs:16:37
+   |
+16 | #[cfg(all(feature = "idt-selftest", selftest_TIMER))]
+   |                                     ^^^^^^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_TIMER)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_TIMER)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_LAPIC_TIMER`
+  --> src/kernel/scheduler.rs:19:37
+   |
+19 | #[cfg(all(feature = "idt-selftest", selftest_LAPIC_TIMER))]
+   |                                     ^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_LAPIC_TIMER)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_LAPIC_TIMER)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `Role`
+  --> src/kernel/scheduler.rs:13:49
+   |
+13 | use crate::kernel::{serial, task::{Task, State, Role, BlockReason}};
+   |                                                 ^^^^
+
+warning: unused import: `TaskId`
+   --> src/kernel/scheduler.rs:272:52
+    |
+272 |         use super::smp_scheduler::{spawn_smp_task, TaskId};
+    |                                                    ^^^^^^
+
+warning: unexpected `cfg` condition name: `selftest_TIMER`
+   --> src/kernel/scheduler.rs:294:41
+    |
+294 |     #[cfg(all(feature = "idt-selftest", selftest_TIMER))]
+    |                                         ^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_TIMER)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_TIMER)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_LAPIC_TIMER`
+   --> src/kernel/scheduler.rs:303:41
+    |
+303 |     #[cfg(all(feature = "idt-selftest", selftest_LAPIC_TIMER))]
+    |                                         ^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_LAPIC_TIMER)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_LAPIC_TIMER)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_SMP_2`
+   --> src/kernel/scheduler.rs:325:41
+    |
+325 |     #[cfg(all(feature = "idt-selftest", selftest_SMP_2))]
+    |                                         ^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SMP_2)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SMP_2)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_SCHED_SMP_FAIR`
+   --> src/kernel/smp_scheduler.rs:557:37
+    |
+557 | #[cfg(all(feature = "idt-selftest", selftest_SCHED_SMP_FAIR))]
+    |                                     ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SCHED_SMP_FAIR)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SCHED_SMP_FAIR)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `alloc::collections::VecDeque`
+  --> src/kernel/smp_scheduler.rs:10:5
+   |
+10 | use alloc::collections::VecDeque;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> src/kernel/smp_scheduler.rs:11:5
+   |
+11 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `AtomicU32`
+  --> src/kernel/smp_scheduler.rs:12:37
+   |
+12 | use core::sync::atomic::{AtomicU64, AtomicU32, AtomicUsize, Ordering};
+   |                                     ^^^^^^^^^
+
+warning: unused import: `core::mem::MaybeUninit`
+  --> src/kernel/smp_scheduler.rs:13:5
+   |
+13 | use core::mem::MaybeUninit;
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Mutex`
+  --> src/kernel/smp_scheduler.rs:14:12
+   |
+14 | use spin::{Mutex, RwLock};
+   |            ^^^^^
+
+warning: unused import: `BlockReason`
+  --> src/kernel/smp_scheduler.rs:15:55
+   |
+15 | use crate::kernel::{serial, task::{Task, State, Role, BlockReason}};
+   |                                                       ^^^^^^^^^^^
+
+warning: unused import: `scheduler`
+ --> src/kernel/syscall.rs:9:29
+  |
+9 | use crate::kernel::{serial, scheduler};
+  |                             ^^^^^^^^^
+
+warning: unused import: `crate::kernel::vfs`
+  --> src/kernel/syscall.rs:13:5
+   |
+13 | use crate::kernel::vfs;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> src/kernel/syscall.rs:14:5
+   |
+14 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unexpected `cfg` condition name: `selftest_RING3_RT`
+   --> src/kernel/syscall.rs:188:45
+    |
+188 |         #[cfg(all(feature = "idt-selftest", selftest_RING3_RT))]
+    |                                             ^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_RING3_RT)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_RING3_RT)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `write_hex32`
+ --> src/kernel/pci.rs:8:35
+  |
+8 | use crate::kernel::serial::{self, write_hex32};
+  |                                   ^^^^^^^^^^^
+
+warning: unused import: `core::fmt::Write`
+ --> src/kernel/pci.rs:9:5
+  |
+9 | use core::fmt::Write;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unexpected `cfg` condition value: `thread-affinity`
+ --> src/kernel/affinity.rs:8:7
+  |
+8 | #[cfg(feature = "thread-affinity")]
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: expected values for `feature` are: `affinity`, `apic`, `default`, `firewall`, `idt-selftest`, `iommu`, `ipc`, `per-task-mm`, `pf-matrix`, `qemu-intel-iommu-sim`, `scheduler`, `smp`, `userland`, and `vfio`
+  = help: consider adding `thread-affinity` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `thread-affinity`
+  --> src/kernel/affinity.rs:14:11
+   |
+14 | #[cfg(not(feature = "thread-affinity"))]
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: expected values for `feature` are: `affinity`, `apic`, `default`, `firewall`, `idt-selftest`, `iommu`, `ipc`, `per-task-mm`, `pf-matrix`, `qemu-intel-iommu-sim`, `scheduler`, `smp`, `userland`, and `vfio`
+   = help: consider adding `thread-affinity` as a feature in `Cargo.toml`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused import: `State as TaskState`
+  --> src/kernel/simple_scheduler.rs:14:33
+   |
+14 | use crate::kernel::task::{Task, State as TaskState};
+   |                                 ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::arch::x86_64::smp`
+ --> src/selftest/smp_affinity.rs:9:5
+  |
+9 | use crate::arch::x86_64::smp;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unexpected `cfg` condition name: `selftest_VFIO_MSI_SMOKE`
+   --> src/main.rs:152:15
+    |
+152 |         #[cfg(selftest_VFIO_MSI_SMOKE)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_MSI_SMOKE)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_MSI_SMOKE)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_VFIO_MSI_SMOKE`
+   --> src/main.rs:154:19
+    |
+154 |         #[cfg(not(selftest_VFIO_MSI_SMOKE))]
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_MSI_SMOKE)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_MSI_SMOKE)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_VFIO_MSI_SOAK`
+   --> src/main.rs:156:15
+    |
+156 |         #[cfg(selftest_VFIO_MSI_SOAK)]
+    |               ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_MSI_SOAK)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_MSI_SOAK)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_SMP_ONLINE`
+   --> src/main.rs:197:80
+    |
+197 |         #[cfg(all(feature = "smp", feature = "apic", feature = "idt-selftest", selftest_SMP_ONLINE))]
+    |                                                                                ^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SMP_ONLINE)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SMP_ONLINE)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_SCHED_SMP_FAIR`
+   --> src/main.rs:215:62
+    |
+215 |         #[cfg(all(feature = "smp", feature = "idt-selftest", selftest_SCHED_SMP_FAIR))]
+    |                                                              ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SCHED_SMP_FAIR)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SCHED_SMP_FAIR)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_IPC_XCPU_PING`
+   --> src/main.rs:233:79
+    |
+233 |         #[cfg(all(feature = "smp", feature = "ipc", feature = "idt-selftest", selftest_IPC_XCPU_PING))]
+    |                                                                               ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_IPC_XCPU_PING)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_IPC_XCPU_PING)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_TLB_SHOOTDOWN`
+   --> src/main.rs:251:80
+    |
+251 |         #[cfg(all(feature = "smp", feature = "apic", feature = "idt-selftest", selftest_TLB_SHOOTDOWN))]
+    |                                                                                ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_TLB_SHOOTDOWN)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_TLB_SHOOTDOWN)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_SMP_AFFINITY`
+   --> src/main.rs:269:81
+    |
+269 |         #[cfg(all(feature = "affinity", feature = "smp", feature = "scheduler", selftest_SMP_AFFINITY))]
+    |                                                                                 ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SMP_AFFINITY)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SMP_AFFINITY)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_VFIO_BIND_E1000`
+   --> src/main.rs:276:37
+    |
+276 |         #[cfg(all(feature = "vfio", selftest_VFIO_BIND_E1000))]
+    |                                     ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_BIND_E1000)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_BIND_E1000)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_VFIO_MSI_SMOKE`
+   --> src/main.rs:305:63
+    |
+305 |         #[cfg(all(feature = "vfio", feature = "idt-selftest", selftest_VFIO_MSI_SMOKE))]
+    |                                                               ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_MSI_SMOKE)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_MSI_SMOKE)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `selftest_VFIO_MSI_SOAK`
+   --> src/main.rs:331:63
+    |
+331 |         #[cfg(all(feature = "vfio", feature = "idt-selftest", selftest_VFIO_MSI_SOAK))]
+    |                                                               ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_MSI_SOAK)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_MSI_SOAK)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: use of deprecated function `x86_64::instructions::segmentation::set_cs`: use `CS::set_reg()` instead
+  --> src/arch/x86_64/gdt.rs:61:9
+   |
+61 |         set_cs(GDT.1.code_ring0);
+   |         ^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `x86_64::instructions::segmentation::set_cs`: use `CS::set_reg()` instead
+  --> src/arch/x86_64/gdt.rs:56:45
+   |
+56 |     use x86_64::instructions::segmentation::set_cs;
+   |                                             ^^^^^^
+
+warning: use of deprecated function `x86_64::instructions::segmentation::cs`: use `CS::get_reg()` instead
+   --> src/arch/x86_64/idt.rs:496:28
+    |
+496 |     let cs = segmentation::cs();
+    |                            ^^
+
+warning: unused import: `Segment`
+ --> src/arch/x86_64/percpu.rs:9:43
+  |
+9 | use x86_64::registers::segmentation::{GS, Segment};
+  |                                           ^^^^^^^
+
+warning: unused import: `core::fmt::Write`
+ --> src/kernel/vfio.rs:8:5
+  |
+8 | use core::fmt::Write;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused variable: `fault_addr`
+   --> src/arch/x86_64/idt.rs:389:9
+    |
+389 |     let fault_addr = Cr2::read();
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_fault_addr`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `error_code`
+   --> src/arch/x86_64/idt.rs:386:5
+    |
+386 |     error_code: PageFaultErrorCode
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_error_code`
+
+warning: unused variable: `stack_frame`
+   --> src/arch/x86_64/idt.rs:492:5
+    |
+492 |     stack_frame: InterruptStackFrame
+    |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_stack_frame`
+
+warning: unused variable: `data_ring0`
+   --> src/arch/x86_64/percpu.rs:141:13
+    |
+141 |         let data_ring0 = runtime_gdt.add_entry(Descriptor::kernel_data_segment());
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_data_ring0`
+
+warning: unused variable: `code_ring3`
+   --> src/arch/x86_64/percpu.rs:142:13
+    |
+142 |         let code_ring3 = runtime_gdt.add_entry(Descriptor::user_code_segment());
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_code_ring3`
+
+warning: unused variable: `data_ring3`
+   --> src/arch/x86_64/percpu.rs:143:13
+    |
+143 |         let data_ring3 = runtime_gdt.add_entry(Descriptor::user_data_segment());
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_data_ring3`
+
+error[E0521]: borrowed data escapes outside of method
+   --> src/arch/x86_64/percpu.rs:144:50
+    |
+133 |     pub fn install_gdt_tss(&self) {
+    |                            -----
+    |                            |
+    |                            `self` is a reference that is only valid in the method body
+    |                            let's call the lifetime of this reference `'1`
+...
+144 |         let tss_selector = runtime_gdt.add_entry(Descriptor::tss_segment(&self.tss));
+    |                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |                                                  |
+    |                                                  `self` escapes the method body here
+    |                                                  argument requires that `'1` must outlive `'static`
+
+warning: variable does not need to be mutable
+   --> src/arch/x86_64/percpu.rs:256:13
+    |
+256 |         let mut gs_base_msr = Msr::new(0xC0000101);
+    |             ----^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: unnecessary `unsafe` block
+  --> src/arch/x86_64/percpu_clean.rs:36:9
+   |
+31 |     unsafe {
+   |     ------ because it's nested under this `unsafe` block
+...
+36 |         unsafe { Msr::new(0xC0000101).write(base); } // IA32_GS_BASE
+   |         ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` on by default
+
+warning: unnecessary `unsafe` block
+  --> src/arch/x86_64/shootdown.rs:24:9
+   |
+24 |         unsafe { 
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> src/arch/x86_64/shootdown.rs:29:9
+   |
+29 |         unsafe {
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> src/arch/x86_64/shootdown.rs:45:13
+   |
+45 |             unsafe { x86_64::instructions::tlb::flush(x86_64::VirtAddr::new(addr)); }
+   |             ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> src/arch/x86_64/shootdown.rs:47:13
+   |
+47 |             unsafe { x86_64::instructions::tlb::flush_all(); }
+   |             ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> src/arch/x86_64/shootdown.rs:64:9
+   |
+64 |         unsafe { x86_64::instructions::tlb::flush(x86_64::VirtAddr::new(addr)); }
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> src/arch/x86_64/shootdown.rs:66:9
+   |
+66 |         unsafe { x86_64::instructions::tlb::flush_all(); }
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: value assigned to `max` is never read
+  --> src/arch/x86_64/topology.rs:20:13
+   |
+20 |     let mut max = 1u32;
+   |             ^^^
+   |
+   = help: maybe it is overwritten before being read?
+   = note: `#[warn(unused_assignments)]` on by default
+
+warning: unused variable: `tid2`
+  --> src/arch/x86_64/scheduler_selftest.rs:48:9
+   |
+48 |     let tid2 = {
+   |         ^^^^ help: if this is intentional, prefix it with an underscore: `_tid2`
+
+warning: unused variable: `next_ksp`
+   --> src/kernel/scheduler.rs:166:18
+    |
+166 |             let (next_ksp, next_cr3) = {
+    |                  ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_next_ksp`
+
+warning: unused variable: `next_cr3`
+   --> src/kernel/scheduler.rs:166:28
+    |
+166 |             let (next_ksp, next_cr3) = {
+    |                            ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_next_cr3`
+
+warning: unused variable: `ticks`
+   --> src/kernel/scheduler.rs:323:9
+    |
+323 |     let ticks = CPU_TICKS[cpu_id].fetch_add(1, Ordering::SeqCst);
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_ticks`
+
+warning: unused variable: `name`
+   --> src/kernel/smp_scheduler.rs:317:43
+    |
+317 |     pub fn spawn_task(&self, entry: fn(), name: &'static str, role: Role) -> TaskId {
+    |                                           ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
+
+warning: unused variable: `code`
+   --> src/kernel/syscall.rs:232:13
+    |
+232 | fn sys_exit(code: u64, _a: u64, _b: u64, _c: u64, _d: u64, _e: u64) {
+    |             ^^^^ help: if this is intentional, prefix it with an underscore: `_code`
+
+warning: value assigned to `technical` is never read
+   --> src/kernel/syscall.rs:248:13
+    |
+248 |     let mut technical = false;
+    |             ^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `directive`
+   --> src/kernel/syscall.rs:363:13
+    |
+363 |         let directive = match core::str::from_utf8(directive_slice) {
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_directive`
+
+warning: unused variable: `plan_slice`
+   --> src/kernel/syscall.rs:433:13
+    |
+433 |         let plan_slice = core::slice::from_raw_parts(plan_ptr as *const u8, plan_len as usize);
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_plan_slice`
+
+warning: unnecessary `unsafe` block
+   --> src/kernel/syscall.rs:913:15
+    |
+913 |     let cur = unsafe { crate::arch::x86_64::percpu_clean::this().cpu_id };
+    |               ^^^^^^ unnecessary `unsafe` block
+
+warning: unused variable: `e`
+   --> src/kernel/pci.rs:249:13
+    |
+249 |         Err(e) => serial::write_str("[PCI] VFIO not available, running without passthrough\n"),
+    |             ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: value assigned to `target` is never read
+  --> src/kernel/simple_scheduler.rs:63:13
+   |
+63 |     let mut target = this as usize;
+   |             ^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+
+warning: unnecessary `unsafe` block
+  --> src/kernel/simple_scheduler.rs:62:16
+   |
+62 |     let this = unsafe { percpu::this().cpu_id };
+   |                ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> src/kernel/simple_scheduler.rs:92:15
+   |
+92 |     let cur = unsafe { percpu::this().cpu_id } as usize;
+   |               ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> src/kernel/simple_scheduler.rs:100:15
+    |
+100 |     let cpu = unsafe { percpu::this().cpu_id as usize };
+    |               ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> src/kernel/simple_scheduler.rs:116:15
+    |
+116 |     let cur = unsafe { percpu::this().cpu_id };
+    |               ^^^^^^ unnecessary `unsafe` block
+
+warning: unused variable: `h`
+  --> src/kernel/vfio.rs:88:61
+   |
+88 | fn get_state_mut(table: &mut [Option<VfioHandleState>; 16], h: VfioHandle) -> Option<&mut VfioHandleState> {
+   |                                                             ^ help: if this is intentional, prefix it with an underscore: `_h`
+
+warning: unused variable: `h`
+  --> src/kernel/vfio.rs:99:53
+   |
+99 | fn get_state(table: &[Option<VfioHandleState>; 16], h: VfioHandle) -> Option<&VfioHandleState> {
+   |                                                     ^ help: if this is intentional, prefix it with an underscore: `_h`
+
+warning: unused variable: `bus`
+   --> src/kernel/vfio.rs:155:19
+    |
+155 | pub fn map_device(bus: u8, dev: u8, func: u8) -> Result<VfioHandle, VfioError> {
+    |                   ^^^ help: if this is intentional, prefix it with an underscore: `_bus`
+
+warning: unused variable: `dev`
+   --> src/kernel/vfio.rs:155:28
+    |
+155 | pub fn map_device(bus: u8, dev: u8, func: u8) -> Result<VfioHandle, VfioError> {
+    |                            ^^^ help: if this is intentional, prefix it with an underscore: `_dev`
+
+warning: unused variable: `func`
+   --> src/kernel/vfio.rs:155:37
+    |
+155 | pub fn map_device(bus: u8, dev: u8, func: u8) -> Result<VfioHandle, VfioError> {
+    |                                     ^^^^ help: if this is intentional, prefix it with an underscore: `_func`
+
+warning: unused variable: `handle`
+   --> src/kernel/vfio.rs:192:21
+    |
+192 | pub fn close_handle(handle: VfioHandle) -> Result<(), VfioError> {
+    |                     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle`
+
+warning: unused variable: `handle_val`
+   --> src/kernel/vfio.rs:266:25
+    |
+266 | pub fn syscall_cfg_read(handle_val: u16, offset: u8) -> Result<u32, VfioError> {
+    |                         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_val`
+
+warning: unused variable: `offset`
+   --> src/kernel/vfio.rs:266:42
+    |
+266 | pub fn syscall_cfg_read(handle_val: u16, offset: u8) -> Result<u32, VfioError> {
+    |                                          ^^^^^^ help: if this is intentional, prefix it with an underscore: `_offset`
+
+warning: unused variable: `handle_val`
+   --> src/kernel/vfio.rs:281:26
+    |
+281 | pub fn syscall_cfg_write(handle_val: u16, offset: u8, value: u32) -> Result<(), VfioError> {
+    |                          ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_val`
+
+warning: unused variable: `offset`
+   --> src/kernel/vfio.rs:281:43
+    |
+281 | pub fn syscall_cfg_write(handle_val: u16, offset: u8, value: u32) -> Result<(), VfioError> {
+    |                                           ^^^^^^ help: if this is intentional, prefix it with an underscore: `_offset`
+
+warning: unused variable: `value`
+   --> src/kernel/vfio.rs:281:55
+    |
+281 | pub fn syscall_cfg_write(handle_val: u16, offset: u8, value: u32) -> Result<(), VfioError> {
+    |                                                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_value`
+
+warning: unused variable: `handle_val`
+   --> src/kernel/vfio.rs:318:24
+    |
+318 | pub fn syscall_map_bar(handle_val: u16, bar_idx: u8) -> Result<u64, VfioError> {
+    |                        ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_val`
+
+warning: unused variable: `bar_idx`
+   --> src/kernel/vfio.rs:318:41
+    |
+318 | pub fn syscall_map_bar(handle_val: u16, bar_idx: u8) -> Result<u64, VfioError> {
+    |                                         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_bar_idx`
+
+warning: unused variable: `handle_val`
+   --> src/kernel/vfio.rs:380:26
+    |
+380 | pub fn syscall_setup_irq(handle_val: u16, irq_num: u8) -> Result<(), VfioError> {
+    |                          ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_val`
+
+warning: unused variable: `irq_num`
+   --> src/kernel/vfio.rs:380:43
+    |
+380 | pub fn syscall_setup_irq(handle_val: u16, irq_num: u8) -> Result<(), VfioError> {
+    |                                           ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_irq_num`
+
+warning: unused variable: `handle_val`
+   --> src/kernel/vfio.rs:398:30
+    |
+398 | pub fn syscall_domain_create(handle_val: u16) -> Result<u16, VfioError> {
+    |                              ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_val`
+
+warning: unused variable: `handle_val`
+   --> src/kernel/vfio.rs:431:35
+    |
+431 | pub fn syscall_domain_map_staging(handle_val: u16, len: u32) -> Result<u64, VfioError> {
+    |                                   ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_val`
+
+warning: unused variable: `len`
+   --> src/kernel/vfio.rs:431:52
+    |
+431 | pub fn syscall_domain_map_staging(handle_val: u16, len: u32) -> Result<u64, VfioError> {
+    |                                                    ^^^ help: if this is intentional, prefix it with an underscore: `_len`
+
+warning: unused variable: `handle_val`
+   --> src/kernel/vfio.rs:480:33
+    |
+480 | pub fn syscall_enable_busmaster(handle_val: u16) -> Result<(), VfioError> {
+    |                                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_val`
+
+warning: unused variable: `handle_val`
+   --> src/kernel/vfio.rs:525:34
+    |
+525 | pub fn syscall_disable_busmaster(handle_val: u16) -> Result<(), VfioError> {
+    |                                  ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_val`
+
+warning: unused variable: `handle_val`
+   --> src/kernel/vfio.rs:553:24
+    |
+553 | pub fn syscall_msi_arm(handle_val: u16, vector: u8) -> Result<(), VfioError> {
+    |                        ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_val`
+
+warning: unused variable: `vector`
+   --> src/kernel/vfio.rs:553:41
+    |
+553 | pub fn syscall_msi_arm(handle_val: u16, vector: u8) -> Result<(), VfioError> {
+    |                                         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_vector`
+
+warning: unused variable: `handle_val`
+   --> src/kernel/vfio.rs:606:27
+    |
+606 | pub fn syscall_msi_disarm(handle_val: u16) -> Result<(), VfioError> {
+    |                           ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_val`
+
+warning: variable does not need to be mutable
+   --> src/kernel/vfio.rs:735:13
+    |
+735 |         let mut table_lock = core::ptr::addr_of_mut!(HANDLE_STATES);
+    |             ----^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/kernel/vfio.rs:774:13
+    |
+774 |         let mut table_lock = core::ptr::addr_of_mut!(HANDLE_STATES);
+    |             ----^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `now`
+   --> src/kernel/vfio.rs:794:42
+    |
+794 | pub fn on_irq(h: VfioHandle, epoch: u64, now: u64) -> (u64, u64) {
+    |                                          ^^^ help: if this is intentional, prefix it with an underscore: `_now`
+
+warning: variable does not need to be mutable
+   --> src/kernel/vfio.rs:811:13
+    |
+811 |         let mut table_lock = core::ptr::addr_of_mut!(HANDLE_STATES);
+    |             ----^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unnecessary `unsafe` block
+  --> src/selftest/smp_affinity.rs:53:9
+   |
+53 |         unsafe { crate::qemu::exit_fail(0xA1); }
+   |         ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> src/selftest/smp_affinity.rs:60:5
+   |
+60 |     unsafe { crate::qemu::exit_ok(); }
+   |     ^^^^^^ unnecessary `unsafe` block
+
+For more information about this error, try `rustc --explain E0521`.
+warning: `sis_kernel` (bin "sis_kernel") generated 119 warnings
+warning: sis_kernel@0.1.0: boot.rs: kernel ELF not found, skipping image creation
+error: could not compile `sis_kernel` (bin "sis_kernel") due to 1 previous error; 119 warnings emitted

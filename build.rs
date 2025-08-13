@@ -1,5 +1,5 @@
-use std::{env, fs, path::PathBuf, time::SystemTime};
 use bootloader::{BiosBoot, BootConfig};
+use std::{env, fs, path::PathBuf, time::SystemTime};
 
 fn main() {
     // OUT_DIR is per-target; keep artifacts under project /out for QEMU scripts
@@ -14,7 +14,10 @@ fn main() {
     // 1) FORCE_BOOTIMG=1 always rebuilds
     // 2) If kernel ELF is newer than boot image, rebuild
     // 3) Otherwise reuse cached image (huge speedup)
-    let force = env::var("FORCE_BOOTIMG").ok().map(|v| v == "1").unwrap_or(false);
+    let force = env::var("FORCE_BOOTIMG")
+        .ok()
+        .map(|v| v == "1")
+        .unwrap_or(false);
     let need_rebuild = force || newer(&kernel_elf, &bios_img).unwrap_or(true);
 
     // Check if kernel ELF exists before trying to create image
@@ -45,16 +48,15 @@ fn main() {
 }
 
 fn artifact_path(root: &str, triple: &str, profile: &str, name: &str) -> PathBuf {
-    PathBuf::from(root)
-        .join(triple)
-        .join(profile)
-        .join(name)
+    PathBuf::from(root).join(triple).join(profile).join(name)
 }
 
 fn newer(a: &PathBuf, b: &PathBuf) -> std::io::Result<bool> {
     let ma = fs::metadata(a)?;
     let mb = fs::metadata(b).ok();
-    if mb.is_none() { return Ok(true); }
+    if mb.is_none() {
+        return Ok(true);
+    }
     let ta = ma.modified().unwrap_or(SystemTime::UNIX_EPOCH);
     let tb = mb.unwrap().modified().unwrap_or(SystemTime::UNIX_EPOCH);
     Ok(ta > tb)

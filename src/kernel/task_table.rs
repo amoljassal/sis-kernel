@@ -1,8 +1,8 @@
 //! Task table management for Phase 6B patch compatibility
 
+use crate::kernel::task::Task;
 use alloc::sync::Arc;
 use spin::Mutex;
-use crate::kernel::task::Task;
 
 // Simplified task storage for Phase 6B patch
 static mut TASKS: [Option<Arc<Mutex<Task>>>; 256] = [const { None }; 256];
@@ -15,7 +15,7 @@ impl TaskRef {
     pub fn lock(&self) -> spin::MutexGuard<Task> {
         self.inner.lock()
     }
-    
+
     pub fn try_lock_for_enqueue(&self) -> Option<spin::MutexGuard<Task>> {
         self.inner.try_lock()
     }
@@ -27,7 +27,9 @@ pub fn get(tid: u64) -> TaskRef {
         // For simplicity, use TID as direct index (in real implementation would hash)
         let idx = (tid as usize) % 256;
         if let Some(task_ref) = &TASKS[idx] {
-            TaskRef { inner: task_ref.clone() }
+            TaskRef {
+                inner: task_ref.clone(),
+            }
         } else {
             // Create a dummy task if not found (for patch compatibility)
             let dummy_task = Task {
@@ -36,7 +38,14 @@ pub fn get(tid: u64) -> TaskRef {
                 role: crate::kernel::task::Role::Child,
                 stack: alloc::vec![0u8; 4096].into_boxed_slice(),
                 context: crate::kernel::task::TaskContext {
-                    r15: 0, r14: 0, r13: 0, r12: 0, rbx: 0, rbp: 0, rip: 0, rsp: 0,
+                    r15: 0,
+                    r14: 0,
+                    r13: 0,
+                    r12: 0,
+                    rbx: 0,
+                    rbp: 0,
+                    rip: 0,
+                    rsp: 0,
                 },
                 state: crate::kernel::task::State::Ready,
                 priority: 1,

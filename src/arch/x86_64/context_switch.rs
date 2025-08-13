@@ -9,8 +9,8 @@
 //! `TaskContext` structures.  Misuse will corrupt the stack and
 //! registers.
 
-use core::arch::asm;
 use crate::kernel::task::TaskContext;
+use core::arch::asm;
 
 #[cfg(feature = "per-task-mm")]
 use crate::kernel::task::Task;
@@ -30,7 +30,7 @@ pub unsafe extern "C" fn switch_context(old: *mut TaskContext, new: *const TaskC
         "mov [rdi + 0x28], rbp",
         // Save current stack pointer and return address
         "mov [rdi + 0x38], rsp",
-        "lea rax, [rip + 0f]",      // label to return after switch
+        "lea rax, [rip + 0f]", // label to return after switch
         "mov [rdi + 0x30], rax",
         // Load new context into registers
         "mov r15, [rsi + 0x00]",
@@ -53,7 +53,7 @@ pub unsafe extern "C" fn switch_context(old: *mut TaskContext, new: *const TaskC
 pub unsafe fn switch_task_context(old_task: &mut Task, new_task: &Task) {
     // First switch the register context
     switch_context(&mut old_task.context, &new_task.context);
-    
+
     // Then switch the address space (CR3) if the new task has its own
     if let Some(new_cr3) = new_task.cr3_root {
         let current_cr3 = Cr3::read().0;
@@ -66,6 +66,9 @@ pub unsafe fn switch_task_context(old_task: &mut Task, new_task: &Task) {
 /// Fallback context switch for when per-task-mm is disabled.
 /// Only switches register context, no CR3 switching.
 #[cfg(not(feature = "per-task-mm"))]
-pub unsafe fn switch_task_context(old_task: &mut crate::kernel::task::Task, new_task: &crate::kernel::task::Task) {
+pub unsafe fn switch_task_context(
+    old_task: &mut crate::kernel::task::Task,
+    new_task: &crate::kernel::task::Task,
+) {
     switch_context(&mut old_task.context, &new_task.context);
 }

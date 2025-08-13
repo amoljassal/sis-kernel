@@ -1,14 +1,16 @@
 #![allow(dead_code)]
 extern crate alloc;
 #[cfg(feature = "smp")]
-pub fn apic_ids_from_mask(mask: u32) -> impl Iterator<Item=u32> {
+pub fn apic_ids_from_mask(mask: u32) -> impl Iterator<Item = u32> {
     // Minimal stub: assume LAPIC IDs are [0..31] mapping to bit positions.
     // Replace with MADT parsing later.
-    (0..32).filter(move |id| (mask & (1u32 << id)) != 0).map(|id| id)
+    (0..32)
+        .filter(move |id| (mask & (1u32 << id)) != 0)
+        .map(|id| id)
 }
 
 #[cfg(not(feature = "smp"))]
-pub fn apic_ids_from_mask(_mask: u32) -> impl Iterator<Item=u32> {
+pub fn apic_ids_from_mask(_mask: u32) -> impl Iterator<Item = u32> {
     // Non-SMP stub: empty iterator
     core::iter::empty()
 }
@@ -46,7 +48,11 @@ pub fn online_cpus() -> &'static [u32] {
 #[cfg(feature = "smp")]
 pub fn cpu_index_from_apic(apic_id: u32) -> Option<usize> {
     // Simple 1:1 mapping for now
-    if apic_id < 64 { Some(apic_id as usize) } else { None }
+    if apic_id < 64 {
+        Some(apic_id as usize)
+    } else {
+        None
+    }
 }
 
 #[cfg(not(feature = "smp"))]

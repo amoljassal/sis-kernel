@@ -5,8 +5,8 @@
 //! diagnostics and logging.  Functions are provided to write
 //! characters, strings and byte buffers to the serial port.
 
-use uart_16550::SerialPort;
 use spin::Mutex;
+use uart_16550::SerialPort;
 
 // Safe global access to the serial port.  We protect the port with
 // a spinlock to allow concurrent writes from different contexts.
@@ -64,16 +64,16 @@ pub fn write_u64(mut val: u64) {
         write_char(b'0');
         return;
     }
-    
+
     let mut buf = [0u8; 20]; // enough for u64::MAX
     let mut i = buf.len();
-    
+
     while val > 0 {
         i -= 1;
         buf[i] = b'0' + (val % 10) as u8;
         val /= 10;
     }
-    
+
     write_buf(&buf[i..]);
 }
 
@@ -140,7 +140,9 @@ pub fn write_dec<T: Into<u64>>(v: T) {
         buf[i] = b'0' + (n % 10) as u8;
         n /= 10;
     }
-    unsafe { write_buf(&buf[i..]); }
+    unsafe {
+        write_buf(&buf[i..]);
+    }
 }
 
 /// Write a buffer of bytes to the serial port (unsafe version for internal use).
@@ -151,17 +153,17 @@ unsafe fn write_bytes(buf: &[u8]) {
 /// Write formatted output to the serial port.
 pub fn write_fmt(args: core::fmt::Arguments) -> Result<(), core::fmt::Error> {
     use core::fmt::Write;
-    
+
     // Simple buffer-based formatter
     struct SerialWriter;
-    
+
     impl Write for SerialWriter {
         fn write_str(&mut self, s: &str) -> core::fmt::Result {
             write_str(s);
             Ok(())
         }
     }
-    
+
     let mut writer = SerialWriter;
     writer.write_fmt(args)
 }

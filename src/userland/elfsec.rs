@@ -64,7 +64,9 @@ struct Elf64Phdr {
 
 #[inline(always)]
 fn read_hdr(image: &[u8]) -> Result<&Elf64Ehdr, ElfError> {
-    if image.len() < size_of::<Elf64Ehdr>() { return Err(ElfError::TooSmall); }
+    if image.len() < size_of::<Elf64Ehdr>() {
+        return Err(ElfError::TooSmall);
+    }
     // SAFETY: we only read, alignment for repr(C) u64/u32/u16 fields is fine on &[u8]
     let hdr = unsafe { &*(image.as_ptr() as *const Elf64Ehdr) };
     Ok(hdr)

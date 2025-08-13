@@ -1,8 +1,8 @@
 //! Minimal serial module for firewall mode
-use uart_16550::SerialPort;
-use spin::Mutex;
 use lazy_static::lazy_static;
 use linked_list_allocator::LockedHeap;
+use spin::Mutex;
+use uart_16550::SerialPort;
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -38,7 +38,9 @@ pub fn write_hex64(val: u64) {
             b'A' + (nibble - 10) as u8
         };
         let mut serial = SERIAL1.lock();
-        unsafe { serial.send(ch); }
+        unsafe {
+            serial.send(ch);
+        }
     }
 }
 
@@ -52,6 +54,8 @@ pub fn write_hex8(val: u8) {
             b'A' + (nibble - 10) as u8
         };
         let mut serial = SERIAL1.lock();
-        unsafe { serial.send(ch); }
+        unsafe {
+            serial.send(ch);
+        }
     }
 }

@@ -9,18 +9,18 @@
 //! - Build two address spaces (A,B), map the same VA to different frames/values
 //! - Load CR3=A and read; then CR3=B and read → values differ → isolation proven
 
-use core::ptr::{read_volatile, write_volatile};
 use crate::kernel::serial;
+use core::ptr::{read_volatile, write_volatile};
 use x86_64::{
-    VirtAddr, PhysAddr,
     registers::control::Cr3,
     structures::paging::{
-        PageTable, PageTableFlags as Flags, Page, PhysFrame, Size4KiB, Mapper, FrameAllocator,
+        FrameAllocator, Mapper, Page, PageTable, PageTableFlags as Flags, PhysFrame, Size4KiB,
     },
+    PhysAddr, VirtAddr,
 };
 
-use crate::arch::x86_64::memory;
 use crate::arch::x86_64::io::qemu_exit;
+use crate::arch::x86_64::memory;
 
 const USER_TEST_VA: u64 = 0x0000_0000_4000_0000;
 
@@ -52,7 +52,9 @@ unsafe fn clone_kernel_pml4(dst_pml4_pa: PhysFrame) {
 /// Create a new address space (CR3) with kernel half mapped and empty user half.
 pub fn create_address_space() -> PhysFrame {
     let pml4 = alloc_zeroed_pagetable();
-    unsafe { clone_kernel_pml4(pml4); }
+    unsafe {
+        clone_kernel_pml4(pml4);
+    }
     pml4
 }
 
@@ -62,35 +64,52 @@ pub fn destroy_address_space(_cr3: PhysFrame) {
 }
 
 /// Map one user page in the given address space at `va`, with the given `frame` and `flags`.
-pub fn map_user_in_as(cr3: PhysFrame, va: VirtAddr, frame: PhysFrame, flags: Flags)
-    -> Result<(), &'static str>
-{
+pub fn map_user_in_as(
+    cr3: PhysFrame,
+    va: VirtAddr,
+    frame: PhysFrame,
+    flags: Flags,
+) -> Result<(), &'static str> {
     // Switch temporarily to `cr3`, do the map with existing mapper, then switch back.
     let (old, old_flags) = Cr3::read();
-    unsafe { Cr3::write(cr3, x86_64::registers::control::Cr3Flags::empty()); }
+    unsafe {
+        Cr3::write(cr3, x86_64::registers::control::Cr3Flags::empty());
+    }
     let r = unsafe {
         memory::map_with_active_mapper(Page::<Size4KiB>::containing_address(va), frame, flags)
     };
     // Flush that page in this AS
     memory::tlb_flush(va);
-    unsafe { Cr3::write(old, old_flags); }
+    unsafe {
+        Cr3::write(old, old_flags);
+    }
     r
 }
 
 /// Write a u64 at user VA inside `cr3`.
 fn write_u64_in_as(cr3: PhysFrame, va: VirtAddr, value: u64) {
     let (old, old_flags) = Cr3::read();
-    unsafe { Cr3::write(cr3, x86_64::registers::control::Cr3Flags::empty()); }
-    unsafe { write_volatile(va.as_mut_ptr::<u64>(), value); }
-    unsafe { Cr3::write(old, old_flags); }
+    unsafe {
+        Cr3::write(cr3, x86_64::registers::control::Cr3Flags::empty());
+    }
+    unsafe {
+        write_volatile(va.as_mut_ptr::<u64>(), value);
+    }
+    unsafe {
+        Cr3::write(old, old_flags);
+    }
 }
 
 /// Read a u64 at user VA inside `cr3`.
 fn read_u64_in_as(cr3: PhysFrame, va: VirtAddr) -> u64 {
     let (old, old_flags) = Cr3::read();
-    unsafe { Cr3::write(cr3, x86_64::registers::control::Cr3Flags::empty()); }
+    unsafe {
+        Cr3::write(cr3, x86_64::registers::control::Cr3Flags::empty());
+    }
     let v = unsafe { read_volatile(va.as_ptr::<u64>()) };
-    unsafe { Cr3::write(old, old_flags); }
+    unsafe {
+        Cr3::write(old, old_flags);
+    }
     v
 }
 
@@ -121,15 +140,21 @@ pub fn selftest_isolation() -> ! {
         serial::write_str("[as] verify A ok\n");
     } else {
         serial::write_str("[as] verify A FAIL\n");
-        unsafe { qemu_exit(0x40); }
+        unsafe {
+            qemu_exit(0x40);
+        }
     }
     if rb == 0xbb {
         serial::write_str("[as] verify B ok\n");
     } else {
         serial::write_str("[as] verify B FAIL\n");
-        unsafe { qemu_exit(0x41); }
+        unsafe {
+            qemu_exit(0x41);
+        }
     }
 
     serial::write_str("[as] isolation PASS\n");
-    unsafe { qemu_exit(0x00); }
+    unsafe {
+        qemu_exit(0x00);
+    }
 }

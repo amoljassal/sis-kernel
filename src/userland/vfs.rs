@@ -1,7 +1,7 @@
 //! Extremely small VFS façade backed by initfs (inline test files for Part A).
 #![allow(dead_code)]
-use super::initfs::InitFs;
 use super::elfsec::{self, validate_elf64};
+use super::initfs::InitFs;
 
 pub struct File<'a> {
     data: &'a [u8],
@@ -22,8 +22,10 @@ pub fn size(path: &str) -> Option<usize> {
 }
 
 pub fn open(path: &str) -> Option<File<'static>> {
-    InitFs::new().find(path)
-        .map(|e| File { data: e.data, pos: 0 })
+    InitFs::new().find(path).map(|e| File {
+        data: e.data,
+        pos: 0,
+    })
 }
 
 pub fn read(f: &mut File<'_>, buf: &mut [u8]) -> usize {
@@ -46,8 +48,10 @@ impl<'a> File<'a> {
     pub fn read(&mut self, buf: &mut [u8]) -> usize {
         let remain = self.data.len().saturating_sub(self.pos);
         let n = core::cmp::min(remain, buf.len());
-        if n == 0 { return 0; }
-        buf[..n].copy_from_slice(&self.data[self.pos..self.pos+n]);
+        if n == 0 {
+            return 0;
+        }
+        buf[..n].copy_from_slice(&self.data[self.pos..self.pos + n]);
         self.pos += n;
         n
     }

@@ -9,11 +9,15 @@ use core::arch::asm;
 /// Enable interrupts (Set Interrupt Flag).
 #[inline]
 pub fn enable() {
-    unsafe { asm!("sti", options(nomem, nostack, preserves_flags)); }
+    unsafe {
+        asm!("sti", options(nomem, nostack, preserves_flags));
+    }
 }
 
 /// Disable interrupts (Clear Interrupt Flag).
 #[inline]
 pub fn disable() {
-    unsafe { asm!("cli", options(nomem, nostack, preserves_flags)); }
+    unsafe {
+        asm!("cli", options(nomem, nostack, preserves_flags));
+    }
 }

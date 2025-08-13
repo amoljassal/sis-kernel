@@ -1,6 +1,6 @@
 //! Selftest modules
 
-#[cfg(feature="affinity")]
+#[cfg(feature = "affinity")]
 pub mod smp_affinity;
 
 #[cfg(selftest_IPC_XCPU_PING)]

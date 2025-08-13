@@ -16,7 +16,7 @@ pub mod gdt {
 
 pub mod idt {
     pub fn init_idt() {
-        // Minimal IDT init stub  
+        // Minimal IDT init stub
     }
 }
 
