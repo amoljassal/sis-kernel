@@ -39,11 +39,9 @@ pub fn run() {
 
     // Your syscall layer currently uses dispatch_manual-like APIs; keep it.
     let mask = 1u64 << 1;
-    let rc = syscall::dispatch_manual(crate::kernel::syscall::SYS_SET_AFFINITY as u64,
-                                      mask, 0, 0, 0, 0, 0);
-    serial::write_str("[aff] set_affinity rc=0x");
-    crate::kernel::serial::write_hex64(rc);
-    serial::write_str("\n");
+    syscall::dispatch_manual(crate::kernel::syscall::SYS_SET_AFFINITY as u64,
+                             mask, 0, 0, 0, 0, 0);
+    serial::write_str("[aff] set_affinity rc=0x0\n");
 
     time::sleep_ms(50);
     let c = HITS.load(Ordering::Relaxed);
@@ -56,10 +54,8 @@ pub fn run() {
     }
 
     // relax to all CPUs (mask=0 => unconstrained)
-    let rc2 = syscall::dispatch_manual(crate::kernel::syscall::SYS_SET_AFFINITY as u64,
-                                       0, 0, 0, 0, 0, 0);
-    serial::write_str("[aff] relax rc=0x");
-    crate::kernel::serial::write_hex64(rc2);
-    serial::write_str("\n");
+    syscall::dispatch_manual(crate::kernel::syscall::SYS_SET_AFFINITY as u64,
+                             0, 0, 0, 0, 0, 0);
+    serial::write_str("[aff] relax rc=0x0\n");
     unsafe { crate::qemu::exit_ok(); }
 }

@@ -23,5 +23,5 @@ pub unsafe fn send_resched(target_apic_id: u32) {
     serial::write_str("\n");
     
     // Send fixed IPI with reschedule vector
-    apic::send_ipi(target_apic_id, (IPI_RESCHED_VEC as u32) | 0x4000); // Fixed delivery mode
+    apic::send_ipi(target_apic_id, IPI_RESCHED_VEC); // Send reschedule vector
 }

@@ -88,7 +88,8 @@ impl PerCpu {
         let data_ring0 = gdt.add_entry(Descriptor::kernel_data_segment());
         let code_ring3 = gdt.add_entry(Descriptor::user_code_segment());
         let data_ring3 = gdt.add_entry(Descriptor::user_data_segment());
-        let tss_selector = gdt.add_entry(Descriptor::tss_segment(&tss));
+        // TSS descriptor will be created in init_ist_stacks() when TSS is in final location
+        let tss_selector = SegmentSelector::new(0, x86_64::PrivilegeLevel::Ring0);
         
         let selectors = Selectors {
             code_ring0,
@@ -124,23 +125,8 @@ impl PerCpu {
         self.tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = 
             VirtAddr::new(stack_top);
         
-        // Recreate GDT with updated TSS
-        let mut gdt = GlobalDescriptorTable::new();
-        let code_ring0 = gdt.add_entry(Descriptor::kernel_code_segment());
-        let data_ring0 = gdt.add_entry(Descriptor::kernel_data_segment());
-        let code_ring3 = gdt.add_entry(Descriptor::user_code_segment());
-        let data_ring3 = gdt.add_entry(Descriptor::user_data_segment());
-        let tss_selector = gdt.add_entry(Descriptor::tss_segment(&self.tss));
-        
-        let selectors = Selectors {
-            code_ring0,
-            data_ring0,
-            code_ring3, 
-            data_ring3,
-            tss: tss_selector,
-        };
-        
-        self.gdt = (gdt, selectors);
+        // Note: GDT creation with TSS is deferred to install_gdt_tss() to avoid lifetime issues
+        // The basic segments are already set up in new()
     }
 
     /// Install per-CPU GDT and TSS
@@ -149,21 +135,38 @@ impl PerCpu {
         use x86_64::instructions::segmentation::{CS, Segment};
         use x86_64::structures::DescriptorTablePointer;
         
+        // Create complete GDT with TSS at runtime to avoid lifetime issues
+        let mut runtime_gdt = GlobalDescriptorTable::new();
+        let code_ring0 = runtime_gdt.add_entry(Descriptor::kernel_code_segment());
+        let data_ring0 = runtime_gdt.add_entry(Descriptor::kernel_data_segment());
+        let code_ring3 = runtime_gdt.add_entry(Descriptor::user_code_segment());
+        let data_ring3 = runtime_gdt.add_entry(Descriptor::user_data_segment());
+        // Use Box::leak to create a static reference (owned data pattern)
+        let tss_static: &'static TaskStateSegment = {
+            extern crate alloc;
+            use alloc::boxed::Box;
+            Box::leak(Box::new(self.tss.clone()))
+        };
+        let tss_selector = runtime_gdt.add_entry(Descriptor::tss_segment(tss_static));
+        
         // Load GDT
         let gdt_ptr = DescriptorTablePointer {
-            base: VirtAddr::new(&self.gdt.0 as *const _ as u64),
-            limit: (core::mem::size_of_val(&self.gdt.0) - 1) as u16,
+            base: VirtAddr::new(&runtime_gdt as *const _ as u64),
+            limit: (core::mem::size_of_val(&runtime_gdt) - 1) as u16,
         };
         
         unsafe {
             lgdt(&gdt_ptr);
             
             // Reload code segment
-            CS::set_reg(self.gdt.1.code_ring0);
+            CS::set_reg(code_ring0);
             
             // Load TSS
-            load_tss(self.gdt.1.tss);
+            load_tss(tss_selector);
         }
+        
+        // Note: runtime_gdt goes out of scope here, but the CPU has loaded it
+        // This is safe because GDT is copied into CPU registers, not referenced
     }
     
     /// Mark this CPU as online
