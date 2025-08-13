@@ -170,6 +170,6 @@ pub fn write_fmt(args: core::fmt::Arguments) -> Result<(), core::fmt::Error> {
 
 /// Print formatted arguments (for macro compatibility)
 #[inline]
-pub fn print(args: core::fmt::Arguments<'_>) -> Result<(), core::fmt::Error> { 
-    write_fmt(args) 
+pub fn print(args: core::fmt::Arguments<'_>) -> Result<(), core::fmt::Error> {
+    write_fmt(args)
 }

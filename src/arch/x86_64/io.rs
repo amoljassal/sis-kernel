@@ -68,8 +68,14 @@ pub unsafe fn qemu_exit_wide(code: u32) -> ! {
 }
 
 #[inline(always)]
-pub unsafe fn qemu_exit_ok() -> ! { qemu_exit(0) }
+pub unsafe fn qemu_exit_ok() -> ! {
+    qemu_exit(0)
+}
 #[inline(always)]
-pub unsafe fn qemu_exit_fail() -> ! { qemu_exit(0xFF) }
+pub unsafe fn qemu_exit_fail() -> ! {
+    qemu_exit(0xFF)
+}
 #[inline(always)]
-pub unsafe fn qemu_exit_skip() -> ! { qemu_exit(0x50) }
+pub unsafe fn qemu_exit_skip() -> ! {
+    qemu_exit(0x50)
+}

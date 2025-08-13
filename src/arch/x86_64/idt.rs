@@ -144,7 +144,7 @@ pub unsafe fn install_ipi(handler_addr: usize, vector: u8) {
     // FIXME: This function tries to modify a read-only IDT after initialization
     // For now, we'll disable this functionality to fix compilation
     // In a full implementation, you'd need a mutable IDT or dynamic handler registration
-    
+
     // Safety: we transmute a function pointer by address to `extern "x86-interrupt" fn(_)`
     let _f: extern "x86-interrupt" fn(x86_64::structures::idt::InterruptStackFrame) =
         core::mem::transmute::<usize, _>(handler_addr);

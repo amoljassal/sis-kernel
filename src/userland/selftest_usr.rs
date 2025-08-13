@@ -1,7 +1,13 @@
 //! Userland validation suite (Phase 4.1 · Part C)
 //! Build-time selected via `RUSTFLAGS="--cfg selftest_USR_INIT"` (etc.)
 //! Success => qemu_exit(0x00); failure => non-zero, test-specific code.
-#![cfg(any(feature = "selftests", selftest_USR_INIT, selftest_USR_SPAWN_TWO, selftest_USR_ELF_EDGES, selftest_USR_VFS_NEG))]
+#![cfg(any(
+    feature = "selftests",
+    selftest_USR_INIT,
+    selftest_USR_SPAWN_TWO,
+    selftest_USR_ELF_EDGES,
+    selftest_USR_VFS_NEG
+))]
 #![allow(dead_code)]
 
 use crate::arch::x86_64::io::qemu_exit;
