@@ -1,55 +1,61 @@
-use std::{env, path::PathBuf};
+use std::{env, fs, path::PathBuf, time::SystemTime};
+use bootloader::{BiosBoot, BootConfig};
 
 fn main() {
-    // Industry-grade build with enhanced canary verification
-    println!("cargo:warning=build.rs creating bootable image with canary verification");
-    
-    // Enhanced rebuild triggers for canary traceability
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-env-changed=FORCE_BOOTIMG");
-    println!("cargo:rerun-if-env-changed=GIT_COMMIT");
-    println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
-    
-    // AP trampoline assembly handling
-    println!("cargo:rerun-if-changed=src/arch/x86_64/smp/ap_trampoline.S");
+    // OUT_DIR is per-target; keep artifacts under project /out for QEMU scripts
+    let out_dir = PathBuf::from("out");
+    fs::create_dir_all(&out_dir).ok();
 
-    // Where cargo puts the compiled kernel ELF
-    let target_dir = PathBuf::from(env::var("CARGO_TARGET_DIR").unwrap_or_else(|_| "target".into()));
-    let profile = env::var("PROFILE").unwrap(); // debug/release
-    let target = "x86_64-unknown-none";
+    let kernel_elf = artifact_path("target", "x86_64-unknown-none", "debug", "sis-kernel");
+    let bios_img = out_dir.join("boot-bios.img");
+    let stamp = out_dir.join("boot-bios.stamp");
 
-    // Kernel ELF path (produced by cargo build)
-    let kernel_elf = target_dir
-        .join(target)
-        .join(&profile)
-        .join("sis_kernel");
+    // Rebuild policy:
+    // 1) FORCE_BOOTIMG=1 always rebuilds
+    // 2) If kernel ELF is newer than boot image, rebuild
+    // 3) Otherwise reuse cached image (huge speedup)
+    let force = env::var("FORCE_BOOTIMG").ok().map(|v| v == "1").unwrap_or(false);
+    let need_rebuild = force || newer(&kernel_elf, &bios_img).unwrap_or(true);
 
-    // Output bootable image paths
-    let out_img = target_dir.join("boot-bios.img");
-    let final_img = PathBuf::from("out/sis-bios.img");
-
-    // Make sure the kernel ELF exists before we call the builder
+    // Check if kernel ELF exists before trying to create image
     if !kernel_elf.exists() {
-        println!("cargo:warning=Kernel ELF not ready yet - deferring image creation");
+        println!("cargo:warning=boot.rs: kernel ELF not found, skipping image creation");
         return;
     }
 
-    println!("cargo:warning=Creating BIOS boot image from kernel ELF");
+    if need_rebuild {
+        println!("cargo:warning=boot.rs: (re)building BIOS disk image …");
+        let mut config = BootConfig::default();
+        // Keep logging minimal and avoid framebuffer; we rely on serial
+        config.serial_logging = true;
+        config.frame_buffer_logging = false;
+        // BIOS only image
+        let mut bios = BiosBoot::new(&kernel_elf);
+        // NOTE: set_boot_config returns &mut BiosBoot in 0.11.11, chain safely
+        let bios = bios.set_boot_config(&config);
+        bios.create_disk_image(&bios_img)
+            .expect("bootloader BIOS image build failed");
+        // write/refresh stamp
+        let _ = fs::write(&stamp, b"ok");
+    } else {
+        println!("cargo:warning=boot.rs: reusing cached BIOS image");
+    }
 
-    // Create BIOS disk image with bootloader 0.11.x
-    let mut config = bootloader::BootConfig::default();
-    config.serial_logging = true;
-    config.frame_buffer_logging = false; // avoid VESA path
-    
-    let mut bios = bootloader::BiosBoot::new(&kernel_elf);
-    bios.set_boot_config(&config);
-    bios.create_disk_image(&out_img)
-        .expect("failed to create BIOS disk image");
+    println!("cargo:rustc-env=SIS_BOOT_BIOS_IMG={}", bios_img.display());
+}
 
-    // Copy to final location and ensure parent directory exists
-    std::fs::create_dir_all(final_img.parent().unwrap()).unwrap();
-    std::fs::copy(&out_img, &final_img)
-        .expect("failed to copy BIOS image to final location");
+fn artifact_path(root: &str, triple: &str, profile: &str, name: &str) -> PathBuf {
+    PathBuf::from(root)
+        .join(triple)
+        .join(profile)
+        .join(name)
+}
 
-    println!("cargo:warning=Bootable BIOS image created: {}", final_img.display());
+fn newer(a: &PathBuf, b: &PathBuf) -> std::io::Result<bool> {
+    let ma = fs::metadata(a)?;
+    let mb = fs::metadata(b).ok();
+    if mb.is_none() { return Ok(true); }
+    let ta = ma.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    let tb = mb.unwrap().modified().unwrap_or(SystemTime::UNIX_EPOCH);
+    Ok(ta > tb)
 }

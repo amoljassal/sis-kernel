@@ -12,29 +12,50 @@ export SMP="${SMP:-1}"             # number of CPUs (SMP_2 sets this to 2 in CI)
 export MEM="${MEM:-512M}"
 export FEATURES="${FEATURES:-}"    # optional; auto-filled by _test_flags.sh
 export TIMEOUT="${TIMEOUT:-30}"    # configurable timeout in seconds
+export CARGO_NET_OFFLINE="${CARGO_NET_OFFLINE:-true}"  # Default to offline builds
+export FORCE_BOOTIMG="${FORCE_BOOTIMG:-0}"  # Allow selective image rebuilding
+
+# diagnostics
+echo "[qemu.sh] cargo version: $(cargo --version)"
+echo "[qemu.sh] rustc version : $(rustc --version)"
 
 # 1) Map TEST -> RUSTFLAGS/FEATURES (defaults)
 source "$HERE/_test_flags.sh"
 echo "[harness] TEST=$TEST FEATURES='$FEATURES' RUSTFLAGS='$RUSTFLAGS'"
 
-# 2) Force build.rs to regenerate the image *every run*
-export FORCE_BOOTIMG="$(date +%s)"
-echo "[harness] FORCE_BOOTIMG=$FORCE_BOOTIMG (ensures fresh image)"
-
-# Clean just the bootloader & previous image to avoid stale artifacts
-cargo clean -p bootloader &>/dev/null || true
-rm -f "$OUT/sis-bios.img" &>/dev/null || true
+# 2) Smart image rebuilding - only when needed or forced
+if [[ "${FORCE_BOOTIMG}" == "1" ]]; then
+  export FORCE_BOOTIMG="$(date +%s)"
+  echo "[harness] FORCE_BOOTIMG=$FORCE_BOOTIMG (forced rebuild)"
+  # Clean artifacts to force regeneration
+  cargo clean -p bootloader &>/dev/null || true
+  rm -f "$OUT/boot-bios.img" "$OUT/boot-bios.stamp" &>/dev/null || true
+else
+  echo "[harness] Using smart rebuild (FORCE_BOOTIMG=${FORCE_BOOTIMG})"
+fi
 
 # Build kernel (debug, headless) and create bootable image using build.rs
 export RUSTFLAGS
-echo "[harness] cargo build with fresh image generation…"
+export CARGO_NET_OFFLINE
+export CARGO_TERM_COLOR=always
+export CARGO_INCREMENTAL=1
+echo "[harness] cargo build with smart image generation… (offline=${CARGO_NET_OFFLINE})"
 cargo +nightly build -Z build-std=core,alloc --target x86_64-unknown-none --features "$FEATURES"
 
-# Sanity: print the image we will boot and its hash
-IMG="$OUT/sis-bios.img"
+# Sanity: print the image we will boot and its hash  
+IMG="$OUT/boot-bios.img"
 if [[ ! -f "$IMG" ]]; then
-  echo "[harness] ERROR: expected image not found: $IMG" >&2
-  exit 97
+  echo "[harness] Image not created by build.rs, attempting manual creation..."
+  # Force rebuild the image now that kernel ELF should exist
+  FORCE_BOOTIMG=1 cargo build --target x86_64-unknown-none --features "$FEATURES" || {
+    echo "[harness] ERROR: Manual image creation failed" >&2
+    echo "[harness] Available files in $OUT: $(ls -la "$OUT" 2>/dev/null || echo 'none')"
+    exit 97
+  }
+  if [[ ! -f "$IMG" ]]; then
+    echo "[harness] ERROR: expected image still not found: $IMG" >&2
+    exit 97
+  fi
 fi
 
 echo "[harness] using fresh image: $IMG"

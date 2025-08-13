@@ -2,7 +2,7 @@
 #![cfg(all(feature="affinity", feature="smp", feature="scheduler"))]
 
 use crate::kernel::syscall;
-use crate::kernel::time;
+use crate::time;
 use crate::kernel::serial;
 use crate::arch::x86_64::percpu_clean as percpu;
 #[cfg(feature="smp")]
@@ -25,17 +25,15 @@ extern "C" fn worker_entry() -> ! {
 
 pub fn run() {
     serial::write_str("[aff] starting affinity test\n");
-    // Skip if single-CPU
-    #[cfg(feature="smp")]
-    let online = smp::all_apic_ids().len() as u32;
+    // Skip if single-CPU - simple heuristic: assume SMP feature means multi-CPU
     #[cfg(not(feature="smp"))]
-    let online = 1u32;
-    if online < 2 {
-        serial::write_str("[aff][SKIP] only one CPU online\n");
-        // Fallback if exit_skip not present:
-        #[allow(unused_unsafe)] unsafe { crate::qemu::exit_ok(); }
+    {
+        serial::write_str("[aff][SKIP] SMP feature not enabled\n");
+        unsafe { crate::qemu::exit_ok(); }
         return;
     }
+    // For SMP builds, assume we have at least 2 CPUs for testing
+    serial::write_str("[aff] SMP enabled, proceeding with affinity test\n");
     // spawn worker kernel task pinned later by syscall
     let _tid = unsafe { crate::kernel::spawn::spawn_kernel_closure(worker_entry as usize) };
 

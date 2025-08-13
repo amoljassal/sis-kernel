@@ -1,6 +1,8 @@
 //! Task spawning for Phase 6B patch compatibility
 
-use crate::kernel::{task::{Task, Role}, task_table, simple_scheduler};
+use crate::kernel::{task::{Task, Role}, task_table};
+#[cfg(feature = "scheduler")]
+use crate::kernel::simple_scheduler;
 use core::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_TID: AtomicU64 = AtomicU64::new(2);
@@ -55,6 +57,7 @@ pub unsafe fn spawn_kernel_closure(entry_addr: usize) -> u64 {
     // Enqueue for scheduling
     let task_ref = task_table::get(tid);
     let task_guard = task_ref.lock();
+    #[cfg(feature = "scheduler")]
     simple_scheduler::enqueue_task(&*task_guard);
     
     tid

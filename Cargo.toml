@@ -44,5 +44,17 @@ vfio = ["iommu"]        # Phase 5B: VFIO-lite minimal passthrough (depends on IO
 [build-dependencies]
 # Builder restored after resolving kernel compilation bottleneck  
 bootloader = { version = "=0.11.11", default-features = false, features = ["bios"] }
+bootloader_api = { version = "=0.11.11" }
 
 # bootimage metadata removed - using build.rs with bootloader 0.11.x builder API
+
+[profile.dev.package.bootloader]
+# Compile bootloader once, quickly, and keep it stable in cache
+opt-level = 3
+codegen-units = 1
+debug = false
+
+[profile.dev.package.bootloader_api]
+opt-level = 3
+codegen-units = 1
+debug = false
