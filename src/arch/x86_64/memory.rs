@@ -2,14 +2,12 @@
 #![allow(dead_code)]
 
 use bootloader_api::BootInfo;
+use x86_64::structures::paging::mapper::{MapToError, Mapper, MapperFlush};
 use x86_64::{
     registers::control::Cr3,
-    structures::paging::{
-        FrameAllocator, OffsetPageTable, Page, PageTable, PhysFrame, Size4KiB,
-    },
+    structures::paging::{FrameAllocator, OffsetPageTable, Page, PageTable, PhysFrame, Size4KiB},
     PhysAddr, VirtAddr,
 };
-use x86_64::structures::paging::mapper::{Mapper, MapperFlush, MapToError};
 
 use crate::kernel::serial;
 use core::ptr::NonNull;

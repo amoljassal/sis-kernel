@@ -173,3 +173,18 @@ pub fn write_fmt(args: core::fmt::Arguments) -> Result<(), core::fmt::Error> {
 pub fn print(args: core::fmt::Arguments<'_>) -> Result<(), core::fmt::Error> {
     write_fmt(args)
 }
+
+#[macro_export]
+macro_rules! kprint {
+    ($($arg:tt)*) => {
+        $crate::kernel::serial::print(core::format_args!($($arg)*)).unwrap()
+    };
+}
+
+#[macro_export]
+macro_rules! kprintln {
+    () => { $crate::kprint!("\n") };
+    ($($arg:tt)*) => {
+        $crate::kprint!("{}\n", core::format_args!($($arg)*))
+    };
+}

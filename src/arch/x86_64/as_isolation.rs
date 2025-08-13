@@ -11,10 +11,11 @@
 
 use crate::kernel::serial;
 use core::ptr::{read_volatile, write_volatile};
+use x86_64::structures::paging::mapper::{MapToError, Mapper, MapperFlush};
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{
-        FrameAllocator, Mapper, Page, PageTable, PageTableFlags as Flags, PhysFrame, Size4KiB,
+        FrameAllocator, Page, PageTable, PageTableFlags as Flags, PhysFrame, Size4KiB,
     },
     PhysAddr, VirtAddr,
 };
@@ -29,11 +30,11 @@ fn alloc_zeroed_pagetable() -> PhysFrame {
     let p = memory::alloc_frame().expect("no frame for pml4");
     unsafe {
         // Use identity mapping for test simplicity (common in QEMU)
-        let va = memory::phys_to_tmp_virt(p);
+        let va = memory::phys_to_tmp_virt(p.start_address());
         let pt_ptr = va.as_mut_ptr::<PageTable>();
         core::ptr::write_bytes(pt_ptr, 0, 1);
     }
-    PhysFrame::containing_address(p)
+    p
 }
 
 /// Clone higher-half kernel PML4 entries from current CR3 into `dst_pml4`.
@@ -69,7 +70,7 @@ pub fn map_user_in_as(
     va: VirtAddr,
     frame: PhysFrame,
     flags: Flags,
-) -> Result<(), &'static str> {
+) -> Result<MapperFlush<Size4KiB>, MapToError<Size4KiB>> {
     // Switch temporarily to `cr3`, do the map with existing mapper, then switch back.
     let (old, old_flags) = Cr3::read();
     unsafe {
@@ -125,8 +126,8 @@ pub fn selftest_isolation() -> ! {
 
     let va = VirtAddr::new(USER_TEST_VA);
     let flags = Flags::PRESENT | Flags::USER_ACCESSIBLE | Flags::WRITABLE;
-    map_user_in_as(as_a, va, PhysFrame::containing_address(f_a), flags).expect("map A");
-    map_user_in_as(as_b, va, PhysFrame::containing_address(f_b), flags).expect("map B");
+    map_user_in_as(as_a, va, f_a, flags).expect("map A");
+    map_user_in_as(as_b, va, f_b, flags).expect("map B");
 
     serial::write_str("[as] write A=0xaa at 0x0000000040000000\n");
     write_u64_in_as(as_a, va, 0xaa);

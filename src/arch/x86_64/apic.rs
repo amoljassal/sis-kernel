@@ -16,22 +16,22 @@ const IA32_APIC_BASE_BSP: u64 = 1 << 8;
 const IA32_APIC_BASE_DEFAULT: u64 = 0xFEE0_0000;
 
 // ===== LAPIC registers (offsets from base) =====
-const LAPIC_REG_ID: u32 = 0x020;
-const LAPIC_REG_VERSION: u32 = 0x030;
-const LAPIC_REG_TPR: u32 = 0x080;
-const LAPIC_REG_EOI: u32 = 0x0B0;
-const LAPIC_REG_SVR: u32 = 0x0F0;
-const LAPIC_REG_LVT_TIMER: u32 = 0x320;
-const LAPIC_REG_LVT_LINT0: u32 = 0x350;
-const LAPIC_REG_LVT_LINT1: u32 = 0x360;
-const LAPIC_REG_TMR_INIT: u32 = 0x380;
-const LAPIC_REG_TMR_CURR: u32 = 0x390;
-const LAPIC_REG_TMR_DIV: u32 = 0x3E0;
+pub const LAPIC_REG_ID: u32 = 0x020;
+pub const LAPIC_REG_VERSION: u32 = 0x030;
+pub const LAPIC_REG_TPR: u32 = 0x080;
+pub const LAPIC_REG_EOI: u32 = 0x0B0;
+pub const LAPIC_REG_SVR: u32 = 0x0F0;
+pub const LAPIC_REG_LVT_TIMER: u32 = 0x320;
+pub const LAPIC_REG_LVT_LINT0: u32 = 0x350;
+pub const LAPIC_REG_LVT_LINT1: u32 = 0x360;
+pub const LAPIC_REG_TMR_INIT: u32 = 0x380;
+pub const LAPIC_REG_TMR_CURR: u32 = 0x390;
+pub const LAPIC_REG_TMR_DIV: u32 = 0x3E0;
 
 // LVT bits
-const LVT_MASKED: u32 = 1 << 16;
-const LVT_TIMER_PERIODIC: u32 = 1 << 17;
-const SVR_APIC_ENABLE: u32 = 1 << 8;
+pub const LVT_MASKED: u32 = 1 << 16;
+pub const LVT_TIMER_PERIODIC: u32 = 1 << 17;
+pub const SVR_APIC_ENABLE: u32 = 1 << 8;
 
 // ===== IOAPIC MMIO =====
 const IOAPIC_DEFAULT_PHYS: u64 = 0xFEC0_0000;

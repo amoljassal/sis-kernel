@@ -39,7 +39,7 @@ pub fn cfg_write32(bus: PciBus, dev: PciDev, func: PciFn, off: u8, val: u32) {
 
 // Reuse canonical Bdf from types.rs
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct PciId {
     pub vendor: u16,
     pub device: u16,
