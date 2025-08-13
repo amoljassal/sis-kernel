@@ -13,15 +13,16 @@ jobs:
     env:
       # Make warnings fail in clippy; normal build/test can stay permissive if you want.
       CARGO_TERM_COLOR: always
-      RUST_TOOLCHAIN: nightly-2024-12-15
-      FEATURES: userland
-      TEST: ${{ matrix.test }}
-      TIMEOUT: "40"          # seconds; bump if needed
 
     strategy:
       fail-fast: false
       matrix:
         test: [USR_INIT, USR_SPAWN_TWO, USR_ELF_EDGES, USR_VFS_NEG]
+
+      RUST_TOOLCHAIN: nightly-2024-12-15
+      FEATURES: userland
+      TEST: ${{ matrix.test }}
+      TIMEOUT: "40"          # seconds; bump if needed
 
     steps:
       - name: Checkout
