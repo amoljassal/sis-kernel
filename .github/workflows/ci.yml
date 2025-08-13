@@ -51,8 +51,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: rustfmt
         run: cargo fmt --all -- --check
-      - name: clippy (ci-lint-min)
-        run: cargo clippy --no-default-features --features "ci-lint-min" -- -A warnings
+      - name: clippy (ci-lint-min)  
+        run: cargo clippy --target x86_64-unknown-none --no-default-features --features "ci-lint-min" -Z build-std=core,alloc -- -A warnings
 
   build-min:
     name: Build (minimal)
