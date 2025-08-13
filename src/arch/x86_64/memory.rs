@@ -2,10 +2,9 @@
 #![allow(dead_code)]
 
 use bootloader_api::BootInfo;
-use x86_64::structures::paging::mapper::{MapToError, Mapper, MapperFlush};
 use x86_64::{
     registers::control::Cr3,
-    structures::paging::{FrameAllocator, OffsetPageTable, Page, PageTable, PhysFrame, Size4KiB},
+    structures::paging::{FrameAllocator, OffsetPageTable, PageTable, PhysFrame, Size4KiB},
     PhysAddr, VirtAddr,
 };
 
@@ -92,30 +91,7 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 /// Stub implementations for missing functions - these would be implemented properly in full kernel
-pub fn map_user_page(virt_addr: VirtAddr) -> Result<Page<Size4KiB>, &'static str> {
-    // Return the page corresponding to the virtual address
-    Ok(Page::containing_address(virt_addr))
-}
-
-pub fn alloc_frame() -> Option<PhysFrame> {
-    None
-}
-
-pub fn phys_to_tmp_virt(paddr: PhysAddr) -> VirtAddr {
-    // A simple implementation for now
-    VirtAddr::new(paddr.as_u64())
-}
-
-pub fn map_with_active_mapper(
-    page: x86_64::structures::paging::Page,
-    frame: PhysFrame,
-    flags: x86_64::structures::paging::PageTableFlags,
-) -> Result<MapperFlush<Size4KiB>, MapToError<Size4KiB>> {
-    let mut mapper = mapper();
-    let mut frame_allocator = BootInfoFrameAllocator;
-    unsafe { mapper.map_to(page, frame, flags, &mut frame_allocator) }
-}
-
-pub fn tlb_flush(addr: VirtAddr) {
-    x86_64::instructions::tlb::flush(addr);
+pub fn map_user_page(virt_addr: VirtAddr) -> Result<(), &'static str> {
+    let _ = virt_addr;
+    Ok(()) // Stub for tests
 }
