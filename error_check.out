@@ -1,5 +1,0 @@
-error: unexpected argument '--cfg' found
-
-Usage: cargo check --target [<TRIPLE>] --features <FEATURES>
-
-For more information, try '--help'.
