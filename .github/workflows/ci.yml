@@ -2,94 +2,282 @@ name: SIS Kernel CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sis-kernel-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # ---- toolchain & build knobs (keep in sync with Cargo.toml / build.rs) ----
+  RUST_TOOLCHAIN: nightly-2024-12-15
+  CARGO_TERM_COLOR: always
+  # Prefer offline once caches are warm; scripts/qemu.sh may override as needed
+  CARGO_NET_OFFLINE: "true"
+  # QEMU is always headless in CI
+  QEMU_AUDIO_DRV: none
+  # Force a fresh boot image to avoid stale kernel issues
+  FORCE_BOOTIMG: "1"
+  # Default timeout (seconds) for harness; individual jobs can override
+  TIMEOUT: "60"
 
 jobs:
-  build-test:
-    name: Build and Test (${{ matrix.test }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        test: [USR_INIT, USR_SPAWN_TWO, USR_ELF_EDGES, USR_VFS_NEG]
-
-    env:
-      CARGO_TERM_COLOR: always
-      RUST_TOOLCHAIN: nightly-2024-12-15
-      FEATURES: userland
-      TEST: ${{ matrix.test }}
-      TIMEOUT: "40"
-
+  lint:
+    name: Lint (fmt + clippy)
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
-          components: rust-src, llvm-tools-preview
+          components: rustfmt, clippy
 
-      - name: Install bootimage tool
-        run: cargo install bootimage --version 0.10.3 --locked
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
+
+      - name: rustfmt --check
+        run: cargo fmt --all -- --check
+
+      # Clippy for no_std kernels can be noisy; we still fail on warnings to keep quality high.
+      # If you need to soften this, change to `-A clippy::...` for known false positives.
+      - name: cargo clippy (core workspace)
+        run: |
+          cargo clippy --all-targets --all-features -- -D warnings
+
+  # ---------- userland validation matrix (Phase 4.1 Part C) ----------
+  userland:
+    name: Userland tests (${{ matrix.test }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test: USR_INIT
+            features: "userland"
+            timeout: "45"
+          - test: USR_SPAWN_TWO
+            features: "userland"
+            timeout: "45"
+          - test: USR_ELF_EDGES
+            features: "userland"
+            timeout: "45"
+          - test: USR_VFS_NEG
+            features: "userland"
+            timeout: "45"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
       - name: Install QEMU
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-system-x86
 
-      - name: Build kernel
-        run: cargo build --features ${{ env.FEATURES }}
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
 
-      - name: Run test in QEMU
+      - name: Run ${{ matrix.test }}
+        env:
+          TEST: ${{ matrix.test }}
+          FEATURES: ${{ matrix.features }}
+          TIMEOUT: ${{ matrix.timeout }}
+          FORCE_BOOTIMG: "1"
         run: |
-          set -euo pipefail
-          mkdir -p out
-          echo "Running test: ${{ env.TEST }} with features: ${{ env.FEATURES }}"
-          timeout ${{ env.TIMEOUT }} ./scripts/qemu.sh || echo "Test completed (may have timed out)"
+          set -euxo pipefail
+          ./scripts/qemu.sh
 
-      - name: Upload test logs
+      - name: Upload serial log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-logs-${{ matrix.test }}
-          path: |
-            out/qemu-serial.log
-            qemu-serial.log
-          retention-days: 3
+          name: serial-${{ matrix.test }}
+          path: out/qemu-serial.log
+          if-no-files-found: warn
+          retention-days: 7
 
-  quality-checks:
-    name: Code Quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+  # ---------- SMP / cross-CPU validation (Phase 6A-6C) ----------
+  smp:
+    name: SMP tests (${{ matrix.test }})
+    runs-on: ubuntu-22.04
+    needs: [ userland ]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test: SMP_ONLINE
+            features: "apic smp idt-selftest"
+            cpus: 2
+            timeout: "60"
+          - test: IPC_XCPU_PING
+            features: "apic smp ipc idt-selftest"
+            cpus: 2
+            timeout: "60"
+          - test: TLB_SHOOTDOWN
+            features: "apic smp idt-selftest"
+            cpus: 2
+            timeout: "60"
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@v2
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2024-12-15
-          components: rust-src, llvm-tools-preview, clippy, rustfmt
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
 
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86
 
-      - name: Build check (default features)  
-        run: cargo check
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
 
-      - name: Build check (userland features)
-        run: cargo check --features userland
+      - name: Run ${{ matrix.test }}
+        env:
+          TEST: ${{ matrix.test }}
+          FEATURES: ${{ matrix.features }}
+          QEMU_SMP: ${{ matrix.cpus }}
+          TIMEOUT: ${{ matrix.timeout }}
+          FORCE_BOOTIMG: "1"
+        run: |
+          set -euxo pipefail
+          ./scripts/qemu.sh
+
+      - name: Upload serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serial-${{ matrix.test }}
+          path: out/qemu-serial.log
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------- IOMMU / VFIO / MSI (Phase 5) ----------
+  vfio:
+    name: VFIO/MSI tests (${{ matrix.test }})
+    runs-on: ubuntu-22.04
+    needs: [ smp ]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test: IOMMU_PROBE
+            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest"
+            timeout: "60"
+          - test: VFIO_BIND_E1000
+            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest"
+            timeout: "60"
+          - test: VFIO_MSI_SMOKE
+            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest"
+            timeout: "90"
+          - test: VFIO_MSI_SOAK
+            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest"
+            timeout: "120"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
+
+      - name: Run ${{ matrix.test }}
+        env:
+          TEST: ${{ matrix.test }}
+          FEATURES: ${{ matrix.features }}
+          TIMEOUT: ${{ matrix.timeout }}
+          # VFIO path needs q35 + split irqchip; your qemu.sh should auto-add, but leave these hints
+          QEMU_MACHINE_HINT: q35
+          QEMU_IRQCHIP_HINT: split
+          FORCE_BOOTIMG: "1"
+        run: |
+          set -euxo pipefail
+          ./scripts/qemu.sh
+
+      - name: Upload serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serial-${{ matrix.test }}
+          path: out/qemu-serial.log
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ---------- Build-only smoke (ensures core compiles with common feature sets) ----------
+  build-matrix:
+    name: Build-only (${{ matrix.flavor }})
+    runs-on: ubuntu-22.04
+    needs: [ lint ]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: "minimal"
+            features: ""
+          - flavor: "userland"
+            features: "userland"
+          - flavor: "smp"
+            features: "apic smp"
+          - flavor: "vfio"
+            features: "vfio iommu qemu-intel-iommu-sim apic"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
+
+      - name: Build (no run)
+        env:
+          FEATURES: ${{ matrix.features }}
+        run: |
+          set -euxo pipefail
+          if [ -n "${FEATURES}" ]; then
+            cargo build --target x86_64-unknown-none --features "${FEATURES}"
+          else
+            cargo build --target x86_64-unknown-none
+          fi
