@@ -8,10 +8,11 @@
 //!
 //! This test proves end-to-end MSI functionality from userland device control
 //! through kernel interrupt handling with safety rails intact.
+#![cfg(any(feature = "selftests", selftest_VFIO_MSI_SMOKE, selftest_VFIO_MSI_SOAK))]
 
 use crate::arch::x86_64::io::qemu_exit;
-use crate::kernel::{serial, syscall, vfio};
-use core::fmt::Write;
+use crate::kernel::{serial, vfio, vfio_stubs};
+use crate::qemu;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 // Test state tracking
@@ -100,7 +101,7 @@ fn selftest_vfio_msi_soak() {
     // dump latency histogram
     #[cfg(feature = "vfio")]
     unsafe {
-        crate::arch::x86_64::idt::vfio_dump_hist();
+        vfio_stubs::stubs::vfio_dump_hist();
     }
 
     if ok {

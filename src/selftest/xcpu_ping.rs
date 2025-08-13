@@ -1,4 +1,5 @@
 //! Phase 6C selftest: cross-CPU mailbox ping/ack
+#![cfg(any(feature = "selftests", selftest_IPC_XCPU_PING))]
 #![allow(dead_code)]
 
 #[cfg(feature = "smp")]

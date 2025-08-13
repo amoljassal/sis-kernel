@@ -54,3 +54,22 @@ pub unsafe fn qemu_exit(code: u8) -> ! {
         crate::arch::x86_64::cpu::halt();
     }
 }
+
+/// QEMU exit with expanded code range (for compatibility)
+#[inline(always)]
+pub unsafe fn qemu_exit_wide(code: u32) -> ! {
+    let value: u32 = (0x50100 * code) + 1;
+    asm!(
+        "out dx, eax",
+        in("dx") 0xF4u16,
+        in("eax") value,
+        options(noreturn, preserves_flags)
+    )
+}
+
+#[inline(always)]
+pub unsafe fn qemu_exit_ok() -> ! { qemu_exit(0) }
+#[inline(always)]
+pub unsafe fn qemu_exit_fail() -> ! { qemu_exit(0xFF) }
+#[inline(always)]
+pub unsafe fn qemu_exit_skip() -> ! { qemu_exit(0x50) }

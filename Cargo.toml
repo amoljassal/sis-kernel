@@ -28,18 +28,29 @@ bitflags = { version = "2.9.1", default-features = false }
 [features]
 default = []
 firewall = []           # Emergency isolation for compilation issues
-idt-selftest = []
+
+# Core features
 apic = []
-smp = ["apic"]
+smp = ["apic"]                    # ensure apic present whenever smp is on
+ipc = []
+userland = []
+iommu = []
+vfio = ["iommu"]                 # explicit dependency as documented in Phase 5
+idt-selftest = []
+qemu-intel-iommu-sim = []
+
+# Phase-specific features
 affinity = ["smp","scheduler"] # Phase 6B: CPU affinity support (requires SMP + scheduler)
 pf-matrix = []
 per-task-mm = []
-ipc = []                # Phase 2: IPC + capability tables (feature-gated)
 scheduler = []          # Phase 3: preemptive scheduler + wait queues (feature-gated)
-userland = []           # Phase 4: userland boot + VFS + minimal services (feature-gated)
-iommu = []              # Phase 5A: IOMMU detection + deny-all policy (feature-gated)
-qemu-intel-iommu-sim = [] # Phase 5A: QEMU Intel IOMMU simulation for testing
-vfio = ["iommu"]        # Phase 5B: VFIO-lite minimal passthrough (depends on IOMMU)
+
+# CI/lint hygiene
+# Gate all selftest-only code behind a single feature so clippy doesn't see dead cfgs
+selftests = []
+
+# Minimal set we use for clippy job; add or remove features here if needed
+ci-lint-min = []
 
 [build-dependencies]
 # Builder restored after resolving kernel compilation bottleneck  

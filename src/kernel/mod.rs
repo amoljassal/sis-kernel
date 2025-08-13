@@ -6,6 +6,7 @@
 //! scanning PCI devices and logging via the serial port.
 
 pub mod affinity;
+pub mod boot;
 #[cfg(feature = "ipc")]
 pub mod caps;
 pub mod current;
@@ -24,6 +25,7 @@ pub mod task;
 pub mod task_table;
 pub mod types;
 pub mod vfio;
+pub mod vfio_stubs;
 #[cfg(feature = "scheduler")]
 pub mod waitqueue;
 #[cfg(all(feature = "smp", feature = "ipc"))]
@@ -39,3 +41,7 @@ pub mod vfs;
 
 #[cfg(not(feature = "userland"))]
 pub mod initfs;
+
+// Provide stable re-exports for callers
+pub use pci::{PciId, cfg_read32, cfg_write32, find_first_e1000};
+pub use types::Bdf;

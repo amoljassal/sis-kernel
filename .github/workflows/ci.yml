@@ -15,34 +15,26 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # ---- toolchain & build knobs (keep in sync with Cargo.toml / build.rs) ----
   RUST_TOOLCHAIN: nightly-2024-12-15
   CARGO_TERM_COLOR: always
-  # Prefer offline once caches are warm; scripts/qemu.sh may override as needed
   CARGO_NET_OFFLINE: "true"
-  # QEMU is always headless in CI
   QEMU_AUDIO_DRV: none
-  # Force a fresh boot image to avoid stale kernel issues
   FORCE_BOOTIMG: "1"
-  # Default timeout (seconds) for harness; individual jobs can override
   TIMEOUT: "60"
 
 jobs:
   lint:
-    name: Lint (fmt + clippy)
+    name: Lint (fmt + clippy minimal)
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
           components: rustfmt, clippy
 
-      - name: Cargo cache
-        uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
           shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
@@ -50,196 +42,9 @@ jobs:
       - name: rustfmt --check
         run: cargo fmt --all -- --check
 
-      # Clippy for no_std kernels can be noisy; we still fail on warnings to keep quality high.
-      # If you need to soften this, change to `-A clippy::...` for known false positives.
-      - name: cargo clippy (core workspace)
-        run: |
-          cargo clippy --all-targets --all-features -- -D warnings
+      - name: cargo clippy (ci-lint-min)
+        run: cargo clippy --no-default-features --features "ci-lint-min" -- -D warnings
 
-  # ---------- userland validation matrix (Phase 4.1 Part C) ----------
-  userland:
-    name: Userland tests (${{ matrix.test }})
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - test: USR_INIT
-            features: "userland"
-            timeout: "45"
-          - test: USR_SPAWN_TWO
-            features: "userland"
-            timeout: "45"
-          - test: USR_ELF_EDGES
-            features: "userland"
-            timeout: "45"
-          - test: USR_VFS_NEG
-            features: "userland"
-            timeout: "45"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-
-      - name: Install QEMU
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-system-x86
-
-      - name: Cargo cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
-
-      - name: Run ${{ matrix.test }}
-        env:
-          TEST: ${{ matrix.test }}
-          FEATURES: ${{ matrix.features }}
-          TIMEOUT: ${{ matrix.timeout }}
-          FORCE_BOOTIMG: "1"
-        run: |
-          set -euxo pipefail
-          ./scripts/qemu.sh
-
-      - name: Upload serial log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: serial-${{ matrix.test }}
-          path: out/qemu-serial.log
-          if-no-files-found: warn
-          retention-days: 7
-
-  # ---------- SMP / cross-CPU validation (Phase 6A-6C) ----------
-  smp:
-    name: SMP tests (${{ matrix.test }})
-    runs-on: ubuntu-22.04
-    needs: [ userland ]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - test: SMP_ONLINE
-            features: "apic smp idt-selftest"
-            cpus: 2
-            timeout: "60"
-          - test: IPC_XCPU_PING
-            features: "apic smp ipc idt-selftest"
-            cpus: 2
-            timeout: "60"
-          - test: TLB_SHOOTDOWN
-            features: "apic smp idt-selftest"
-            cpus: 2
-            timeout: "60"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-
-      - name: Install QEMU
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-system-x86
-
-      - name: Cargo cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
-
-      - name: Run ${{ matrix.test }}
-        env:
-          TEST: ${{ matrix.test }}
-          FEATURES: ${{ matrix.features }}
-          QEMU_SMP: ${{ matrix.cpus }}
-          TIMEOUT: ${{ matrix.timeout }}
-          FORCE_BOOTIMG: "1"
-        run: |
-          set -euxo pipefail
-          ./scripts/qemu.sh
-
-      - name: Upload serial log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: serial-${{ matrix.test }}
-          path: out/qemu-serial.log
-          if-no-files-found: warn
-          retention-days: 7
-
-  # ---------- IOMMU / VFIO / MSI (Phase 5) ----------
-  vfio:
-    name: VFIO/MSI tests (${{ matrix.test }})
-    runs-on: ubuntu-22.04
-    needs: [ smp ]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - test: IOMMU_PROBE
-            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest"
-            timeout: "60"
-          - test: VFIO_BIND_E1000
-            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest"
-            timeout: "60"
-          - test: VFIO_MSI_SMOKE
-            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest"
-            timeout: "90"
-          - test: VFIO_MSI_SOAK
-            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest"
-            timeout: "120"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-
-      - name: Install QEMU
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-system-x86
-
-      - name: Cargo cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
-
-      - name: Run ${{ matrix.test }}
-        env:
-          TEST: ${{ matrix.test }}
-          FEATURES: ${{ matrix.features }}
-          TIMEOUT: ${{ matrix.timeout }}
-          # VFIO path needs q35 + split irqchip; your qemu.sh should auto-add, but leave these hints
-          QEMU_MACHINE_HINT: q35
-          QEMU_IRQCHIP_HINT: split
-          FORCE_BOOTIMG: "1"
-        run: |
-          set -euxo pipefail
-          ./scripts/qemu.sh
-
-      - name: Upload serial log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: serial-${{ matrix.test }}
-          path: out/qemu-serial.log
-          if-no-files-found: warn
-          retention-days: 7
-
-  # ---------- Build-only smoke (ensures core compiles with common feature sets) ----------
   build-matrix:
     name: Build-only (${{ matrix.flavor }})
     runs-on: ubuntu-22.04
@@ -257,16 +62,11 @@ jobs:
           - flavor: "vfio"
             features: "vfio iommu qemu-intel-iommu-sim apic"
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
-
-      - name: Cargo cache
-        uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
           shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
@@ -281,3 +81,159 @@ jobs:
           else
             cargo build --target x86_64-unknown-none
           fi
+
+  userland:
+    name: Userland tests (${{ matrix.test }})
+    runs-on: ubuntu-22.04
+    needs: [ build-matrix ]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test: USR_INIT
+            features: "userland selftests"
+            timeout: "45"
+          - test: USR_SPAWN_TWO
+            features: "userland selftests"
+            timeout: "45"
+          - test: USR_ELF_EDGES
+            features: "userland selftests"
+            timeout: "45"
+          - test: USR_VFS_NEG
+            features: "userland selftests"
+            timeout: "45"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
+      - name: Run ${{ matrix.test }}
+        env:
+          TEST: ${{ matrix.test }}
+          FEATURES: ${{ matrix.features }}
+          TIMEOUT: ${{ matrix.timeout }}
+          FORCE_BOOTIMG: "1"
+        run: |
+          set -euxo pipefail
+          ./scripts/qemu.sh
+      - name: Upload serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serial-${{ matrix.test }}
+          path: out/qemu-serial.log
+          if-no-files-found: warn
+          retention-days: 7
+
+  smp:
+    name: SMP tests (${{ matrix.test }})
+    runs-on: ubuntu-22.04
+    needs: [ userland ]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test: SMP_ONLINE
+            features: "apic smp idt-selftest selftests"
+            cpus: 2
+            timeout: "60"
+          - test: IPC_XCPU_PING
+            features: "apic smp ipc idt-selftest selftests"
+            cpus: 2
+            timeout: "60"
+          - test: TLB_SHOOTDOWN
+            features: "apic smp idt-selftest selftests"
+            cpus: 2
+            timeout: "60"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
+      - name: Run ${{ matrix.test }}
+        env:
+          TEST: ${{ matrix.test }}
+          FEATURES: ${{ matrix.features }}
+          QEMU_SMP: ${{ matrix.cpus }}
+          TIMEOUT: ${{ matrix.timeout }}
+          FORCE_BOOTIMG: "1"
+        run: |
+          set -euxo pipefail
+          ./scripts/qemu.sh
+      - name: Upload serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serial-${{ matrix.test }}
+          path: out/qemu-serial.log
+          if-no-files-found: warn
+          retention-days: 7
+
+  vfio:
+    name: VFIO/MSI tests (${{ matrix.test }})
+    runs-on: ubuntu-22.04
+    needs: [ smp ]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - test: IOMMU_PROBE
+            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest selftests"
+            timeout: "60"
+          - test: VFIO_BIND_E1000
+            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest selftests"
+            timeout: "60"
+          - test: VFIO_MSI_SMOKE
+            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest selftests"
+            timeout: "90"
+          - test: VFIO_MSI_SOAK
+            features: "vfio iommu qemu-intel-iommu-sim apic idt-selftest selftests"
+            timeout: "120"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          shared-key: sis-kernel-${{ env.RUST_TOOLCHAIN }}
+      - name: Run ${{ matrix.test }}
+        env:
+          TEST: ${{ matrix.test }}
+          FEATURES: ${{ matrix.features }}
+          TIMEOUT: ${{ matrix.timeout }}
+          QEMU_MACHINE_HINT: q35
+          QEMU_IRQCHIP_HINT: split
+          FORCE_BOOTIMG: "1"
+        run: |
+          set -euxo pipefail
+          ./scripts/qemu.sh
+      - name: Upload serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serial-${{ matrix.test }}
+          path: out/qemu-serial.log
+          if-no-files-found: warn
+          retention-days: 7

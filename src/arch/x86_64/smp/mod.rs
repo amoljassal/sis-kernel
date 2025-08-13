@@ -97,20 +97,20 @@ unsafe fn start_ap(apic_id: u32) -> Result<(), &'static str> {
     serial::write_str("\n");
 
     // Send INIT IPI
-    apic::send_ipi(apic_id, 0x00 | 0x500); // INIT IPI
+    apic::send_ipi_raw(apic_id, 0x500); // INIT IPI (delivery mode)
 
     // Wait 10ms
     simple_delay_us(10000);
 
     // Send first SIPI
     let startup_vector = (trampoline_addr >> 12) as u8; // Page number
-    apic::send_ipi(apic_id, startup_vector | 0x600); // SIPI
+    apic::send_ipi_raw(apic_id, (startup_vector as u32) | 0x600); // SIPI
 
     // Wait 200us
     simple_delay_us(200);
 
     // Send second SIPI
-    apic::send_ipi(apic_id, startup_vector | 0x600); // SIPI
+    apic::send_ipi_raw(apic_id, (startup_vector as u32) | 0x600); // SIPI
 
     Ok(())
 }

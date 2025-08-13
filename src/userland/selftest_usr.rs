@@ -1,10 +1,12 @@
 //! Userland validation suite (Phase 4.1 · Part C)
 //! Build-time selected via `RUSTFLAGS="--cfg selftest_USR_INIT"` (etc.)
 //! Success => qemu_exit(0x00); failure => non-zero, test-specific code.
+#![cfg(any(feature = "selftests", selftest_USR_INIT, selftest_USR_SPAWN_TWO, selftest_USR_ELF_EDGES, selftest_USR_VFS_NEG))]
 #![allow(dead_code)]
 
 use crate::arch::x86_64::io::qemu_exit;
-use crate::serial;
+use crate::kernel::serial;
+use crate::qemu;
 use core::ptr;
 
 use super::elfsec;
@@ -62,18 +64,14 @@ pub fn run_usr_spawn_two() {
         Ok(p) => p,
         Err(_) => {
             serial::write_str("[selftest] USR_SPAWN_TWO: spawn hello failed\n");
-            unsafe {
-                qemu_exit(FAIL_SPAWN_TWO_VFS);
-            }
+            unsafe { qemu_exit(FAIL_SPAWN_TWO_VFS) }
         }
     };
     let pid2 = match validate_spawn("/bin/isoprobe") {
         Ok(p) => p,
         Err(_) => {
             serial::write_str("[selftest] USR_SPAWN_TWO: spawn isoprobe failed\n");
-            unsafe {
-                qemu_exit(FAIL_SPAWN_TWO_ELF);
-            }
+            unsafe { qemu_exit(FAIL_SPAWN_TWO_ELF) }
         }
     };
     if pid1 == pid2 {

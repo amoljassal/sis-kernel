@@ -338,7 +338,7 @@ pub fn syscall_map_bar(handle_val: u16, bar_idx: u8) -> Result<u64, VfioError> {
             return Err(VfioError::InvalidDevice);
         }
 
-        let bdf = crate::kernel::pci::Bdf {
+        let bdf = crate::kernel::types::Bdf {
             bus: 0,
             dev: 2,
             func: 0,
@@ -422,7 +422,7 @@ pub fn syscall_domain_create(handle_val: u16) -> Result<u16, VfioError> {
         use crate::arch::x86_64::iommu;
 
         // TODO: Get BDF from handle - for now use hardcoded 00:02.0
-        let bdf = crate::kernel::pci::Bdf {
+        let bdf = crate::kernel::types::Bdf {
             bus: 0,
             dev: 2,
             func: 0,
@@ -510,7 +510,7 @@ pub fn syscall_enable_busmaster(handle_val: u16) -> Result<(), VfioError> {
         // Safety check: only allow bus master if domain exists and at least one IOVA is mapped
         // For Phase 5C-A, we do basic validation
 
-        let bdf = crate::kernel::pci::Bdf {
+        let bdf = crate::kernel::types::Bdf {
             bus: 0,
             dev: 2,
             func: 0,
@@ -559,7 +559,7 @@ pub fn syscall_enable_busmaster(handle_val: u16) -> Result<(), VfioError> {
 pub fn syscall_disable_busmaster(handle_val: u16) -> Result<(), VfioError> {
     #[cfg(feature = "vfio")]
     {
-        let bdf = crate::kernel::pci::Bdf {
+        let bdf = crate::kernel::types::Bdf {
             bus: 0,
             dev: 2,
             func: 0,
@@ -597,7 +597,7 @@ pub fn syscall_msi_arm(handle_val: u16, vector: u8) -> Result<(), VfioError> {
     #[cfg(feature = "vfio")]
     {
         // TODO: Get BDF from handle - for now use hardcoded 00:02.0
-        let bdf = crate::kernel::pci::Bdf {
+        let bdf = crate::kernel::types::Bdf {
             bus: 0,
             dev: 2,
             func: 0,
@@ -654,7 +654,7 @@ pub fn syscall_msi_arm(handle_val: u16, vector: u8) -> Result<(), VfioError> {
 pub fn syscall_msi_disarm(handle_val: u16) -> Result<(), VfioError> {
     #[cfg(feature = "vfio")]
     {
-        let bdf = crate::kernel::pci::Bdf {
+        let bdf = crate::kernel::types::Bdf {
             bus: 0,
             dev: 2,
             func: 0,
@@ -706,7 +706,7 @@ pub fn syscall_msi_disarm(handle_val: u16) -> Result<(), VfioError> {
 /// Program MSI registers for 32-bit MSI (sufficient for QEMU e1000)
 #[cfg(feature = "vfio")]
 fn program_msi_registers(
-    bdf: crate::kernel::pci::Bdf,
+    bdf: crate::kernel::types::Bdf,
     msi_offset: u8,
     vector: u8,
 ) -> Result<(), VfioError> {
@@ -741,7 +741,7 @@ fn program_msi_registers(
 /// and Interrupt Cause Set (ICS) registers to trigger an MSI.
 #[cfg(feature = "vfio")]
 pub fn syscall_msi_trigger_e1000(handle_val: u16) -> Result<(), VfioError> {
-    let bdf = crate::kernel::pci::Bdf {
+    let bdf = crate::kernel::types::Bdf {
         bus: 0,
         dev: 2,
         func: 0,

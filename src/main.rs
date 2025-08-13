@@ -5,6 +5,22 @@
 
 extern crate alloc;
 
+// Serial printing macros for kernel logging
+#[macro_export]
+macro_rules! kprint {
+    ($($arg:tt)*) => {
+        let _ = $crate::kernel::serial::print(core::format_args!($($arg)*));
+    };
+}
+
+#[macro_export]
+macro_rules! kprintln {
+    () => { $crate::kprint!("\n") };
+    ($($arg:tt)*) => {
+        $crate::kprint!("{}\n", core::format_args!($($arg)*))
+    };
+}
+
 use bootloader_api::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use core::sync::atomic::{AtomicU64, Ordering};
