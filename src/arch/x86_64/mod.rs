@@ -27,6 +27,13 @@ pub mod ipi;
 pub mod shootdown;
 #[cfg(feature = "smp")]
 pub mod topology;
+
+// When smp is off, provide minimal no-op exports so cfg paths compile.
+#[cfg(not(feature = "smp"))]
+pub mod topology {
+    #[inline] pub fn online_cpus() -> &'static [u32] { &[] }
+    #[inline] pub fn cpu_index_from_apic(_apic_id: u32) -> Option<usize> { None }
+}
 #[cfg(feature = "idt-selftest")]
 pub mod idt_selftest;
 #[cfg(feature = "pf-matrix")]

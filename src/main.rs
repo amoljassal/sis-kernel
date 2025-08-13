@@ -26,6 +26,8 @@ mod selftest;
 mod time;
 #[cfg(not(feature = "firewall"))]
 mod qemu;
+#[cfg(feature = "userland")]
+mod userland;
 #[cfg(feature = "firewall")]
 mod kernel {
     pub mod serial {
@@ -230,21 +232,10 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         }
 
         // Phase 6C TEST: IPC_XCPU_PING validation
-        #[cfg(all(feature = "smp", feature = "ipc", feature = "idt-selftest", selftest_IPC_XCPU_PING))]
+        #[cfg(all(feature = "smp", selftest_IPC_XCPU_PING))]
         {
             serial::write_str("[selftest] Starting IPC_XCPU_PING test...\n");
-            match crate::kernel::xcpu_ipc::test_ipc_xcpu_ping() {
-                Ok(_) => {
-                    serial::write_str("[PASS: IPC_XCPU_PING] Phase 6C validation successful\n");
-                    unsafe { crate::arch::x86_64::io::qemu_exit(0x00); }
-                },
-                Err(e) => {
-                    serial::write_str("[FAIL: IPC_XCPU_PING] Phase 6C validation failed: ");
-                    serial::write_str(e);
-                    serial::write_str("\n");
-                    unsafe { crate::arch::x86_64::io::qemu_exit(0x01); }
-                }
-            }
+            crate::selftest::xcpu_ping::run();
         }
 
         // Phase 6D TEST: TLB_SHOOTDOWN validation

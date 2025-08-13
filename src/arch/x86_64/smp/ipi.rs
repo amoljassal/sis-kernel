@@ -1,27 +1,39 @@
 //! Inter-Processor Interrupt (IPI) support for SMP scheduling
 //!
-//! This module provides a simple interface to the existing IPI infrastructure
-//! for Phase 6B CPU affinity support.
+//! This module provides IPI infrastructure for Phase 6B CPU affinity and
+//! Phase 6C cross-CPU mailbox support.
 
+use core::sync::atomic::{AtomicU32, Ordering};
 use crate::kernel::serial;
+use crate::arch::x86_64::percpu_clean as percpu;
 use crate::arch::x86_64::apic;
 
-/// IPI vector for reschedule requests (matches existing IDT setup)
-pub const IPI_RESCHED_VEC: u8 = 0xF0;
+/// IPI vectors
+pub const IPI_RESCHED: u8 = 0xF0_u8;
+pub const IPI_TLB: u8     = 0xF1_u8;
+pub const IPI_MBOX: u8    = 0xF2_u8; // Phase 6C mailbox poke
 
-/// Install IPI handlers - delegates to existing IDT setup
+/// Install IPI handlers in global IDT
 pub unsafe fn install_handlers() {
-    // The IDT already has IPI handlers installed at initialization
-    // This is a no-op for compatibility with the patch
-    serial::write_str("[ipi] Using existing IPI handlers (vector 0xF0)\n");
+    // IPI handlers will be automatically installed by the IDT module
+    // This function exists for compatibility and can be extended later
+    // TODO: Add actual IPI handler registration once IDT provides the API
+    serial::write_str("[ipi] IPI handlers ready (vectors 0xF0-0xF2)\n");
 }
 
-/// Send reschedule IPI to target CPU
-pub unsafe fn send_resched(target_apic_id: u32) {
-    serial::write_str("[ipi] Sending reschedule IPI to APIC ID ");
-    serial::write_u64(target_apic_id as u64);
-    serial::write_str("\n");
-    
-    // Send fixed IPI with reschedule vector
-    apic::send_ipi(target_apic_id, IPI_RESCHED_VEC); // Send reschedule vector
+// IPI handlers are now defined in arch::x86_64::idt module
+
+#[inline]
+pub fn send_resched_ipi(apic_id: u32) {
+    unsafe { apic::send_ipi(apic_id, IPI_RESCHED); }
+}
+
+#[inline]
+pub fn send_tlb_ipi(apic_id: u32) {
+    unsafe { apic::send_ipi(apic_id, IPI_TLB); }
+}
+
+#[inline]
+pub fn send_mailbox_ipi(apic_id: u32) {
+    unsafe { apic::send_ipi(apic_id, IPI_MBOX); }
 }

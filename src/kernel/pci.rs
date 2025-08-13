@@ -6,6 +6,7 @@
 
 use crate::arch::x86_64::io::{outl, inl};
 use crate::kernel::serial::{self, write_hex32};
+use crate::kernel::types::{Bdf, PciBus, PciDev, PciFn};
 use core::fmt::Write;
 
 #[allow(dead_code)]
@@ -17,7 +18,7 @@ static mut GPU_COUNT: usize = 0;
 
 // Phase 5B: Clean PCI config space interface
 #[inline(always)]
-fn cfg_addr(bus: u8, dev: u8, func: u8, off: u8) -> u32 {
+fn cfg_addr(bus: PciBus, dev: PciDev, func: PciFn, off: u8) -> u32 {
     let aligned = (off & !3) as u32;
     (1u32 << 31)
         | ((bus as u32) << 16)
@@ -26,16 +27,15 @@ fn cfg_addr(bus: u8, dev: u8, func: u8, off: u8) -> u32 {
         | aligned
 }
 
-pub fn cfg_read32(bus: u8, dev: u8, func: u8, off: u8) -> u32 {
+pub fn cfg_read32(bus: PciBus, dev: PciDev, func: PciFn, off: u8) -> u32 {
     unsafe { outl(0xCF8, cfg_addr(bus, dev, func, off)); inl(0xCFC) }
 }
 
-pub fn cfg_write32(bus: u8, dev: u8, func: u8, off: u8, val: u32) {
+pub fn cfg_write32(bus: PciBus, dev: PciDev, func: PciFn, off: u8, val: u32) {
     unsafe { outl(0xCF8, cfg_addr(bus, dev, func, off)); outl(0xCFC, val); }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Bdf { pub bus: u8, pub dev: u8, pub func: u8 }
+// Reuse canonical Bdf from types.rs
 
 #[derive(Clone, Copy)]
 pub struct PciId { pub vendor: u16, pub device: u16 }

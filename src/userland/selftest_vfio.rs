@@ -63,7 +63,7 @@ fn selftest_vfio_msi_soak() {
     
     let iters = 100u64;
     for _ in 0..iters {
-        if vfio::syscall_msi_trigger_e1000(h_val).is_err() {
+        if vfio::syscall_msi_trigger_e1000_new(h) != 0 {
             serial::write_str("[vfio-soak] trigger failed\n");
             break;
         }
@@ -80,7 +80,7 @@ fn selftest_vfio_msi_soak() {
     }
     
     // post-disarm silence verification
-    let _ = vfio::syscall_msi_trigger_e1000(h_val);
+    let _ = vfio::syscall_msi_trigger_e1000_new(h);
     for _ in 0..10_000 { core::hint::spin_loop(); }
     
     // dump latency histogram
@@ -104,12 +104,12 @@ pub fn run_vfio_roundtrip_test() {
     serial::write_str("\n[vfio-test] Phase 1: Validating preconditions...\n");
     
     // Validate that we have a test handle (simplified for this test)
-    let test_handle = 0xBEEF_u16; // Dummy handle for testing
-    serial::write_fmt(format_args!("[vfio-test] Using test handle 0x{:04x}\n", test_handle)).ok();
+    let test_handle = vfio::VfioHandle::new(0xBEEF, 1); // Dummy handle for testing
+    serial::write_fmt(format_args!("[vfio-test] Using test handle 0x{:04x}\n", test_handle.as_u16())).ok();
 
     // **Phase 2: Create IOMMU Domain**
     serial::write_str("\n[vfio-test] Phase 2: Setting up IOMMU domain...\n");
-    match vfio::syscall_domain_create(test_handle) {
+    match vfio::syscall_domain_create(test_handle.as_u16()) {
         Ok(domain_id) => {
             serial::write_fmt(format_args!("[vfio-test] Domain {} created successfully\n", domain_id)).ok();
         }
@@ -121,7 +121,7 @@ pub fn run_vfio_roundtrip_test() {
 
     // **Phase 3: Enable Bus Master**
     serial::write_str("\n[vfio-test] Phase 3: Enabling bus master...\n");
-    match vfio::syscall_enable_busmaster(test_handle) {
+    match vfio::syscall_enable_busmaster(test_handle.as_u16()) {
         Ok(()) => {
             serial::write_str("[vfio-test] Bus master enabled successfully\n");
         }
@@ -133,7 +133,7 @@ pub fn run_vfio_roundtrip_test() {
 
     // **Phase 4: ARM MSI**
     serial::write_str("\n[vfio-test] Phase 4: Arming MSI (vector 0x5E)...\n");
-    match vfio::syscall_msi_arm(test_handle, 0x5E) {
+    match vfio::syscall_msi_arm(test_handle.as_u16(), 0x5E) {
         Ok(()) => {
             serial::write_str("[vfio-test] MSI armed successfully - INTx disabled, MSI enabled\n");
             VFIO_TEST_ARMED.store(true, Ordering::SeqCst);
@@ -146,7 +146,7 @@ pub fn run_vfio_roundtrip_test() {
 
     // **Phase 5: TRIGGER MSI via e1000 BAR0 manipulation**  
     serial::write_str("\n[vfio-test] Phase 5: Triggering e1000 MSI via IMS/ICS manipulation...\n");
-    match vfio::syscall_msi_trigger_e1000(test_handle) {
+    match vfio::syscall_msi_trigger_e1000_new(test_handle) {
         Ok(()) => {
             serial::write_str("[vfio-test] e1000 trigger sent - checking for interrupt delivery...\n");
             VFIO_TEST_TRIGGERED.store(true, Ordering::SeqCst);
@@ -184,7 +184,7 @@ pub fn run_vfio_roundtrip_test() {
 
     // **Phase 7: DISARM MSI**
     serial::write_str("\n[vfio-test] Phase 7: Disarming MSI...\n");
-    match vfio::syscall_msi_disarm(test_handle) {
+    match vfio::syscall_msi_disarm(test_handle.as_u16()) {
         Ok(()) => {
             serial::write_str("[vfio-test] MSI disarmed successfully - INTx re-enabled\n");
         }
@@ -196,7 +196,7 @@ pub fn run_vfio_roundtrip_test() {
 
     // **Phase 8: Verify silence (attempt second trigger - should be silent)**
     serial::write_str("\n[vfio-test] Phase 8: Verifying MSI silence after disarm...\n");
-    match vfio::syscall_msi_trigger_e1000(test_handle) {
+    match vfio::syscall_msi_trigger_e1000_new(test_handle) {
         Ok(()) => {
             serial::write_str("[vfio-test] Second trigger sent - should be silent now\n");
         }

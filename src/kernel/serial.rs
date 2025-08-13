@@ -112,6 +112,42 @@ pub fn write_hex64(val: u64) {
     write_hex32(val as u32);
 }
 
+// Keep your existing write_hex8/16/32/64; add generic front-doors to kill E0308 spam.
+
+#[inline]
+pub fn write_hex<T: Into<u64>>(v: T) {
+    write_hex64(v.into());
+}
+
+#[inline]
+pub fn write_hex0x<T: Into<u64>>(v: T) {
+    write_str("0x");
+    write_hex64(v.into());
+}
+
+#[inline]
+pub fn write_dec<T: Into<u64>>(v: T) {
+    // minimal decimal writer to avoid alloc; prints u64
+    let mut n = v.into();
+    let mut buf = [0u8; 20];
+    let mut i = buf.len();
+    if n == 0 {
+        write_str("0");
+        return;
+    }
+    while n > 0 {
+        i -= 1;
+        buf[i] = b'0' + (n % 10) as u8;
+        n /= 10;
+    }
+    unsafe { write_buf(&buf[i..]); }
+}
+
+/// Write a buffer of bytes to the serial port (unsafe version for internal use).
+unsafe fn write_bytes(buf: &[u8]) {
+    write_buf(buf);
+}
+
 /// Write formatted output to the serial port.
 pub fn write_fmt(args: core::fmt::Arguments) -> Result<(), core::fmt::Error> {
     use core::fmt::Write;

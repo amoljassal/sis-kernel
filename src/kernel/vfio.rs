@@ -55,7 +55,7 @@ static mut HANDLE_ALLOC: HandleAllocator = HandleAllocator {
 // VFIO handle state for Phase 5C
 #[derive(Debug)]
 struct VfioHandleState {
-    pub bdf: crate::kernel::pci::Bdf,
+    pub bdf: Bdf,
     #[cfg(feature = "iommu")]
     pub domain_id: Option<crate::arch::x86_64::iommu::DomainId>,
     pub msi_offset: Option<u8>,
@@ -82,7 +82,8 @@ static NEXT_GEN: AtomicU64 = AtomicU64::new(1);
 pub fn tsc() -> u64 { unsafe { core::arch::x86_64::_rdtsc() } }
 
 // Helper types and functions for patch compatibility
-use crate::kernel::pci::{Bdf, cfg_read32, cfg_write32};
+use crate::kernel::types::Bdf;
+use crate::kernel::pci::{cfg_read32, cfg_write32};
 
 // Handle state manipulation helpers
 fn get_state_mut(table: &mut [Option<VfioHandleState>; 16], h: VfioHandle) -> Option<&mut VfioHandleState> {

@@ -14,6 +14,16 @@ use crate::kernel::vfs;
 use alloc::vec::Vec;
 use core::slice;
 
+// Normalize widths once at the syscall boundary, then pass typed.
+#[inline]
+fn u64_to_usize(a: u64) -> usize { a as usize }
+#[inline]
+fn u64_to_u32(a: u64) -> u32 { a as u32 }
+#[inline]
+fn u64_to_u16(a: u64) -> u16 { a as u16 }
+#[inline]
+fn u64_to_u8(a: u64) -> u8 { a as u8 }
+
 #[cfg(feature = "ipc")]
 use crate::kernel::ipc;
 // Crypto imports temporarily removed - will be re-added later with proper no_std configuration

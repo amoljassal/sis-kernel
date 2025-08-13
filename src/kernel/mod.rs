@@ -6,12 +6,15 @@
 //! scanning PCI devices and logging via the serial port.
 
 pub mod serial;
+pub mod types;
 pub mod task;
 pub mod scheduler;
 #[cfg(feature = "smp")]
 pub mod smp_scheduler;
 #[cfg(all(feature = "smp", feature = "ipc"))]
 pub mod xcpu_ipc;
+#[cfg(feature = "smp")]
+pub mod xcpu_mbox;
 pub mod syscall;
 pub mod pci;
 pub mod affinity;
