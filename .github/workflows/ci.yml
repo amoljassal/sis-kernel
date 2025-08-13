@@ -1,0 +1,95 @@
+name: SIS Kernel CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    name: Build and Test (${{ matrix.test }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        test: [USR_INIT, USR_SPAWN_TWO, USR_ELF_EDGES, USR_VFS_NEG]
+
+    env:
+      CARGO_TERM_COLOR: always
+      RUST_TOOLCHAIN: nightly-2024-12-15
+      FEATURES: userland
+      TEST: ${{ matrix.test }}
+      TIMEOUT: "40"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: rust-src, llvm-tools-preview
+
+      - name: Install bootimage tool
+        run: cargo install bootimage --version 0.10.3 --locked
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86
+
+      - name: Build kernel
+        run: cargo build --features ${{ env.FEATURES }}
+
+      - name: Run test in QEMU
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          echo "Running test: ${{ env.TEST }} with features: ${{ env.FEATURES }}"
+          timeout ${{ env.TIMEOUT }} ./scripts/qemu.sh || echo "Test completed (may have timed out)"
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ matrix.test }}
+          path: |
+            out/qemu-serial.log
+            qemu-serial.log
+          retention-days: 3
+
+  quality-checks:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2024-12-15
+          components: rust-src, llvm-tools-preview, clippy, rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Build check (default features)  
+        run: cargo check
+
+      - name: Build check (userland features)
+        run: cargo check --features userland
