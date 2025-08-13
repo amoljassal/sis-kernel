@@ -53,9 +53,6 @@ jobs:
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
 
-      - name: Build dependencies
-        run: cargo build --target x86_64-unknown-none --features ${FEATURES}
-
       - name: Build bootable image (BIOS / bootloader 0.10.x)
         run: cargo bootimage --features ${FEATURES}
 
@@ -68,7 +65,7 @@ jobs:
           # Example direct pass (uncomment if your harness expects a file argument):
           # IMG=$(ls -t target/x86_64-unknown-none/debug/bootimage-*.bin | head -n1)
           # BOOTIMG="$IMG" TEST="${TEST}" FEATURES="${FEATURES}" TIMEOUT="${TIMEOUT}" ./scripts/qemu.sh
-          CARGO_NET_OFFLINE=false TEST="${TEST}" FEATURES="${FEATURES}" TIMEOUT="${TIMEOUT}" ./scripts/qemu.sh
+          TEST="${TEST}" FEATURES="${FEATURES}" TIMEOUT="${TIMEOUT}" ./scripts/qemu.sh
           echo "Run completed for ${TEST}"
         shell: bash
 
