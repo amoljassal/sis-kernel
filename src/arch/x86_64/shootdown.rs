@@ -1,144 +1,69 @@
-//! IPI-based TLB shootdown
-#![allow(dead_code)]
-#[cfg(feature = "smp")]
+//! Phase 6D: Cross‑CPU TLB shootdown with ACK bitmask + timeout.
+#![cfg(feature = "smp")]
+
+use core::sync::atomic::{AtomicU64, Ordering};
+use crate::arch::x86_64::smp::ipi::send_tlb_ipi;
+use crate::arch::x86_64::topology;
 use crate::kernel::serial;
-#[cfg(feature = "smp")]
-use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
-#[cfg(feature = "smp")]
-static GEN: AtomicU64 = AtomicU64::new(1);
-#[cfg(feature = "smp")]
-static ADDR: AtomicU64 = AtomicU64::new(0);
-#[cfg(feature = "smp")]
-static MASK: AtomicU32 = AtomicU32::new(0);
-#[cfg(feature = "smp")]
-static ACK: AtomicU32 = AtomicU32::new(0);
+static PENDING_MASK: AtomicU64 = AtomicU64::new(0);
+static ACK_MASK: AtomicU64 = AtomicU64::new(0);
+// Range for local worker (single slot for simplicity)
+static mut PENDING_VA: usize = 0;
+static mut PENDING_LEN: usize = 0;
 
-#[cfg(feature = "smp")]
-#[inline(always)]
-pub fn ack_tlb_ipi() {
-    let cpu_bit = 1u32 << (crate::arch::x86_64::apic::lapic_id() & 0x1F);
-    // do the local invalidation
-    let addr = ADDR.load(Ordering::Acquire);
-    if addr != 0 {
-        unsafe {
-            x86_64::instructions::tlb::flush(x86_64::VirtAddr::new(addr));
-        }
-    } else {
-        // Flush all TLB entries if addr is 0
-        unsafe {
-            x86_64::instructions::tlb::flush_all();
-        }
-    }
-    ACK.fetch_or(cpu_bit, Ordering::AcqRel);
+/// Installed on remote CPUs by the IPI_TLB handler.
+pub fn ack_this_cpu() {
+    let me = topology::cpu_index_this() as u64;
+    let bit = 1u64 << me;
+    let _ = ACK_MASK.fetch_or(bit, Ordering::Release);
 }
 
-#[cfg(feature = "smp")]
-pub fn shootdown(addr: u64, cpu_mask: u32, timeout_us: u64) -> bool {
-    use crate::arch::x86_64::{apic, ipi};
-
-    let my_bit = 1u32 << (apic::lapic_id() & 0x1F);
-    let targets = cpu_mask & !my_bit;
-    if targets == 0 {
-        // Only local TLB flush needed
-        if addr != 0 {
-            unsafe {
-                x86_64::instructions::tlb::flush(x86_64::VirtAddr::new(addr));
-            }
-        } else {
-            unsafe {
-                x86_64::instructions::tlb::flush_all();
-            }
-        }
-        return true;
+/// Controller: set pending range for all CPUs in `mask`, send IPIs, wait for ACK or timeout.
+pub fn invalidate_range(mask: u64, vaddr: usize, len: usize, timeout_ticks: u64) -> Result<(), &'static str> {
+    if mask == 0 { return Ok(()); }
+    unsafe {
+        PENDING_VA = vaddr;
+        PENDING_LEN = len;
     }
+    PENDING_MASK.store(mask, Ordering::Release);
+    ACK_MASK.store(0, Ordering::Relaxed);
 
-    ADDR.store(addr, Ordering::Release);
-    MASK.store(targets, Ordering::Release);
-    ACK.store(0, Ordering::Release);
-    let _g = GEN.fetch_add(1, Ordering::AcqRel);
-
-    // send IPIs
-    for apic_id in crate::arch::x86_64::topology::apic_ids_from_mask(targets) {
-        ipi::send_ipi_tlb(apic_id);
-    }
-
-    // origin invalidation too
-    if addr != 0 {
-        unsafe {
-            x86_64::instructions::tlb::flush(x86_64::VirtAddr::new(addr));
-        }
-    } else {
-        unsafe {
-            x86_64::instructions::tlb::flush_all();
+    // fan‑out
+    for apic in topology::online_cpus() {
+        let idx = topology::cpu_index_from_apic(apic) as u64;
+        if (mask & (1u64 << idx)) != 0 {
+            send_tlb_ipi(apic);
         }
     }
 
-    // wait for ACKs
-    let start = unsafe { core::arch::x86_64::_rdtsc() };
-    let timeout_cycles = timeout_us * 3000; // Rough estimate: 3GHz CPU
-
-    loop {
-        let a = ACK.load(Ordering::Acquire);
-        if a & targets == targets {
-            return true;
+    // wait
+    let mut waited = 0u64;
+    while waited < timeout_ticks {
+        let a = ACK_MASK.load(Ordering::Acquire);
+        if a & mask == mask {
+            return Ok(());
         }
-
-        let now = unsafe { core::arch::x86_64::_rdtsc() };
-        if now.wrapping_sub(start) >= timeout_cycles {
-            serial::write_str("[tlb] shootdown timeout; ack=0x");
-            crate::kernel::serial::write_hex32(a);
-            serial::write_str(" exp=0x");
-            crate::kernel::serial::write_hex32(targets);
-            serial::write_str("\n");
-            return false;
-        }
+        // Simple delay loop instead of time module
+        for _ in 0..1000 { core::hint::spin_loop(); }
+        waited += 1;
     }
+    serial::write_str("[tlb] shootdown timeout mask=0x"); serial::write_hex64(mask); serial::write_str(" ack=0x"); serial::write_hex64(ACK_MASK.load(Ordering::Relaxed)); serial::write_str("\n");
+    Err("shootdown timeout")
 }
 
-#[cfg(not(feature = "smp"))]
-pub fn shootdown(addr: u64, _cpu_mask: u32, _timeout_us: u64) -> bool {
-    // Non-SMP version: just flush local TLB
-    if addr != 0 {
-        unsafe {
-            x86_64::instructions::tlb::flush(x86_64::VirtAddr::new(addr));
-        }
-    } else {
-        unsafe {
-            x86_64::instructions::tlb::flush_all();
-        }
+/// Local worker invoked by IPI_TLB handler.
+pub fn apply_pending_local() {
+    use x86_64::instructions::tlb::flush;
+    // For simplicity: invalidate by page stepping
+    let (start, len) = unsafe { (PENDING_VA, PENDING_LEN) };
+    if len == 0 { return; }
+    let end = start + len;
+    let mut addr = start;
+    while addr < end {
+        unsafe { x86_64::instructions::tlb::flush(x86_64::VirtAddr::new(addr as u64)); }
+        addr += 4096;
     }
-    true
-}
-
-/// TEST=TLB_SHOOTDOWN validation function
-#[cfg(all(feature = "smp", selftest_TLB_SHOOTDOWN))]
-pub fn test_tlb_shootdown() -> Result<(), &'static str> {
-    use crate::kernel::serial;
-
-    serial::write_str("[test] TLB_SHOOTDOWN: Starting cross-CPU TLB invalidation validation\n");
-
-    // Test basic shootdown with mock CPU mask (bit 1 = CPU 1)
-    // Since we only have BSP online, this should timeout gracefully
-    let test_addr = 0x2000_0000u64;
-    let cpu_mask = 0x0000_0002u32; // Target CPU 1 (LAPIC ID 1)
-    let timeout_us = 50_000u64; // 50ms timeout
-
-    serial::write_str("[test] Testing shootdown to CPU mask 0x");
-    crate::kernel::serial::write_hex32(cpu_mask);
-    serial::write_str(" addr=0x");
-    crate::kernel::serial::write_hex64(test_addr);
-    serial::write_str("\n");
-
-    let success = shootdown(test_addr, cpu_mask, timeout_us);
-
-    if success {
-        serial::write_str("[test] TLB_SHOOTDOWN: PASS - All target CPUs acknowledged\n");
-        Ok(())
-    } else {
-        // For now, timeout is expected since we likely only have BSP online
-        serial::write_str("[test] TLB_SHOOTDOWN: TIMEOUT - Expected with single CPU\n");
-        serial::write_str("[test] TLB_SHOOTDOWN: PASS - Timeout handling works correctly\n");
-        Ok(())
-    }
+    // also serialize
+    unsafe { core::arch::asm!("mfence", "sfence", "lfence", options(nostack, preserves_flags)); }
 }

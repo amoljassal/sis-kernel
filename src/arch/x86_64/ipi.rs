@@ -33,7 +33,8 @@ extern "x86-interrupt" fn ISR_resched(_sf: x86_64::structures::idt::InterruptSta
 
 #[cfg(feature = "smp")]
 extern "x86-interrupt" fn ISR_tlb(_sf: x86_64::structures::idt::InterruptStackFrame) {
-    crate::arch::x86_64::shootdown::ack_tlb_ipi();
+    crate::arch::x86_64::shootdown::ack_this_cpu();
+    crate::arch::x86_64::shootdown::apply_pending_local();
 
     // Send EOI to LAPIC
     #[cfg(feature = "apic")]

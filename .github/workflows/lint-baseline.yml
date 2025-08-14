@@ -1,0 +1,49 @@
+name: Lint Baseline
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "scripts/lint/**"
+      - ".github/workflows/lint-baseline.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src/**"
+  schedule:
+    - cron: "0 6 * * 1" # weekly Monday 06:00 UTC
+
+jobs:
+  lint-baseline:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Show versions
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: Run baseline
+        run: |
+          sudo apt-get update && sudo apt-get install -y python3
+          bash scripts/lint/baseline.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-baseline
+          path: |
+            out/lint-baseline/report/*
+            out/lint-baseline/raw/*

@@ -62,7 +62,7 @@ pub fn run() {
     if c == 0 {
         serial::write_str("[aff][FAIL] no hits on cpu1\n");
         unsafe {
-            crate::qemu::exit_fail(0xA1);
+            crate::qemu::exit_fail();
         }
     }
 

@@ -7,6 +7,8 @@
 
 pub mod affinity;
 pub mod boot;
+#[cfg(feature = "smp")]
+pub mod mm;
 #[cfg(feature = "ipc")]
 pub mod caps;
 pub mod current;
@@ -14,6 +16,8 @@ pub mod current;
 pub mod ipc;
 pub mod pci;
 pub mod scheduler;
+#[cfg(feature = "scheduler")]
+pub mod sched_preempt;
 pub mod serial;
 #[cfg(feature = "scheduler")]
 pub mod simple_scheduler;

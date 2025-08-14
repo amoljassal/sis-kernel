@@ -311,7 +311,7 @@ impl SmpScheduler {
                     // Cross-CPU enqueue with resched IPI
                     self.per_cpu[target_cpu as usize].enqueue(task_id);
                     unsafe {
-                        ipi::send_resched(target_cpu);
+                        ipi::send_resched_ipi(target_cpu);
                     }
                 } else {
                     // Local CPU enqueue
