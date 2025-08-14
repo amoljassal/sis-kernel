@@ -30,9 +30,6 @@ jobs:
           toolchain: nightly-2025-08-01
           components: rustfmt, clippy, rust-src, llvm-tools-preview
           targets: x86_64-unknown-none
-          override: true
-          # minimal profile avoids downloading docs/etc
-          profile: minimal
 
       - name: Verify toolchain & components
         run: |
@@ -130,8 +127,6 @@ jobs:
           toolchain: nightly-2025-08-01
           components: rustfmt, clippy, rust-src, llvm-tools-preview
           targets: x86_64-unknown-none
-          override: true
-          profile: minimal
 
       - name: Verify toolchain & components
         run: |
