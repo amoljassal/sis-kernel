@@ -7,7 +7,6 @@
 // When we're not building any selftests, the codebase contains many `#[cfg(selftest_...)]` guards the
 // compiler doesn't know about. Allow that noise in *non-selftest* builds only.
 #![cfg_attr(not(feature = "selftests"), allow(unexpected_cfgs))]
-
 // Selftest codepaths legitimately pull in helpers that go unused in normal builds; keep the noise down.
 #![cfg_attr(feature = "selftests", allow(unused_imports, unused_variables))]
 
@@ -278,7 +277,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         // Phase 6D+ SCHED_PREEMPT_RR test
         #[cfg(selftest_SCHED_PREEMPT_RR)]
         {
-            #[cfg(feature="scheduler")]
+            #[cfg(feature = "scheduler")]
             {
                 serial::write_str("[selftest] Starting SCHED_PREEMPT_RR test...\n");
                 crate::selftest::sched_preempt_rr::run();
@@ -291,7 +290,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
         #[cfg(selftest_SCHED_FAIR_METER)]
         {
-            #[cfg(feature="scheduler")]
+            #[cfg(feature = "scheduler")]
             {
                 serial::write_str("[selftest] Starting SCHED_FAIR_METER test...\n");
                 crate::selftest::sched_fair_meter::run();

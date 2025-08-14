@@ -6,7 +6,11 @@ use crate::arch::x86_64::topology;
 
 /// Unmap in a target task with cross‑CPU shootdown to maintain coherency.
 #[cfg(feature = "smp")]
-pub fn unmap_with_shootdown(target_cpus_mask: u64, vaddr: usize, len: usize) -> Result<(), &'static str> {
+pub fn unmap_with_shootdown(
+    target_cpus_mask: u64,
+    vaddr: usize,
+    len: usize,
+) -> Result<(), &'static str> {
     // do page table edits locally (holding appropriate locks)
     // ... existing unmap implementation ...
     // then shootdown

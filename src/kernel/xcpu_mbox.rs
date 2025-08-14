@@ -1,7 +1,6 @@
 //! Cross-CPU mailbox (Phase 6C)
 //! Lock-free per-CPU ring buffers for tiny u64 messages.
 #![allow(dead_code)]
-
 // Lock-free ring buffer uses a static backing array; avoid warning noise for static-mut refs.
 #![allow(static_mut_refs)]
 

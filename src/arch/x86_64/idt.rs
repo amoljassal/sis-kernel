@@ -88,7 +88,7 @@ lazy_static! {
         #[cfg(feature = "smp")]
         {
             use crate::arch::x86_64::smp::ipi::{isr_ipi_resched, isr_ipi_tlb};
-            
+
             // Phase 6D: IPI_RESCHED vector (0xF0) for resched signals
             idt[0xF0].set_handler_fn(isr_ipi_resched);
 
@@ -126,7 +126,6 @@ lazy_static! {
 
 pub fn init_idt() {
     IDT.load();
-
 }
 
 // ISRs are now pre-installed during IDT initialization
@@ -365,7 +364,7 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
     }
 
     // Phase 6D+: Timer-driven preemption hook
-    #[cfg(feature="scheduler")]
+    #[cfg(feature = "scheduler")]
     {
         crate::kernel::sched_preempt::on_timer_tick();
     }

@@ -49,12 +49,16 @@ use crate::arch::x86_64::percpu_clean::PerCpu;
 
 #[cfg(feature = "smp")]
 #[no_mangle]
-pub extern "x86-interrupt" fn isr_ipi_resched(_stack: x86_64::structures::idt::InterruptStackFrame) {
+pub extern "x86-interrupt" fn isr_ipi_resched(
+    _stack: x86_64::structures::idt::InterruptStackFrame,
+) {
     let pcpu = PerCpu::this();
     let _ = pcpu.ipi_rx_resched.fetch_add(1, Ordering::Relaxed);
     // mark need_resched so the scheduler/timer interrupt will pick it up soon
     pcpu.need_resched.store(true, Ordering::Release);
-    unsafe { apic::eoi(); }
+    unsafe {
+        apic::eoi();
+    }
 }
 
 #[cfg(feature = "smp")]
@@ -67,5 +71,7 @@ pub extern "x86-interrupt" fn isr_ipi_tlb(_stack: x86_64::structures::idt::Inter
     crate::arch::x86_64::shootdown::apply_pending_local();
     // ACK via global bitmask
     crate::arch::x86_64::shootdown::ack_this_cpu();
-    unsafe { apic::eoi(); }
+    unsafe {
+        apic::eoi();
+    }
 }

@@ -1,4 +1,4 @@
-name: SIS Kernel CI (Phase 6D Ready)
+name: SIS Kernel CI (Phase 7+ Ready)
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     branches: [ main, master ]
   schedule:
     # Weekly "soak" to catch toolchain drift while keeping the fast lane snappy
+    # Note: Automated lint baseline runs separately via lint-baseline.yml workflow
     - cron: "17 3 * * 1"
 
 jobs:
@@ -22,7 +23,7 @@ jobs:
       - name: Install Rust toolchain (nightly pinned)
         uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2024-12-15
+          toolchain: nightly-2025-08-01
           components: clippy,rustfmt
       - name: Add targets
         run: |
@@ -46,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2024-12-15
+          toolchain: nightly-2025-08-01
           components: clippy,rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: rustfmt
@@ -62,7 +63,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2024-12-15
+          toolchain: nightly-2025-08-01
       - uses: Swatinem/rust-cache@v2
       - name: Build (no default features)
         env:
@@ -78,7 +79,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2024-12-15
+          toolchain: nightly-2025-08-01
       - uses: Swatinem/rust-cache@v2
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
@@ -105,7 +106,7 @@ jobs:
 
   # ---------- Extended lane (non-blocking; shows failures but doesn't break the green check) ----------
   extended-nonblocking:
-    name: Extended (SMP/VFIO) – non-blocking
+    name: Extended (SMP/Scheduler/VFIO) – non-blocking
     runs-on: ubuntu-22.04
     needs: [userland-smoke]
     continue-on-error: true
@@ -122,11 +123,23 @@ jobs:
             TEST: VFIO_MSI_SMOKE
             FEATURES: "vfio qemu-intel-iommu-sim apic selftests"
             QEMU_SMP: "1"
+          - name: sched_fairness_meter
+            TEST: SCHED_FAIR_METER
+            FEATURES: "apic smp scheduler selftests"
+            QEMU_SMP: "2"
+          - name: smp_affinity_validation
+            TEST: SMP_AFFINITY
+            FEATURES: "apic smp affinity selftests"
+            QEMU_SMP: "2"
+          - name: preemptive_scheduling
+            TEST: SCHED_PREEMPT_RR
+            FEATURES: "apic smp scheduler selftests"
+            QEMU_SMP: "2"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly-2024-12-15
+          toolchain: nightly-2025-08-01
       - uses: Swatinem/rust-cache@v2
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86

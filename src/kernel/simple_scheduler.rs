@@ -4,20 +4,19 @@
 //! affinity-aware scheduling, resched IPIs, and per-CPU stats.
 
 #![cfg(feature = "scheduler")]
-
 // Runqueue backing storage uses a lazy static slot; hush static-mut refs warnings here only.
 #![allow(static_mut_refs)]
 
-use core::sync::atomic::{AtomicU8, Ordering};
-use alloc::collections::VecDeque;
 use crate::arch::x86_64::percpu_clean::PerCpu;
-use crate::kernel::serial;
-use crate::kernel::task::Task;
-use core::cell::UnsafeCell;
 #[cfg(feature = "affinity")]
 use crate::arch::x86_64::smp::ipi::send_resched_ipi;
 #[cfg(feature = "affinity")]
 use crate::arch::x86_64::topology;
+use crate::kernel::serial;
+use crate::kernel::task::Task;
+use alloc::collections::VecDeque;
+use core::cell::UnsafeCell;
+use core::sync::atomic::{AtomicU8, Ordering};
 
 // Lazy init runqueues (compat shim)
 static INIT: AtomicU8 = AtomicU8::new(0);
@@ -28,17 +27,24 @@ pub struct RunQueue {
 }
 
 impl RunQueue {
-    pub fn empty() -> Self { Self { q: VecDeque::new() } }
+    pub fn empty() -> Self {
+        Self { q: VecDeque::new() }
+    }
 }
 
 pub fn ensure_init() {
-    if INIT.compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire).is_ok() {
+    if INIT
+        .compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire)
+        .is_ok()
+    {
         unsafe {
             RUNQS = Some(core::array::from_fn(|_| RunQueue::empty()));
         }
         INIT.store(2, Ordering::Release);
     } else {
-        while INIT.load(Ordering::Acquire) != 2 { core::hint::spin_loop(); }
+        while INIT.load(Ordering::Acquire) != 2 {
+            core::hint::spin_loop();
+        }
     }
 }
 
@@ -49,12 +55,18 @@ pub fn pick_next() -> Option<usize> {
     let me = PerCpu::this().cpu_id as usize;
     let rqs = unsafe { RUNQS.as_mut().unwrap() };
     // Prefer local runqueue
-    if let Some(tid) = rqs[me].q.pop_front() { return Some(tid); }
+    if let Some(tid) = rqs[me].q.pop_front() {
+        return Some(tid);
+    }
     // Affinity‑aware fallback: nearest online cpu
     for apic in topology::online_cpus() {
         let idx = topology::cpu_index_from_apic(apic) as usize;
-        if idx == me { continue; }
-        if let Some(tid) = rqs[idx].q.pop_front() { return Some(tid); }
+        if idx == me {
+            continue;
+        }
+        if let Some(tid) = rqs[idx].q.pop_front() {
+            return Some(tid);
+        }
     }
     None
 }
@@ -111,7 +123,7 @@ pub fn on_context_switch() {
 pub fn enqueue_task(t: &Task) {
     #[cfg(feature = "affinity")]
     enqueue_task_affinity(t);
-    
+
     #[cfg(not(feature = "affinity"))]
     {
         ensure_init();
@@ -132,20 +144,24 @@ pub fn request_reschedule() {
     // In the compat shim we just set need_resched again; the actual
     // reschedule will occur when we return from the interrupt to the
     // scheduler's epilogue (or next tick).
-    PerCpu::this().need_resched.store(true, core::sync::atomic::Ordering::Release);
+    PerCpu::this()
+        .need_resched
+        .store(true, core::sync::atomic::Ordering::Release);
 }
 
 /// Return the run-queue length for the given CPU (best-effort, read-only).
-#[cfg(feature="scheduler")]
+#[cfg(feature = "scheduler")]
 pub fn runqueue_len(cpu_idx: usize) -> usize {
     ensure_init();
     let rqs = unsafe { RUNQS.as_ref().unwrap() };
-    if cpu_idx >= rqs.len() { return 0; }
+    if cpu_idx >= rqs.len() {
+        return 0;
+    }
     rqs[cpu_idx].q.len()
 }
 
 /// Convenience: run-queue length on the current CPU.
-#[cfg(feature="scheduler")]
+#[cfg(feature = "scheduler")]
 pub fn runqueue_len_this() -> usize {
     runqueue_len(PerCpu::this().cpu_id as usize)
 }

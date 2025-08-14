@@ -1,17 +1,17 @@
-#![cfg(all(feature="scheduler", feature="selftests"))]
+#![cfg(all(feature = "scheduler", feature = "selftests"))]
 //! Tiny fairness meter: sample per-CPU runqueue lengths while two busy tasks run.
-use core::sync::atomic::{AtomicU32, Ordering};
+use crate::arch::x86_64::percpu_clean::PerCpu;
 use crate::kernel::serial;
 use crate::kernel::simple_scheduler;
-use crate::arch::x86_64::percpu_clean::PerCpu;
 use crate::qemu;
+use core::sync::atomic::{AtomicU32, Ordering};
 
 static A: AtomicU32 = AtomicU32::new(0);
 static B: AtomicU32 = AtomicU32::new(0);
 
 pub fn run() {
     serial::write_str("[fair] meter start\n");
-    
+
     // Sample queues for a period while doing work on this CPU.
     let mut samples_this = 0u32;
     let mut max_this = 0usize;
@@ -24,9 +24,15 @@ pub fn run() {
         let cpu0 = simple_scheduler::runqueue_len(0);
         let cpu1 = simple_scheduler::runqueue_len(1);
         let any_max = cpu0.max(cpu1);
-        if this_len > max_this { max_this = this_len; }
-        if this_len < min_this { min_this = this_len; }
-        if any_max > max_any { max_any = any_max; }
+        if this_len > max_this {
+            max_this = this_len;
+        }
+        if this_len < min_this {
+            min_this = this_len;
+        }
+        if any_max > max_any {
+            max_any = any_max;
+        }
         samples_this += 1;
         // do some work on this CPU
         A.fetch_add(1, Ordering::Relaxed);
@@ -37,11 +43,19 @@ pub fn run() {
     }
 
     let a = A.load(Ordering::Relaxed);
-    serial::write_str("[fair] counter a="); serial::write_dec(a as u64); serial::write_str("\n");
-    serial::write_str("[fair] rq_this min="); serial::write_dec(min_this as u64);
-    serial::write_str(" max="); serial::write_dec(max_this as u64);
-    serial::write_str(" samples="); serial::write_dec(samples_this as u64); serial::write_str("\n");
-    serial::write_str("[fair] rq_any max="); serial::write_dec(max_any as u64); serial::write_str("\n");
+    serial::write_str("[fair] counter a=");
+    serial::write_dec(a as u64);
+    serial::write_str("\n");
+    serial::write_str("[fair] rq_this min=");
+    serial::write_dec(min_this as u64);
+    serial::write_str(" max=");
+    serial::write_dec(max_this as u64);
+    serial::write_str(" samples=");
+    serial::write_dec(samples_this as u64);
+    serial::write_str("\n");
+    serial::write_str("[fair] rq_any max=");
+    serial::write_dec(max_any as u64);
+    serial::write_str("\n");
 
     // Basic assertions:
     //  - task ran and made progress
