@@ -32,6 +32,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
+          key: nightly-2025-08-01
       - name: Versions
         id: versions
         run: |
@@ -50,6 +51,8 @@ jobs:
           toolchain: nightly-2025-08-01
           components: clippy,rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-2025-08-01
       - name: rustfmt
         run: cargo fmt --all -- --check
       - name: clippy (ci-lint-min)  
@@ -65,6 +68,8 @@ jobs:
         with:
           toolchain: nightly-2025-08-01
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-2025-08-01
       - name: Build (no default features)
         env:
           CARGO_NET_OFFLINE: "true"
@@ -81,6 +86,8 @@ jobs:
         with:
           toolchain: nightly-2025-08-01
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-2025-08-01
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
       - name: Build (userland)
@@ -141,6 +148,8 @@ jobs:
         with:
           toolchain: nightly-2025-08-01
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: nightly-2025-08-01
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
       - name: "Build (matrix: ${{ matrix.name }})"
