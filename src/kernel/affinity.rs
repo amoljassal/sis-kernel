@@ -5,13 +5,14 @@
 //! provides stubs when that crate is unavailable.  In addition it
 //! contains placeholders for GPU affinity via IOMMU/VFIO.
 
-#[cfg(feature = "thread-affinity")]
+// Previous builds referenced a non-existent `thread-affinity` Cargo feature. Consolidate on `affinity`.
+#[cfg(feature = "affinity")]
 pub fn set_core_affinity(core_id: usize) -> Result<(), &'static str> {
     // Use the thread_affinity crate to pin the current thread to a core.
     thread_affinity::set_thread_affinity(&[core_id]).map_err(|_| "Failed to set thread affinity")
 }
 
-#[cfg(not(feature = "thread-affinity"))]
+#[cfg(not(feature = "affinity"))]
 pub fn set_core_affinity(_core_id: usize) -> Result<(), &'static str> {
     // No affinity support compiled in; pretend success.
     Ok(())

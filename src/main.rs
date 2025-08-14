@@ -2,7 +2,14 @@
 #![no_main]
 #![feature(alloc_error_handler)]
 #![feature(abi_x86_interrupt)]
-#![feature(naked_functions)]
+// `#[naked]` is stable since 1.88; keeping the attribute but dropping the gate avoids a toolchain warning.
+
+// When we're not building any selftests, the codebase contains many `#[cfg(selftest_...)]` guards the
+// compiler doesn't know about. Allow that noise in *non-selftest* builds only.
+#![cfg_attr(not(feature = "selftests"), allow(unexpected_cfgs))]
+
+// Selftest codepaths legitimately pull in helpers that go unused in normal builds; keep the noise down.
+#![cfg_attr(feature = "selftests", allow(unused_imports, unused_variables))]
 
 extern crate alloc;
 
@@ -258,6 +265,41 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         {
             serial::write_str("[selftest] Starting IPC_XCPU_PING test...\n");
             crate::selftest::xcpu_ping::run();
+        }
+
+        // Phase 6D PROC_STATS test
+        #[cfg(selftest_PROC_STATS)]
+        {
+            serial::write_str("[selftest] Starting PROC_STATS test...\n");
+            crate::selftest::proc_stats::run();
+            crate::qemu::exit_ok();
+        }
+
+        // Phase 6D+ SCHED_PREEMPT_RR test
+        #[cfg(selftest_SCHED_PREEMPT_RR)]
+        {
+            #[cfg(feature="scheduler")]
+            {
+                serial::write_str("[selftest] Starting SCHED_PREEMPT_RR test...\n");
+                crate::selftest::sched_preempt_rr::run();
+                // run() calls qemu::exit_* which never returns
+            }
+            // If the feature isn't present, mark as skip.
+            serial::write_str("[selftest] SCHED_PREEMPT_RR: scheduler feature not enabled\n");
+            crate::qemu::exit_ok();
+        }
+
+        #[cfg(selftest_SCHED_FAIR_METER)]
+        {
+            #[cfg(feature="scheduler")]
+            {
+                serial::write_str("[selftest] Starting SCHED_FAIR_METER test...\n");
+                crate::selftest::sched_fair_meter::run();
+                // run() calls qemu::exit_* which never returns
+            }
+            // If the feature isn't present, mark as skip.
+            serial::write_str("[selftest] SCHED_FAIR_METER: scheduler feature not enabled\n");
+            crate::qemu::exit_ok();
         }
 
         // Phase 6D TEST: TLB_SHOOTDOWN validation

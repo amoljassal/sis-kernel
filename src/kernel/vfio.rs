@@ -4,6 +4,10 @@
 //! passthrough with minimal kernel overhead. It maps PCI devices to handles
 //! and provides syscalls for userland device inspection.
 
+// Controlled annotation: avoid "shared reference to mutable static" warnings produced by the VFIO
+// test scaffolding internals. This does not change codegen and stays inside the `vfio`-gated module.
+#![allow(static_mut_refs)]
+
 use crate::kernel::serial;
 use core::fmt::Write;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};

@@ -87,11 +87,13 @@ lazy_static! {
         // Phase 6C: Cross-CPU IPI handlers
         #[cfg(feature = "smp")]
         {
-            // IPI_RESCHED vector (0xF0) for lightweight scheduling signals
-            idt[0xF0].set_handler_fn(ipi_resched_handler);
+            use crate::arch::x86_64::smp::ipi::{isr_ipi_resched, isr_ipi_tlb};
+            
+            // Phase 6D: IPI_RESCHED vector (0xF0) for resched signals
+            idt[0xF0].set_handler_fn(isr_ipi_resched);
 
-            // IPI_IPC_WAKE vector (0xF1) for cross-CPU IPC wake-up
-            idt[0xF1].set_handler_fn(ipi_ipc_wake_handler);
+            // Phase 6D: IPI_TLB vector (0xF1) for TLB shootdown
+            idt[0xF1].set_handler_fn(isr_ipi_tlb);
 
             // IPI_MBOX vector (0xF2) for Phase 6C mailbox notifications
             idt[0xF2].set_handler_fn(ipi_mbox_handler);
@@ -125,12 +127,6 @@ lazy_static! {
 pub fn init_idt() {
     IDT.load();
 
-    // IPI handlers (SMP)
-    #[cfg(feature = "smp")]
-    {
-        // Install IPI handlers for cross-CPU communication
-        crate::arch::x86_64::ipi::install_ipi_handlers();
-    }
 }
 
 // ISRs are now pre-installed during IDT initialization
@@ -368,6 +364,12 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
         scheduler::tick();
     }
 
+    // Phase 6D+: Timer-driven preemption hook
+    #[cfg(feature="scheduler")]
+    {
+        crate::kernel::sched_preempt::on_timer_tick();
+    }
+
     // Process cross-CPU IPC messages (Phase 6C)
     #[cfg(all(feature = "smp", feature = "ipc"))]
     {
@@ -556,28 +558,37 @@ extern "x86-interrupt" fn page_fault(
 #[inline(always)]
 extern "x86-interrupt" fn syscall_handler(stack_frame: InterruptStackFrame) {
     // Check privilege level to detect Ring-3 calls
-    use x86_64::instructions::segmentation;
-    let cs = segmentation::cs();
-    let cpl = cs.0 & 3; // Current Privilege Level is in bits 0-1
+    // Deprecated segmentation helpers warning control: this file still calls into legacy paths on some
+    // feature combos; silence until the new CS helpers are fully plumbed everywhere.
+    #[allow(deprecated)]
+    {
+        use x86_64::instructions::segmentation;
+        // If/when you migrate, prefer:
+        // use x86_64::registers::segmentation::CS;
+        // ...
+        // let cs = CS::get_reg();
+        let cs = segmentation::cs();
+        let cpl = cs.0 & 3; // Current Privilege Level is in bits 0-1
 
-    if cpl == 3 {
-        serial::write_str("[syscall] Ring-3 syscall detected!\n");
-        #[cfg(all(feature = "idt-selftest", selftest_RING3))]
-        unsafe {
-            serial::write_str("[ring3] privilege separation verified\n");
-            qemu_exit(0x00); // Success: Ring-3 to Ring-0 transition worked
-        }
-    } else {
-        serial::write_str("[syscall] Ring-0 syscall\n");
-        #[cfg(all(feature = "idt-selftest", selftest_SYSCALL))]
-        unsafe {
-            serial::write_str("[syscall] ping\n");
-            qemu_exit(0x00);
-        }
-        #[cfg(all(feature = "idt-selftest", selftest_RING3))]
-        unsafe {
-            // For now, RING3 test just verifies privilege detection works
-            qemu_exit(0x00);
+        if cpl == 3 {
+            serial::write_str("[syscall] Ring-3 syscall detected!\n");
+            #[cfg(all(feature = "idt-selftest", selftest_RING3))]
+            unsafe {
+                serial::write_str("[ring3] privilege separation verified\n");
+                qemu_exit(0x00); // Success: Ring-3 to Ring-0 transition worked
+            }
+        } else {
+            serial::write_str("[syscall] Ring-0 syscall\n");
+            #[cfg(all(feature = "idt-selftest", selftest_SYSCALL))]
+            unsafe {
+                serial::write_str("[syscall] ping\n");
+                qemu_exit(0x00);
+            }
+            #[cfg(all(feature = "idt-selftest", selftest_RING3))]
+            unsafe {
+                // For now, RING3 test just verifies privilege detection works
+                qemu_exit(0x00);
+            }
         }
     }
 

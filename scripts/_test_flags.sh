@@ -105,6 +105,18 @@ case "${TEST:-}" in
     FEATURES_DEFAULT="vfio apic idt-selftest"
     ;;
 
+  PROC_STATS)
+    export RUSTFLAGS="--cfg selftest_PROC_STATS"
+    export FEATURES="apic smp selftests"
+    ;;
+  SCHED_PREEMPT_RR)
+    export RUSTFLAGS="--cfg selftest_SCHED_PREEMPT_RR"
+    export FEATURES="apic smp scheduler selftests"
+    ;;
+  SCHED_FAIR_METER)
+    export RUSTFLAGS="--cfg selftest_SCHED_FAIR_METER"
+    export FEATURES="apic smp scheduler selftests"
+    ;;
   *)
     echo "error: unknown or missing TEST=… ($TEST)"; exit 2;;
 esac

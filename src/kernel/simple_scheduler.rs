@@ -1,148 +1,151 @@
-//! Simple Per-CPU Scheduler (Phase 6B Patch Compatible)
+//! Simple Per-CPU Scheduler (Phase 6D Ready Queue)
 //!
-//! This module provides the simple scheduler interface expected by the Phase 6B patch.
-//! It maintains per-CPU runqueues and basic task management.
+//! This module provides the Phase 6D ready queue implementation with
+//! affinity-aware scheduling, resched IPIs, and per-CPU stats.
 
 #![cfg(feature = "scheduler")]
 
-use crate::arch::x86_64::percpu_clean as percpu;
-#[cfg(feature = "smp")]
-use crate::arch::x86_64::smp::ipi;
-use crate::kernel::task::{State as TaskState, Task};
+// Runqueue backing storage uses a lazy static slot; hush static-mut refs warnings here only.
+#![allow(static_mut_refs)]
+
+use core::sync::atomic::{AtomicU8, Ordering};
 use alloc::collections::VecDeque;
-use core::mem::MaybeUninit;
-use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use crate::arch::x86_64::percpu_clean::PerCpu;
+use crate::kernel::serial;
+use crate::kernel::task::Task;
+use core::cell::UnsafeCell;
+#[cfg(feature = "affinity")]
+use crate::arch::x86_64::smp::ipi::send_resched_ipi;
+#[cfg(feature = "affinity")]
+use crate::arch::x86_64::topology;
 
-static PREEMPT: AtomicBool = AtomicBool::new(true);
-
-#[cfg(feature = "scheduler")]
-#[inline(always)]
-fn is_cpu_allowed(mask: u64, cpu: u32) -> bool {
-    if mask == 0 {
-        return true;
-    } // 0 => unconstrained
-    let bit = 1u64 << cpu;
-    (mask & bit) != 0
-}
+// Lazy init runqueues (compat shim)
+static INIT: AtomicU8 = AtomicU8::new(0);
+static mut RUNQS: Option<[RunQueue; 64]> = None;
 
 pub struct RunQueue {
-    pub q: VecDeque<usize>,
-} // task ids (usize)
+    pub q: VecDeque<usize>, // task ids
+}
+
 impl RunQueue {
-    pub fn new() -> Self {
-        Self { q: VecDeque::new() }
-    }
-    pub fn push(&mut self, t: usize) {
-        self.q.push_back(t);
-    }
-    pub fn pop(&mut self) -> Option<usize> {
-        self.q.pop_front()
-    }
-    pub fn is_empty(&self) -> bool {
-        self.q.is_empty()
-    }
+    pub fn empty() -> Self { Self { q: VecDeque::new() } }
 }
 
-// Per-CPU runqueues; lazily initialized on first use to avoid adding new boot hooks
-static mut RUNQS: MaybeUninit<[RunQueue; 64]> = MaybeUninit::uninit();
-static RUNQS_INIT: AtomicU8 = AtomicU8::new(0);
-
-#[inline(always)]
-fn ensure_runqs() {
-    if RUNQS_INIT.load(Ordering::Acquire) != 0 {
-        return;
-    }
-    if RUNQS_INIT
-        .compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire)
-        .is_ok()
-    {
-        let arr = core::array::from_fn(|_| RunQueue::new());
+pub fn ensure_init() {
+    if INIT.compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire).is_ok() {
         unsafe {
-            RUNQS.write(arr);
+            RUNQS = Some(core::array::from_fn(|_| RunQueue::empty()));
         }
-        RUNQS_INIT.store(2, Ordering::Release);
-        return;
-    }
-    // wait for other core
-    while RUNQS_INIT.load(Ordering::Acquire) != 2 {
-        core::hint::spin_loop()
+        INIT.store(2, Ordering::Release);
+    } else {
+        while INIT.load(Ordering::Acquire) != 2 { core::hint::spin_loop(); }
     }
 }
 
-#[inline(always)]
-fn runq_mut(cpu: usize) -> &'static mut RunQueue {
-    ensure_runqs();
-    unsafe { &mut (*RUNQS.as_mut_ptr())[cpu] }
-}
-
-pub fn enqueue_task(t: &Task) {
-    // Prefer: last CPU (hint) if allowed by affinity; else: first allowed CPU; else fallback 0
-    let this = unsafe { percpu::this().cpu_id };
-    let mut target = this as usize;
-
-    #[cfg(feature = "affinity")]
-    {
-        if !is_cpu_allowed(t.cpu_affinity_mask, this) {
-            // pick the lowest-indexed allowed CPU
-            let mut found = None;
-            for c in 0..64u32 {
-                if is_cpu_allowed(t.cpu_affinity_mask, c) {
-                    found = Some(c as usize);
-                    break;
-                }
-            }
-            target = found.unwrap_or(0);
-        } else {
-            target = this as usize;
-        }
-    }
-
-    #[cfg(not(feature = "affinity"))]
-    {
-        // prefer this CPU, else fall back to hint
-        target = this as usize;
-    }
-
-    // Your Task uses `id: usize` instead of `tid: u64`
-    runq_mut(target).push(t.id);
-
-    // if placed on a remote CPU, poke it
-    let cur = unsafe { percpu::this().cpu_id } as usize;
-    if target != cur {
-        #[cfg(feature = "smp")]
-        unsafe {
-            ipi::send_resched(target as u32);
-        }
-    }
-}
-
+/// Called by timer/interrupt to select next runnable respecting affinity.
+#[cfg(feature = "affinity")]
 pub fn pick_next() -> Option<usize> {
-    let cpu = unsafe { percpu::this().cpu_id as usize };
-    if let Some(t) = runq_mut(cpu).pop() {
-        return Some(t);
-    }
-    // simple steal
-    for i in 0..64usize {
-        if i == cpu {
-            continue;
-        }
-        if let Some(t) = runq_mut(i).pop() {
-            return Some(t);
-        }
+    ensure_init();
+    let me = PerCpu::this().cpu_id as usize;
+    let rqs = unsafe { RUNQS.as_mut().unwrap() };
+    // Prefer local runqueue
+    if let Some(tid) = rqs[me].q.pop_front() { return Some(tid); }
+    // Affinity‑aware fallback: nearest online cpu
+    for apic in topology::online_cpus() {
+        let idx = topology::cpu_index_from_apic(apic) as usize;
+        if idx == me { continue; }
+        if let Some(tid) = rqs[idx].q.pop_front() { return Some(tid); }
     }
     None
 }
 
-pub fn set_need_resched() {
-    PREEMPT.store(true, Ordering::SeqCst);
+/// Wake a task on a target CPU, enqueue and poke with RESCHED IPI.
+#[cfg(feature = "affinity")]
+pub fn task_wakeup(tid: usize, target_cpu: usize) {
+    ensure_init();
+    let rqs = unsafe { RUNQS.as_mut().unwrap() };
+    if target_cpu < rqs.len() {
+        rqs[target_cpu].q.push_back(tid);
+        // notify
+        let apic = topology::apic_from_cpu_index(target_cpu);
+        send_resched_ipi(apic);
+    }
 }
 
+/// Enqueue respecting a Task's cpu_affinity_mask if present, otherwise local.
 #[cfg(feature = "affinity")]
-pub fn migrate_if_violates_affinity(task: &Task) {
-    let cur = unsafe { percpu::this().cpu_id };
-    if !is_cpu_allowed(task.cpu_affinity_mask, cur) {
-        enqueue_task(task);
-        // yield current
-        set_need_resched();
+pub fn enqueue_task_affinity(t: &Task) {
+    ensure_init();
+    let me = PerCpu::this().cpu_id as usize;
+    let rqs = unsafe { RUNQS.as_mut().unwrap() };
+    let mut placed = false;
+    let mask = t.cpu_affinity_mask;
+    if mask != 0 {
+        let mut idx = 0usize;
+        while idx < rqs.len() {
+            let bit = 1u64 << idx;
+            if (mask & bit) != 0 {
+                rqs[idx].q.push_back(t.id);
+                placed = true;
+                // poke if remote
+                if idx != me {
+                    let apic = topology::apic_from_cpu_index(idx);
+                    send_resched_ipi(apic);
+                }
+                break;
+            }
+            idx += 1;
+        }
     }
+    if !placed {
+        rqs[me].q.push_back(t.id);
+    }
+}
+
+/// Called on context switch to update stats.
+pub fn on_context_switch() {
+    PerCpu::this().bump_ctx_sw();
+}
+
+/// Legacy compatibility function for existing code
+pub fn enqueue_task(t: &Task) {
+    #[cfg(feature = "affinity")]
+    enqueue_task_affinity(t);
+    
+    #[cfg(not(feature = "affinity"))]
+    {
+        ensure_init();
+        let me = PerCpu::this().cpu_id as usize;
+        let rqs = unsafe { RUNQS.as_mut().unwrap() };
+        rqs[me].q.push_back(t.id);
+    }
+}
+
+/// Set need_resched flag for current CPU
+pub fn set_need_resched() {
+    PerCpu::this().need_resched.store(true, Ordering::Release);
+}
+
+/// Lightweight "please schedule soon" nudge used by timer glue.
+#[inline]
+pub fn request_reschedule() {
+    // In the compat shim we just set need_resched again; the actual
+    // reschedule will occur when we return from the interrupt to the
+    // scheduler's epilogue (or next tick).
+    PerCpu::this().need_resched.store(true, core::sync::atomic::Ordering::Release);
+}
+
+/// Return the run-queue length for the given CPU (best-effort, read-only).
+#[cfg(feature="scheduler")]
+pub fn runqueue_len(cpu_idx: usize) -> usize {
+    ensure_init();
+    let rqs = unsafe { RUNQS.as_ref().unwrap() };
+    if cpu_idx >= rqs.len() { return 0; }
+    rqs[cpu_idx].q.len()
+}
+
+/// Convenience: run-queue length on the current CPU.
+#[cfg(feature="scheduler")]
+pub fn runqueue_len_this() -> usize {
+    runqueue_len(PerCpu::this().cpu_id as usize)
 }

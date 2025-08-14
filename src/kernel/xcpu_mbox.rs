@@ -2,6 +2,9 @@
 //! Lock-free per-CPU ring buffers for tiny u64 messages.
 #![allow(dead_code)]
 
+// Lock-free ring buffer uses a static backing array; avoid warning noise for static-mut refs.
+#![allow(static_mut_refs)]
+
 use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
@@ -110,7 +113,7 @@ fn mb_for_cpu(cpu: usize) -> &'static Mailbox {
 /// Enqueue a message to target APIC id and poke with IPI.
 #[cfg(feature = "smp")]
 pub fn send(apic_id: u32, msg: u64) -> Result<(), i64> {
-    let target_cpu = crate::arch::x86_64::topology::cpu_index_from_apic(apic_id).ok_or(-22i64)?;
+    let target_cpu = crate::arch::x86_64::topology::cpu_index_from_apic(apic_id);
     let mb = mb_for_cpu(target_cpu);
     mb.ring.try_push(msg).map_err(|_| -11i64)?;
     ipi::send_mailbox_ipi(apic_id);
