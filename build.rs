@@ -6,7 +6,7 @@ fn main() {
     let out_dir = PathBuf::from("out");
     fs::create_dir_all(&out_dir).ok();
 
-    let kernel_elf = artifact_path("target", "x86_64-unknown-none", "debug", "sis-kernel");
+    let kernel_elf = artifact_path("target", "x86_64-unknown-none", "debug", "sis_kernel");
     let bios_img = out_dir.join("boot-bios.img");
     let stamp = out_dir.join("boot-bios.stamp");
 

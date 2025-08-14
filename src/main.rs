@@ -453,6 +453,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             }
         }
 
+        // Phase 4: Userland selftests (USR_INIT, etc.)
+        #[cfg(all(feature = "userland", feature = "selftests"))]
+        {
+            serial::write_str("[selftest] starting userland validation suite...\n");
+            crate::userland::selftest_usr::run();
+        }
+
         loop {
             arch_x86::cpu::halt();
         }
