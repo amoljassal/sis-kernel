@@ -3,7 +3,6 @@
 #![feature(alloc_error_handler)]
 #![feature(abi_x86_interrupt)]
 #![feature(naked_functions)]
-
 // When we're not building any selftests, the codebase contains many `#[cfg(selftest_...)]` guards the
 // compiler doesn't know about. Allow that noise in *non-selftest* builds only.
 #![cfg_attr(not(feature = "selftests"), allow(unexpected_cfgs))]
