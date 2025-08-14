@@ -24,7 +24,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2025-08-01
-          components: clippy,rustfmt
+          components: clippy,rustfmt,rust-src
       - name: Add targets
         run: |
           rustup target add x86_64-unknown-none
@@ -49,7 +49,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2025-08-01
-          components: clippy,rustfmt
+          components: clippy,rustfmt,rust-src
       - uses: Swatinem/rust-cache@v2
         with:
           key: nightly-2025-08-01
