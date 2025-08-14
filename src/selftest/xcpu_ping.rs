@@ -36,7 +36,7 @@ pub fn run() {
             serial::write_str("[xcpu] send err=");
             serial::write_hex64((-e) as u64);
             serial::write_str("\n");
-            unsafe { qemu::exit_fail(0x6C) }
+            unsafe { crate::arch::x86_64::io::qemu_exit(0x6C) }
         }
         // Opportunistically drain our inbox and ack any pings to us
         for _ in 0..8 {
@@ -79,7 +79,7 @@ pub fn run() {
     if acks == 1000 {
         unsafe { qemu::exit_ok() }
     } else {
-        unsafe { qemu::exit_fail(0x6D) }
+        unsafe { crate::arch::x86_64::io::qemu_exit(0x6D) }
     }
 }
 
