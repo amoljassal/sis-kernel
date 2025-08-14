@@ -553,8 +553,15 @@ static SMP_SCHEDULER: SmpScheduler = SmpScheduler::new();
 
 /// Initialize SMP scheduler for current CPU
 pub fn init_smp_scheduler() {
+    serial::write_str("[smp-scheduler] init_smp_scheduler() entered\n");
+    serial::write_str("[smp-scheduler] Getting CPU ID...\n");
     let cpu_id = percpu::cpu_id();
+    serial::write_str("[smp-scheduler] Got CPU ID: ");
+    serial::write_u64(cpu_id as u64);
+    serial::write_str("\n");
+    serial::write_str("[smp-scheduler] Calling SMP_SCHEDULER.init_cpu()...\n");
     SMP_SCHEDULER.init_cpu(cpu_id);
+    serial::write_str("[smp-scheduler] init_cpu() completed\n");
 }
 
 /// Spawn new task with SMP-aware placement

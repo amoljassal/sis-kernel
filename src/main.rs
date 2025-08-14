@@ -120,10 +120,25 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         // Continue with full kernel initialization - placeholder for now
         serial::write_str("[kernel] memory initialized, entering main loop\n");
 
+        // Initialize per-CPU data for SMP
+        #[cfg(feature = "smp")]
+        {
+            serial::write_str("[kernel] Initializing per-CPU data...\n");
+            match crate::arch::x86_64::percpu::init_bsp_percpu() {
+                Ok(_) => serial::write_str("[kernel] Per-CPU data initialized\n"),
+                Err(e) => {
+                    serial::write_str("[kernel] Per-CPU initialization failed: ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                }
+            }
+        }
+
         // Initialize SMP scheduler (Phase 6B)
         #[cfg(feature = "smp")]
         {
             serial::write_str("[kernel] Initializing SMP scheduler...\n");
+            serial::write_str("[kernel] About to call init_smp_scheduler()\n");
             crate::kernel::smp_scheduler::init_smp_scheduler();
             serial::write_str("[kernel] SMP scheduler initialized\n");
         }

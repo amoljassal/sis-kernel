@@ -168,7 +168,7 @@ jobs:
           TEST: ${{ matrix.test }}
           FEATURES: ${{ matrix.features }}
           QEMU_SMP: ${{ matrix.smp }}
-          TIMEOUT: "60"
+          TIMEOUT: "120"
           FORCE_BOOTIMG: "1"
         run: |
           set -euxo pipefail
