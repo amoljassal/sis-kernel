@@ -2,7 +2,7 @@
 set -euo pipefail
 # Force fully-rendered diagnostics into a file so warnings don't drown errors.
 RUSTFLAGS="-Zmacro-backtrace" \
-cargo +nightly build --target x86_64-unknown-none \
+cargo build --target x86_64-unknown-none \
   --features "apic,smp" \
   --message-format=json-diagnostic-rendered-ansi 2>build.err || true
 echo

@@ -40,7 +40,7 @@ export CARGO_NET_OFFLINE
 export CARGO_TERM_COLOR=always
 export CARGO_INCREMENTAL=1
 echo "[harness] cargo build with smart image generation… (offline=${CARGO_NET_OFFLINE})"
-cargo +nightly build -Z build-std=core,alloc --target x86_64-unknown-none --features "$FEATURES"
+cargo build -Z build-std=core,alloc --target x86_64-unknown-none --features "$FEATURES"
 
 # Sanity: print the image we will boot and its hash  
 IMG="$OUT/boot-bios.img"

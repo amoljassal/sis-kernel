@@ -25,7 +25,7 @@ find target -name "sis_kernel" -delete 2>/dev/null || true
 # Step 2: Clean rebuild with explicit feature control
 echo "[BUILD] Building kernel with features: vfio iommu idt-selftest"
 CARGO_INCREMENTAL=0 \
-cargo +nightly build --no-default-features \
+cargo build --no-default-features \
   --features "vfio iommu idt-selftest" \
   -Z build-std=core,alloc --target x86_64-unknown-none
 
