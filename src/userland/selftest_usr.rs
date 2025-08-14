@@ -20,15 +20,15 @@ use super::pid;
 use super::vfs;
 
 // Distinct failure codes per scenario
-const FAIL_INIT_VFS: u8 = 0x11;
-const FAIL_INIT_ELF: u8 = 0x12;
-const FAIL_SPAWN_TWO_VFS: u8 = 0x21;
-const FAIL_SPAWN_TWO_ELF: u8 = 0x22;
-const FAIL_SPAWN_TWO_PID: u8 = 0x23;
-const FAIL_ELF_EDGES_GOOD: u8 = 0x31;
-const FAIL_ELF_EDGES_BAD: u8 = 0x32;
-const FAIL_VFS_NEG_OPEN: u8 = 0x41;
-const FAIL_VFS_NEG_READ: u8 = 0x42;
+const FAIL_INIT_VFS: u32 = 0x11;
+const FAIL_INIT_ELF: u32 = 0x12;
+const FAIL_SPAWN_TWO_VFS: u32 = 0x21;
+const FAIL_SPAWN_TWO_ELF: u32 = 0x22;
+const FAIL_SPAWN_TWO_PID: u32 = 0x23;
+const FAIL_ELF_EDGES_GOOD: u32 = 0x31;
+const FAIL_ELF_EDGES_BAD: u32 = 0x32;
+const FAIL_VFS_NEG_OPEN: u32 = 0x41;
+const FAIL_VFS_NEG_READ: u32 = 0x42;
 
 /// Minimal "spawn" stub for validation: we don't execute the image here,
 /// we just validate ELF + allocate a PID to prove the loader ingress is sound.
