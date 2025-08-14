@@ -9,6 +9,8 @@ mkdir -p "$OUT"
 export TEST="${TEST:-}"            # e.g. USR_INIT, PFM_NX_EXEC, SMP_2, LAPIC_TIMER, …
 export BOOT="${BOOT:-auto}"        # auto|bios|uefi
 export SMP="${SMP:-1}"             # number of CPUs (SMP_2 sets this to 2 in CI)
+export QEMU_SMP="${QEMU_SMP:-${SMP}}"    # Allow QEMU_SMP to override SMP
+export QEMU_ACCEL="${QEMU_ACCEL:-tcg}"   # QEMU acceleration mode
 export MEM="${MEM:-512M}"
 export FEATURES="${FEATURES:-}"    # optional; auto-filled by _test_flags.sh
 export TIMEOUT="${TIMEOUT:-30}"    # configurable timeout in seconds
@@ -85,8 +87,8 @@ PY
 START_MS=$(_now_ms)
 
 # 4) QEMU common flags - Q35 required for IOMMU/VFIO
-COMMON=(-machine q35,kernel-irqchip=split -m 1024 -cpu qemu64 -smp 1 \
-        -serial file:"$SERIAL_LOG" -display none -no-reboot -no-shutdown \
+COMMON=(-machine q35,accel=${QEMU_ACCEL},kernel-irqchip=split -m 1024 -cpu qemu64 \
+        -smp ${QEMU_SMP} -serial file:"$SERIAL_LOG" -display none -no-reboot -no-shutdown \
         -device isa-debug-exit,iobase=0xf4,iosize=0x04)
 
 # Add Intel IOMMU device for IOMMU feature testing

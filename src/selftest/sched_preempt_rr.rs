@@ -28,8 +28,14 @@ pub fn run() {
     let mut last_rr_ticks = pc.rr_ticks.load(Ordering::Relaxed);
     let mut quantum_resets = 0u32;
 
+    // Scale down for CI where TCG is slow.
+    #[cfg(ci_fast)]
+    const TARGET_TICKS: u32 = 60;
+    #[cfg(not(ci_fast))]
+    const TARGET_TICKS: u32 = 500;
+
     // Run for a while and observe quantum resets
-    while pc.ticks.load(Ordering::Relaxed) - start_ticks < 20 {
+    while pc.ticks.load(Ordering::Relaxed) - start_ticks < TARGET_TICKS {
         let _ = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);
 
         let current_rr = pc.rr_ticks.load(Ordering::Relaxed);

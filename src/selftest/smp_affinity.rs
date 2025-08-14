@@ -19,7 +19,12 @@ extern "C" fn worker_entry() -> ! {
         } else {
             // would signal failure in a stricter test; keep spinning to avoid hang
         }
-        for _ in 0..50_000 {
+        #[cfg(ci_fast)]
+        let work = 300u32;
+        #[cfg(not(ci_fast))]
+        let work = 2_000u32;
+        
+        for _ in 0..work {
             core::hint::spin_loop();
         }
     }

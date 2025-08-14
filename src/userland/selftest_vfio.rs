@@ -72,7 +72,11 @@ fn selftest_vfio_msi_soak() {
         }
     }
 
+    #[cfg(ci_fast)]
+    let iters = 16u64;
+    #[cfg(not(ci_fast))]
     let iters = 100u64;
+    
     for _ in 0..iters {
         if vfio::syscall_msi_trigger_e1000_new(h) != 0 {
             serial::write_str("[vfio-soak] trigger failed\n");

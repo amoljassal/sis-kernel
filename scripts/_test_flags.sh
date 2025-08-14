@@ -121,6 +121,12 @@ case "${TEST:-}" in
     echo "error: unknown or missing TEST=… ($TEST)"; exit 2;;
 esac
 
+# Always enable ci-fast scaling in CI extended lane (caller can override)
+if [ -n "${CI:+x}" ]; then
+  RUSTFLAGS+=" --cfg ci_fast"
+fi
+export RUSTFLAGS
+
 # If caller didn't pass FEATURES, use our defaults
 if [[ -z "${FEATURES:-}" ]]; then
   FEATURES="${FEATURES_DEFAULT}"

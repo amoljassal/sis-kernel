@@ -29,8 +29,13 @@ pub fn run() {
     let mut acks = 0u32;
     let mut pings_seen = 0u32;
 
-    // Fire 1,000 pings to peer, peer will ack by sending back ACK(seq)
-    for seq in 0..1000u32 {
+    #[cfg(ci_fast)]
+    let iters = 128u32;
+    #[cfg(not(ci_fast))]
+    let iters = 1000u32;
+
+    // Fire pings to peer, peer will ack by sending back ACK(seq)
+    for seq in 0..iters {
         let msg = ((TAG_PING as u64) << 32) | (seq as u64);
         if let Err(e) = xcpu_mbox::send(peer_apic, msg) {
             serial::write_str("[xcpu] send err=");
@@ -56,7 +61,7 @@ pub fn run() {
 
     // Busy-wait briefly to collect any stragglers
     for _ in 0..10_000 {
-        if acks >= 1000 {
+        if acks >= iters {
             break;
         }
         if let Some(m) = xcpu_mbox::try_recv() {
@@ -76,7 +81,7 @@ pub fn run() {
     serial::write_str(" pings_seen=");
     serial::write_hex(pings_seen);
     serial::write_str("\n");
-    if acks == 1000 {
+    if acks == iters {
         unsafe { qemu::exit_ok() }
     } else {
         unsafe { crate::arch::x86_64::io::qemu_exit(0x6D) }

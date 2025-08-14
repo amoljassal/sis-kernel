@@ -18,8 +18,13 @@ pub fn run() {
     let mut min_this = usize::MAX;
     let mut max_any = 0usize;
 
+    #[cfg(ci_fast)]
+    let (samples, delay_ms) = (40, 3);
+    #[cfg(not(ci_fast))]
+    let (samples, delay_ms) = (200, 5);
+
     let start = PerCpu::this().ticks.load(Ordering::Relaxed);
-    while PerCpu::this().ticks.load(Ordering::Relaxed) - start < 50 {
+    while PerCpu::this().ticks.load(Ordering::Relaxed) - start < samples {
         let this_len = simple_scheduler::runqueue_len_this();
         let cpu0 = simple_scheduler::runqueue_len(0);
         let cpu1 = simple_scheduler::runqueue_len(1);
@@ -36,8 +41,8 @@ pub fn run() {
         samples_this += 1;
         // do some work on this CPU
         A.fetch_add(1, Ordering::Relaxed);
-        // short pause
-        for _ in 0..10000 {
+        // short pause (scaled by delay_ms)
+        for _ in 0..(delay_ms * 2000) {
             core::hint::spin_loop();
         }
     }
