@@ -28,7 +28,7 @@ jobs:
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: nightly-2025-08-01
-          components: rustfmt, clippy, rust-src
+          components: rustfmt, clippy, rust-src, llvm-tools-preview
           targets: x86_64-unknown-none
           override: true
           # minimal profile avoids downloading docs/etc
@@ -128,7 +128,7 @@ jobs:
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: nightly-2025-08-01
-          components: rustfmt, clippy, rust-src
+          components: rustfmt, clippy, rust-src, llvm-tools-preview
           targets: x86_64-unknown-none
           override: true
           profile: minimal
