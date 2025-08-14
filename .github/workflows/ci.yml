@@ -71,8 +71,6 @@ jobs:
         with:
           key: nightly-2025-08-01
       - name: Build (no default features)
-        env:
-          CARGO_NET_OFFLINE: "true"
         run: cargo build --target x86_64-unknown-none --no-default-features -Z build-std=core,alloc
 
   userland-smoke:
@@ -91,8 +89,6 @@ jobs:
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
       - name: Build (userland)
-        env:
-          CARGO_NET_OFFLINE: "true"
         run: cargo build --target x86_64-unknown-none --features "userland selftests" -Z build-std=core,alloc
       - name: Run USR_INIT (headless)
         env:
@@ -153,8 +149,6 @@ jobs:
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
       - name: "Build (matrix: ${{ matrix.name }})"
-        env:
-          CARGO_NET_OFFLINE: "true"
         run: |
           cargo build --target x86_64-unknown-none --features "${{ matrix.FEATURES }}" -Z build-std=core,alloc
       - name: "Run (matrix: ${{ matrix.name }})"
