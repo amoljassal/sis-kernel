@@ -59,5 +59,9 @@ pub const TEST_FILES: &[TestFile] = &[
         path: "/bin/isoprobe",
         data: BIN_ISOPROBE,
     },
+    TestFile {
+        path: "/sbin/init",
+        data: BIN_HELLO, // Reuse BIN_HELLO as a valid ELF for init
+    },
     // we'll add malformed ELFs in Part B/C
 ];
