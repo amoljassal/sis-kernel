@@ -323,6 +323,9 @@ pub fn get_percpu(cpu_id: u32) -> Option<&'static mut PerCpu> {
 
 /// Initialize BSP (Boot Strap Processor) per-CPU data
 pub fn init_bsp_percpu() -> Result<(), &'static str> {
-    let lapic_id = crate::arch::x86_64::apic::lapic_id();
-    unsafe { init_percpu(0, lapic_id) }
+    // For BSP initialization, use CPU 0 and default LAPIC ID 0
+    // In a full implementation, this would read from CPUID or initialized LAPIC
+    let cpu_id = 0u32;
+    let lapic_id = 0u32; // Default BSP LAPIC ID
+    unsafe { init_percpu(cpu_id, lapic_id) }
 }
