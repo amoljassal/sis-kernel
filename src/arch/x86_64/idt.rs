@@ -152,7 +152,7 @@ pub unsafe fn install_ipi(handler_addr: usize, vector: u8) {
 
 // ----- VFIO runtime support: vector→handle map and TSC latency histogram -----
 #[cfg(feature = "vfio")]
-mod vfio_rt {
+pub mod vfio_rt {
     use crate::kernel::serial;
     use core::sync::atomic::{AtomicU64, Ordering};
 

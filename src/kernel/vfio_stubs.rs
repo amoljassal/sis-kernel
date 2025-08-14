@@ -8,6 +8,6 @@ pub mod stubs {
 #[cfg(feature = "vfio")]
 pub mod stubs {
     pub fn vfio_dump_hist() {
-        crate::kernel::vfio::dump_hist()
+        crate::arch::x86_64::idt::vfio_rt::dump_hist()
     }
 }
