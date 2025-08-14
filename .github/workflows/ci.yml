@@ -76,7 +76,14 @@ jobs:
           FORCE_BOOTIMG: "1"
         run: |
           set -euxo pipefail
-          ./scripts/qemu.sh
+          echo "=== Starting USR_INIT test ==="
+          ./scripts/qemu.sh || {
+            echo "=== USR_INIT test failed with exit code $? ==="
+            echo "=== Checking for output files ==="
+            find out/ -name "*.log" -o -name "*.img" -o -name "*.json" 2>/dev/null || echo "No output files found"
+            ls -la out/ 2>/dev/null || echo "out/ directory not found"
+            exit $?
+          }
 
       - name: Upload artifacts (smoke)
         if: always()
