@@ -158,7 +158,7 @@ jobs:
 
       - name: Build (matrix features)
         env:
-          RUSTFLAGS: "--cfg selftest_${{ matrix.test }} --cfg ci_fast"
+          RUSTFLAGS: "--cfg selftest_${{ matrix.test }}"
         run: |
           set -euxo pipefail
           cargo build --target x86_64-unknown-none --features "${{ matrix.features }}" -Z build-std=core,alloc
@@ -166,11 +166,13 @@ jobs:
       - name: Run selftest (${{ matrix.name }})
         env:
           TEST: ${{ matrix.test }}
+          FEATURES: ${{ matrix.features }}
           QEMU_SMP: ${{ matrix.smp }}
-          TIMEOUT: 180
+          TIMEOUT: "180"
+          FORCE_BOOTIMG: "1"
         run: |
           set -euxo pipefail
-          ./scripts/ci/run-extended.sh
+          ./scripts/qemu.sh
 
       - name: "Upload artifacts (${{ matrix.name }})"
         if: always()
@@ -179,7 +181,5 @@ jobs:
           name: artifacts-${{ matrix.name }}
           path: |
             out/qemu-serial.log
-            out/build-stdout.txt
-            out/build-stderr.txt
             out/*.img
             out/*.json

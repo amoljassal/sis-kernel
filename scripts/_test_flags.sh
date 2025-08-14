@@ -66,7 +66,12 @@ case "${TEST:-}" in
     ;;
 
   # ---- Userland Phase 4 / 4.1 ----
-  USR_INIT|USR_SPAWN_TWO|USR_ELF_EDGES|USR_VFS_NEG)
+  USR_INIT)
+    # USR_INIT is part of Fast Lane - avoid cfg flags to prevent std lib rebuild
+    export RUSTFLAGS=""
+    FEATURES_DEFAULT="userland selftests"
+    ;;
+  USR_SPAWN_TWO|USR_ELF_EDGES|USR_VFS_NEG)
     export RUSTFLAGS="--cfg selftest_${TEST}"
     FEATURES_DEFAULT="userland"
     ;;
@@ -121,11 +126,6 @@ case "${TEST:-}" in
     echo "error: unknown or missing TEST=… ($TEST)"; exit 2;;
 esac
 
-# Always enable ci-fast scaling in CI extended lane (caller can override)
-if [ -n "${CI:+x}" ]; then
-  RUSTFLAGS+=" --cfg ci_fast"
-fi
-export RUSTFLAGS
 
 # If caller didn't pass FEATURES, use our defaults
 if [[ -z "${FEATURES:-}" ]]; then

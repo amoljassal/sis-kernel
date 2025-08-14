@@ -179,8 +179,8 @@ pub fn run() {
         run_usr_vfs_neg();
         return;
     }
-    serial::write_str("[selftest] userland: no scenario selected\n");
-    unsafe {
-        qemu_exit(0x7F);
-    }
+    
+    // Default to USR_INIT test (including when selftest_USR_INIT is set or no cfg is provided)
+    // This allows USR_INIT to work without cfg flags for fast compilation
+    run_usr_init();
 }

@@ -51,7 +51,6 @@ selftests = []
 
 # Minimal set we use for clippy job; add or remove features here if needed
 ci-lint-min = []
-ci-fast = []  # scale down long-running selftests under CI
 
 [build-dependencies]
 # Builder restored after resolving kernel compilation bottleneck  
