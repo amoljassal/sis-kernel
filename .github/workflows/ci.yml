@@ -10,99 +10,77 @@ on:
     # Note: Automated lint baseline runs separately via lint-baseline.yml workflow
     - cron: "17 3 * * 1"
 
+env:
+  CARGO_TERM_COLOR: always
+  # Hard pin the Rust toolchain we build with (matches rust-toolchain.toml)
+  RUSTUP_TOOLCHAIN: nightly-2025-08-01
+
 jobs:
-  # ---------- Toolchain setup anchor to keep versions consistent ----------
-  _toolchain:
-    name: Setup toolchain (anchor)
+  fast-lane:
+    name: Fast Lane (lint + minimal + USR_INIT)
     runs-on: ubuntu-22.04
-    outputs:
-      rustc: ${{ steps.versions.outputs.rustc }}
-      cargo: ${{ steps.versions.outputs.cargo }}
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Rust toolchain (nightly pinned)
-        uses: dtolnay/rust-toolchain@nightly
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: nightly-2025-08-01
-          components: clippy,rustfmt,rust-src
-      - name: Add targets
+          components: rustfmt, clippy, rust-src
+          targets: x86_64-unknown-none
+          override: true
+          # minimal profile avoids downloading docs/etc
+          profile: minimal
+
+      - name: Verify toolchain & components
         run: |
-          rustup target add x86_64-unknown-none
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+          set -euxo pipefail
+          rustc -Vv
+          cargo -V
+          rustup show active-toolchain
+          rustup component list --installed
+          rustup target list --installed
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
         with:
-          cache-on-failure: true
-          key: nightly-2025-08-01
-      - name: Versions
-        id: versions
+          key: ${{ runner.os }}-cargo-${{ env.RUSTUP_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+
+      - name: Lint (minimal features)
         run: |
-          echo "rustc=$(rustc -V)" >> $GITHUB_OUTPUT
-          echo "cargo=$(cargo -V)" >> $GITHUB_OUTPUT
+          set -euxo pipefail
+          cargo fmt --all -- --check
+          cargo clippy --target x86_64-unknown-none --no-default-features --features "ci-lint-min" -Z build-std=core,alloc -- -A warnings
 
-  # ---------- Fast lane (blocking) ----------
-  lint-min:
-    name: Lint (minimal)
-    runs-on: ubuntu-22.04
-    needs: [_toolchain]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: nightly-2025-08-01
-          components: clippy,rustfmt,rust-src
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: nightly-2025-08-01
-      - name: rustfmt
-        run: cargo fmt --all -- --check
-      - name: clippy (ci-lint-min)  
-        run: cargo clippy --target x86_64-unknown-none --no-default-features --features "ci-lint-min" -Z build-std=core,alloc -- -A warnings
+      - name: Build (minimal features)
+        run: |
+          set -euxo pipefail
+          cargo build --target x86_64-unknown-none --no-default-features -Z build-std=core,alloc
 
-  build-min:
-    name: Build (minimal)
-    runs-on: ubuntu-22.04
-    needs: [lint-min]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: nightly-2025-08-01
-          components: rust-src
-      - name: Add rust-src component (backup)
-        run: rustup component add rust-src --toolchain nightly-2025-08-01
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: nightly-2025-08-01
-      - name: Build (no default features)
-        run: cargo build --target x86_64-unknown-none --no-default-features -Z build-std=core,alloc
-
-  userland-smoke:
-    name: Userland smoke (USR_INIT)
-    runs-on: ubuntu-22.04
-    needs: [build-min]
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-        with:
-          toolchain: nightly-2025-08-01
-          components: rust-src
-      - name: Add rust-src component (backup)
-        run: rustup component add rust-src --toolchain nightly-2025-08-01
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: nightly-2025-08-01
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
-      - name: Build (userland)
-        run: cargo build --target x86_64-unknown-none --features "userland selftests" -Z build-std=core,alloc
-      - name: Run USR_INIT (headless)
+
+      - name: Build (userland features)
+        run: |
+          set -euxo pipefail
+          cargo build --target x86_64-unknown-none --features "userland selftests" -Z build-std=core,alloc
+
+      - name: USR_INIT smoke (headless QEMU)
         env:
           TEST: USR_INIT
           FEATURES: "userland selftests"
           TIMEOUT: "45"
           FORCE_BOOTIMG: "1"
-        run: ./scripts/qemu.sh
+        run: |
+          set -euxo pipefail
+          ./scripts/qemu.sh
+
       - name: Upload artifacts (smoke)
         if: always()
         uses: actions/upload-artifact@v4
@@ -113,61 +91,87 @@ jobs:
             out/*.img
             out/*.json
 
-  # ---------- Extended lane (non-blocking; shows failures but doesn't break the green check) ----------
-  extended-nonblocking:
-    name: Extended (SMP/Scheduler/VFIO) – non-blocking
+  extended:
+    name: Extended Lane (SMP + VFIO)
     runs-on: ubuntu-22.04
-    needs: [userland-smoke]
+    timeout-minutes: 45
     continue-on-error: true
-    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: smp_ipc_ping
-            TEST: IPC_XCPU_PING
-            FEATURES: "apic smp selftests"
-            QEMU_SMP: "2"
-          - name: vfio_msi_smoke
-            TEST: VFIO_MSI_SMOKE
-            FEATURES: "vfio qemu-intel-iommu-sim apic selftests"
-            QEMU_SMP: "1"
-          - name: sched_fairness_meter
-            TEST: SCHED_FAIR_METER
-            FEATURES: "apic smp scheduler selftests"
-            QEMU_SMP: "2"
-          - name: smp_affinity_validation
-            TEST: SMP_AFFINITY
-            FEATURES: "apic smp affinity selftests"
-            QEMU_SMP: "2"
-          - name: preemptive_scheduling
-            TEST: SCHED_PREEMPT_RR
-            FEATURES: "apic smp scheduler selftests"
-            QEMU_SMP: "2"
+          - name: SMP IPC_XCPU_PING
+            test: IPC_XCPU_PING
+            features: "apic smp selftests"
+            smp: 2
+          - name: VFIO MSI SMOKE
+            test: VFIO_MSI_SMOKE
+            features: "vfio qemu-intel-iommu-sim apic selftests"
+            smp: 1
+          - name: SCHED_FAIR_METER
+            test: SCHED_FAIR_METER
+            features: "apic smp scheduler selftests"
+            smp: 2
+          - name: SMP_AFFINITY
+            test: SMP_AFFINITY
+            features: "apic smp affinity selftests"
+            smp: 2
+          - name: SCHED_PREEMPT_RR
+            test: SCHED_PREEMPT_RR
+            features: "apic smp scheduler selftests"
+            smp: 2
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: nightly-2025-08-01
-          components: rust-src
-      - name: Add rust-src component (backup)
-        run: rustup component add rust-src --toolchain nightly-2025-08-01
-      - uses: Swatinem/rust-cache@v2
+          components: rustfmt, clippy, rust-src
+          targets: x86_64-unknown-none
+          override: true
+          profile: minimal
+
+      - name: Verify toolchain & components
+        run: |
+          set -euxo pipefail
+          rustc -Vv
+          cargo -V
+          rustup show active-toolchain
+          rustup component list --installed
+          rustup target list --installed
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
         with:
-          key: nightly-2025-08-01
+          key: ${{ runner.os }}-cargo-${{ env.RUSTUP_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+
       - name: Install QEMU
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
-      - name: "Build (matrix: ${{ matrix.name }})"
-        run: |
-          cargo build --target x86_64-unknown-none --features "${{ matrix.FEATURES }}" -Z build-std=core,alloc
-      - name: "Run (matrix: ${{ matrix.name }})"
+
+      - name: Build (matrix features)
         env:
-          TEST: ${{ matrix.TEST }}
-          FEATURES: ${{ matrix.FEATURES }}
-          QEMU_SMP: ${{ matrix.QEMU_SMP }}
+          RUSTFLAGS: "--cfg selftest_${{ matrix.test }}"
+        run: |
+          set -euxo pipefail
+          cargo build --target x86_64-unknown-none --features "${{ matrix.features }}" -Z build-std=core,alloc
+
+      - name: Run selftest (${{ matrix.name }})
+        env:
+          TEST: ${{ matrix.test }}
+          FEATURES: ${{ matrix.features }}
+          QEMU_SMP: ${{ matrix.smp }}
           TIMEOUT: "60"
           FORCE_BOOTIMG: "1"
-        run: ./scripts/qemu.sh
+        run: |
+          set -euxo pipefail
+          ./scripts/qemu.sh
+
       - name: "Upload artifacts (${{ matrix.name }})"
         if: always()
         uses: actions/upload-artifact@v4
