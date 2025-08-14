@@ -17,10 +17,10 @@ use crate::kernel::task::Task;
 #[cfg(feature = "per-task-mm")]
 use x86_64::registers::control::Cr3;
 
-#[unsafe(naked)]
+#[naked]
 #[no_mangle]
 pub unsafe extern "C" fn switch_context(old: *mut TaskContext, new: *const TaskContext) {
-    core::arch::naked_asm!(
+    core::arch::asm!(
         // Save callee‑saved registers into the old context
         "mov [rdi + 0x00], r15",
         "mov [rdi + 0x08], r14",
