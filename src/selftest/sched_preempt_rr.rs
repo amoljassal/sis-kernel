@@ -30,9 +30,9 @@ pub fn run() {
 
     // Scale down for CI where TCG is slow.
     #[cfg(ci_fast)]
-    const TARGET_TICKS: u32 = 60;
+    const TARGET_TICKS: u64 = 60;
     #[cfg(not(ci_fast))]
-    const TARGET_TICKS: u32 = 500;
+    const TARGET_TICKS: u64 = 500;
 
     // Run for a while and observe quantum resets
     while pc.ticks.load(Ordering::Relaxed) - start_ticks < TARGET_TICKS {
