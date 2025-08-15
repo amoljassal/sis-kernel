@@ -55,7 +55,7 @@ lazy_static! {
 }
 
 pub fn init() {
-    use x86_64::instructions::segmentation::{CS, Segment};
+    use x86_64::instructions::segmentation::{Segment, CS};
     use x86_64::instructions::tables::load_tss;
 
     GDT.0.load();
