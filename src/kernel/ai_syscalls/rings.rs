@@ -235,7 +235,7 @@ impl CognitiveRing {
     }
     
     /// Post completion to completion queue
-    pub fn post_completion(&self, completion: CognitiveCompletion) -> Result<(), CognitiveError> {
+    pub fn post_completion(&mut self, completion: CognitiveCompletion) -> Result<(), CognitiveError> {
         let current_tail = self.cq_tail.load(Ordering::Acquire);
         let current_head = self.cq_head.load(Ordering::Acquire);
         
@@ -327,9 +327,7 @@ pub struct RingStats {
     pub avg_latency_cycles: u32,
 }
 
-/// Global ring registry for managing cognitive rings
-static RING_REGISTRY: Mutex<BTreeMap<i32, CognitiveRing>> = Mutex::new(BTreeMap::new());
-static NEXT_RING_FD: AtomicU32 = AtomicU32::new(1000);
+/// Ring management functions initialized
 
 /// Initialize ring buffer subsystem
 pub fn init() -> Result<(), &'static str> {
@@ -385,8 +383,8 @@ pub fn wait_completions(ring_fd: i32, min_count: u32, timeout_ns: u64) -> Result
 
 /// Post completion to cognitive ring (internal kernel use)
 pub fn post_completion_to_ring(ring_fd: i32, completion: CognitiveCompletion) -> Result<(), CognitiveError> {
-    let registry = RING_REGISTRY.lock();
-    let ring = registry.get(&ring_fd).ok_or(CognitiveError::NoEnt)?;
+    let mut registry = RING_REGISTRY.lock();
+    let ring = registry.get_mut(&ring_fd).ok_or(CognitiveError::NoEnt)?;
     
     ring.post_completion(completion)
 }

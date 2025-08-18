@@ -271,20 +271,17 @@ pub struct PoolStats {
 
 /// Global registries for memory management
 static PINNED_REGIONS: Mutex<BTreeMap<u64, PinnedTensorRegion>> = Mutex::new(BTreeMap::new());
-static TENSOR_POOLS: Mutex<BTreeMap<u32, TensorMemoryPool>> = Mutex::new(BTreeMap::new());
 static NEXT_REGION_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Initialize memory management subsystem
 pub fn init() -> Result<(), &'static str> {
     serial::write_str("[MEMORY] Initializing AI memory management\n");
     
-    // Clear existing regions and pools
+    // Clear existing pinned regions
     PINNED_REGIONS.lock().clear();
-    TENSOR_POOLS.lock().clear();
     
-    // Create default tensor pool
-    let default_pool = TensorMemoryPool::new(0, 64 * 1024 * 1024)?; // 64MB default pool
-    TENSOR_POOLS.lock().insert(0, default_pool);
+    // Reset region counter
+    NEXT_REGION_ID.store(1, Ordering::Relaxed);
     
     serial::write_str("[MEMORY] AI memory management initialized\n");
     Ok(())
@@ -422,7 +419,7 @@ fn allocate_region_id() -> u64 {
 /// Get memory statistics
 pub fn get_memory_stats() -> MemoryStats {
     let pinned_count = PINNED_REGIONS.lock().len();
-    let pool_count = TENSOR_POOLS.lock().len();
+    let pool_count = 0; // Simplified for now
     
     MemoryStats {
         pinned_regions: pinned_count,

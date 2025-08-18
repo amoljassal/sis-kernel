@@ -148,6 +148,7 @@ impl CognitiveError {
     }
 }
 
+
 /// Hardware capabilities reported by AI HAL
 #[derive(Debug, Clone)]
 pub struct HardwareCapabilities {
@@ -164,6 +165,8 @@ pub struct HardwareCapabilities {
 #[derive(Debug)]
 pub struct CognitiveMetrics {
     pub operations_completed: AtomicU64,
+    pub operations_submitted: AtomicU64,
+    pub rings_created: AtomicU64,
     pub total_latency_ns: AtomicU64,
     pub cache_hits: AtomicU64,
     pub cache_misses: AtomicU64,
@@ -175,6 +178,8 @@ impl CognitiveMetrics {
     pub const fn new() -> Self {
         Self {
             operations_completed: AtomicU64::new(0),
+            operations_submitted: AtomicU64::new(0),
+            rings_created: AtomicU64::new(0),
             total_latency_ns: AtomicU64::new(0),
             cache_hits: AtomicU64::new(0),
             cache_misses: AtomicU64::new(0),
@@ -240,27 +245,48 @@ fn handle_cog_setup(args: [u64; 6]) -> Result<u64, CognitiveError> {
 /// Submit batch of cognitive operations
 fn handle_cog_submit(args: [u64; 6]) -> Result<u64, CognitiveError> {
     let ring_fd = args[0] as i32;
-    let count = args[1] as u32;
-    let flags = args[2] as u32;
+    let ops_ptr = args[1];
+    let num_ops = args[2] as u32;
     
-    rings::submit_operations(ring_fd, count, flags)
+    // Convert user pointer to descriptors array (simplified for now)
+    let ops_slice = unsafe {
+        core::slice::from_raw_parts(
+            ops_ptr as *const CognitiveDescriptor,
+            num_ops as usize
+        )
+    };
+    
+    let submitted = rings::submit_operations(ring_fd, ops_slice)?;
+    Ok(submitted as u64)
 }
 
 /// Poll for completions (non-blocking)
 fn handle_cog_poll(args: [u64; 6]) -> Result<u64, CognitiveError> {
     let ring_fd = args[0] as i32;
-    let max_count = args[1] as u32;
+    let completions_ptr = args[1];
+    let max_completions = args[2] as u32;
     
-    rings::poll_completions(ring_fd, max_count)
+    // Convert user pointer to completions array
+    let completions_slice = unsafe {
+        core::slice::from_raw_parts_mut(
+            completions_ptr as *mut CognitiveCompletion,
+            max_completions as usize
+        )
+    };
+    
+    let polled = rings::poll_completions(ring_fd, completions_slice)?;
+    Ok(polled as u64)
 }
 
 /// Wait for completions (blocking with timeout)
 fn handle_cog_wait(args: [u64; 6]) -> Result<u64, CognitiveError> {
     let ring_fd = args[0] as i32;
     let min_count = args[1] as u32;
-    let timeout_ns = args[2] as u64;
+    let timeout_ns = args[2];
     
-    rings::wait_completions(ring_fd, min_count, timeout_ns)
+    let timeout = if timeout_ns == 0 { None } else { Some(timeout_ns) };
+    let completed = rings::wait_for_completions(ring_fd, min_count, timeout)?;
+    Ok(completed as u64)
 }
 
 /// Read ARM64 cycle counter (Grok optimization)
@@ -335,13 +361,25 @@ pub fn sys_cognitive_setup(ring_entries: u32, flags: u32) -> Result<i32, Cogniti
         return Err(CognitiveError::Invalid);
     }
     
+    // Create ring parameters
+    let params = CognitiveRingParams {
+        sq_entries: ring_entries,
+        cq_entries: ring_entries * 2, // More completion entries than submission
+        flags,
+        reserved: [0; 4], // Reserved for future use
+    };
+    
+    // Get a temporary ring fd and process id
+    let ring_fd = 1000; // Will be replaced by register_ring
+    let process_id = get_current_process_id();
+    
     // Create cognitive ring
-    let ring = rings::CognitiveRing::new(ring_entries)?;
-    let ring_fd = rings::register_ring(ring)?;
+    let ring = rings::CognitiveRing::new(params, ring_fd, process_id)?;
+    let actual_ring_fd = rings::register_ring(ring)?;
     
     COGNITIVE_METRICS.rings_created.fetch_add(1, Ordering::Relaxed);
     
-    Ok(ring_fd)
+    Ok(actual_ring_fd)
 }
 
 /// Syscall: Submit batch of operations to cognitive ring
@@ -402,4 +440,10 @@ pub fn sys_cognitive_wait(ring_fd: i32, min_completions: u32, timeout_ns: Option
     let completed = rings::wait_for_completions(ring_fd, min_completions, timeout_ns)?;
     
     Ok(completed)
+}
+
+/// Get current process ID (placeholder integration with SIS process management)
+fn get_current_process_id() -> u64 {
+    // TODO: Integrate with actual SIS kernel process management
+    1234
 }
