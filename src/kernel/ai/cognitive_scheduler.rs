@@ -6,13 +6,13 @@
 //! - AI-aware CPU affinity and NUMA topology optimization
 //! - Dynamic priority adjustment based on workload characteristics
 
-use crate::kernel::ai::{CognitivePriority, WorkloadType};
 use crate::kernel::ai::primitives::{metrics, ResourceGuard};
-use crate::kernel::types::Tid;
+use crate::kernel::ai::{CognitivePriority, WorkloadType};
 use crate::kernel::serial;
-use core::sync::atomic::{AtomicU64, AtomicU32, AtomicPtr, Ordering};
-use alloc::collections::VecDeque;
+use crate::kernel::types::Tid;
 use alloc::boxed::Box;
+use alloc::collections::VecDeque;
+use core::sync::atomic::{AtomicPtr, AtomicU32, AtomicU64, Ordering};
 use spin::Mutex;
 
 /// Maximum number of priority levels
@@ -49,7 +49,7 @@ impl LockFreePriorityQueue {
     /// Create new lock-free priority queue
     pub const fn new() -> Self {
         const NULL_TASK: AtomicPtr<CognitiveTask> = AtomicPtr::new(core::ptr::null_mut());
-        
+
         LockFreePriorityQueue {
             tasks: [NULL_TASK; MAX_TASKS_PER_QUEUE],
             head: AtomicU32::new(0),
@@ -67,11 +67,11 @@ impl LockFreePriorityQueue {
 
         // Allocate task on heap
         let boxed_task = Box::into_raw(Box::new(task));
-        
+
         // Find next available slot
         let tail_idx = self.tail.load(Ordering::Acquire);
         let slot_idx = tail_idx % MAX_TASKS_PER_QUEUE as u32;
-        
+
         // Try to place task in slot
         let expected = core::ptr::null_mut();
         match self.tasks[slot_idx as usize].compare_exchange_weak(
@@ -87,7 +87,9 @@ impl LockFreePriorityQueue {
             }
             Err(_) => {
                 // Slot was taken, deallocate and retry
-                unsafe { let _ = Box::from_raw(boxed_task); }
+                unsafe {
+                    let _ = Box::from_raw(boxed_task);
+                }
                 Err("Queue slot contention")
             }
         }
@@ -102,17 +104,14 @@ impl LockFreePriorityQueue {
 
         let head_idx = self.head.load(Ordering::Acquire);
         let slot_idx = head_idx % MAX_TASKS_PER_QUEUE as u32;
-        
+
         // Try to take task from slot
-        let task_ptr = self.tasks[slot_idx as usize].swap(
-            core::ptr::null_mut(),
-            Ordering::Acquire,
-        );
+        let task_ptr = self.tasks[slot_idx as usize].swap(core::ptr::null_mut(), Ordering::Acquire);
 
         if !task_ptr.is_null() {
             self.head.store(head_idx + 1, Ordering::Release);
             self.size.fetch_sub(1, Ordering::Relaxed);
-            
+
             let task = unsafe { *Box::from_raw(task_ptr) };
             Some(task)
         } else {
@@ -143,7 +142,7 @@ impl CognitiveScheduler {
     /// Create new cognitive scheduler
     pub const fn new() -> Self {
         const EMPTY_QUEUE: LockFreePriorityQueue = LockFreePriorityQueue::new();
-        
+
         CognitiveScheduler {
             priority_queues: [EMPTY_QUEUE; MAX_PRIORITY_LEVELS],
             task_counter: AtomicU64::new(0),
@@ -161,13 +160,13 @@ impl CognitiveScheduler {
         workload_type: WorkloadType,
     ) -> Result<(), &'static str> {
         let current_time = self.get_current_time_us();
-        
+
         // Calculate deadline based on priority and workload type
         let deadline_offset_us = match priority {
-            CognitivePriority::RealTimeInference => 1000,  // 1ms for real-time
-            CognitivePriority::Interactive => 10_000,       // 10ms for interactive
-            CognitivePriority::Background => 100_000,       // 100ms for background
-            CognitivePriority::Maintenance => 1_000_000,    // 1s for maintenance
+            CognitivePriority::RealTimeInference => 1000, // 1ms for real-time
+            CognitivePriority::Interactive => 10_000,     // 10ms for interactive
+            CognitivePriority::Background => 100_000,     // 100ms for background
+            CognitivePriority::Maintenance => 1_000_000,  // 1s for maintenance
         };
 
         let cognitive_task = CognitiveTask {
@@ -182,7 +181,7 @@ impl CognitiveScheduler {
         // Enqueue to appropriate priority queue
         let priority_idx = priority as usize;
         self.priority_queues[priority_idx].enqueue(cognitive_task)?;
-        
+
         self.total_scheduled.fetch_add(1, Ordering::Relaxed);
         metrics().task_started();
 

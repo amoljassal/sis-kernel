@@ -10,8 +10,8 @@ pub mod ipi;
 
 use crate::arch::x86_64::{apic, percpu_clean as percpu};
 use crate::kernel::serial;
-use x86_64::registers::control;
 use core::sync::atomic::{AtomicU32, Ordering};
+use x86_64::registers::control;
 
 // AP boot status tracking to prevent indefinite hangs
 const AP_BOOT_UNSTARTED: u32 = 0;
@@ -90,10 +90,12 @@ pub fn test_smp_online() -> Result<(), &'static str> {
     let timeout_ms = 5000; // 5 seconds timeout
     for elapsed_ms in 0..timeout_ms {
         let mut any_ap_booted = false;
-        
+
         // Check all APs we tried to start
         for target_apic_id in 1..4 {
-            if target_apic_id != current_lapic_id && (target_apic_id as usize) < AP_BOOT_STATUS.len() {
+            if target_apic_id != current_lapic_id
+                && (target_apic_id as usize) < AP_BOOT_STATUS.len()
+            {
                 let status = AP_BOOT_STATUS[target_apic_id as usize].load(Ordering::Relaxed);
                 if status == AP_BOOT_SUCCESS {
                     serial::write_str("[smp] AP ");
@@ -103,15 +105,15 @@ pub fn test_smp_online() -> Result<(), &'static str> {
                 }
             }
         }
-        
+
         // If we got at least one AP, that's success for this test
         if any_ap_booted {
             break;
         }
-        
+
         // Simple 1ms delay using CPU cycles
         simple_delay_us(1000);
-        
+
         // Print progress every 1000ms
         if elapsed_ms % 1000 == 0 {
             serial::write_str("[smp] still waiting... (");
@@ -148,7 +150,7 @@ unsafe fn start_ap(apic_id: u32) -> Result<(), &'static str> {
     // CRITICAL FIX: Patch the PML4 table in the copied trampoline
     // The trampoline contains an empty PML4 table that causes APs to page fault
     let bsp_pml4_phys = control::Cr3::read().0.start_address().as_u64();
-    
+
     // Calculate offset to pml4_table in the copied trampoline
     extern "C" {
         static pml4_table: u64;
@@ -156,10 +158,10 @@ unsafe fn start_ap(apic_id: u32) -> Result<(), &'static str> {
     let pml4_table_ptr = &pml4_table as *const u64;
     let pml4_offset = (pml4_table_ptr as usize) - (trampoline_start_ptr as usize);
     let pml4_patch_addr = (trampoline_addr + pml4_offset as u64) as *mut u64;
-    
+
     // Patch the first PML4 entry with BSP's page table
     core::ptr::write(pml4_patch_addr, bsp_pml4_phys | 0x3); // Present + Writable
-    
+
     serial::write_str("[smp] copied trampoline to 0x");
     crate::kernel::serial::write_hex64(trampoline_addr);
     serial::write_str(" size=");

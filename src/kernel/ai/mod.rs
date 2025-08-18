@@ -1,5 +1,5 @@
 //! AI-Native Kernel Subsystem
-//! 
+//!
 //! This module implements the core AI subsystem for SIS Kernel, providing:
 //! - Cognitive task scheduling with <1ms latency guarantees
 //! - AI-aware memory management and resource allocation
@@ -14,11 +14,11 @@
 //! - Predictable latency for cognitive workloads
 
 pub mod cognitive_scheduler;
-pub mod memory_pool;
 pub mod fabric;
-pub mod primitives;
-pub mod inference;
 pub mod hardware_accel;
+pub mod inference;
+pub mod memory_pool;
+pub mod primitives;
 
 use crate::kernel::serial;
 use crate::kernel::types::Tid;
@@ -27,7 +27,7 @@ use crate::kernel::types::Tid;
 static mut AI_INITIALIZED: bool = false;
 
 /// Initialize the AI subsystem
-/// 
+///
 /// This must be called during kernel boot after basic memory management
 /// and SMP initialization are complete.
 pub fn init() -> Result<(), &'static str> {
@@ -104,6 +104,6 @@ pub fn schedule_cognitive_task(
     if !is_initialized() {
         return Err("AI subsystem not initialized");
     }
-    
+
     cognitive_scheduler::schedule_task(task_id, priority, workload_type)
 }

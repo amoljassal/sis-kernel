@@ -6,30 +6,30 @@
 //! - NUMA-aware allocation for multi-socket systems
 //! - Memory pressure monitoring and adaptive allocation
 
-use crate::kernel::ai::primitives::{SafeBuffer, metrics};
+use crate::kernel::ai::primitives::{metrics, SafeBuffer};
 use crate::kernel::serial;
-use core::sync::atomic::{AtomicU64, AtomicU32, AtomicPtr, Ordering};
-use core::alloc::Layout;
-use spin::Mutex;
-use alloc::vec::Vec;
 use alloc::alloc::{alloc_zeroed, dealloc};
+use alloc::vec::Vec;
+use core::alloc::Layout;
+use core::sync::atomic::{AtomicPtr, AtomicU32, AtomicU64, Ordering};
+use spin::Mutex;
 
 /// Memory pool configuration constants
-const POOL_SIZE_SMALL: usize = 4096;    // 4KB buffers for small AI operations
-const POOL_SIZE_MEDIUM: usize = 65536;  // 64KB buffers for medium workloads
+const POOL_SIZE_SMALL: usize = 4096; // 4KB buffers for small AI operations
+const POOL_SIZE_MEDIUM: usize = 65536; // 64KB buffers for medium workloads
 const POOL_SIZE_LARGE: usize = 1048576; // 1MB buffers for large models
 const POOL_SIZE_HUGE: usize = 16777216; // 16MB buffers for very large models
 
-const MAX_POOLS_PER_SIZE: usize = 64;   // Maximum number of pools per size class
+const MAX_POOLS_PER_SIZE: usize = 64; // Maximum number of pools per size class
 const ALIGNMENT_REQUIREMENT: usize = 64; // 64-byte alignment for SIMD operations
 
 /// Memory pool size classes for different AI workloads
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PoolSizeClass {
-    Small,   // Neural network weights, small tensors
-    Medium,  // Intermediate activations, gradients
-    Large,   // Large model parameters, batch data
-    Huge,    // Very large models, distributed training data
+    Small,  // Neural network weights, small tensors
+    Medium, // Intermediate activations, gradients
+    Large,  // Large model parameters, batch data
+    Huge,   // Very large models, distributed training data
 }
 
 impl PoolSizeClass {
@@ -75,15 +75,13 @@ impl AIBuffer {
     /// Create new AI buffer
     fn new(size_class: PoolSizeClass) -> Result<Self, &'static str> {
         let size = size_class.buffer_size();
-        
+
         // Create aligned layout for DMA safety
         let layout = Layout::from_size_align(size, ALIGNMENT_REQUIREMENT)
             .map_err(|_| "Invalid buffer layout")?;
 
         // Allocate zeroed memory
-        let data = unsafe {
-            alloc_zeroed(layout)
-        };
+        let data = unsafe { alloc_zeroed(layout) };
 
         if data.is_null() {
             return Err("Buffer allocation failed");
@@ -139,7 +137,7 @@ impl Drop for AIBuffer {
         if !self.data.is_null() {
             let layout = Layout::from_size_align(self.size, ALIGNMENT_REQUIREMENT)
                 .expect("Invalid layout in drop");
-            
+
             unsafe {
                 dealloc(self.data, layout);
             }
@@ -188,11 +186,11 @@ impl MemoryPool {
         // No available buffers, create new one
         let mut buffer = AIBuffer::new(self.size_class)?;
         buffer.alloc_time_us = self.get_current_time_us();
-        
+
         self.total_created.fetch_add(1, Ordering::Relaxed);
         let allocated = self.total_allocated.fetch_add(1, Ordering::Relaxed) + 1;
         self.peak_allocated.fetch_max(allocated, Ordering::Relaxed);
-        
+
         metrics().update_peak_memory(allocated * self.size_class.buffer_size() as u64);
 
         Ok(buffer)
@@ -283,14 +281,12 @@ impl AIMemoryManager {
     pub fn allocate(&self, size: usize) -> Result<AIBuffer, &'static str> {
         let size_class = PoolSizeClass::from_size(size);
         let pool_idx = size_class as usize;
-        
+
         let buffer = self.pools[pool_idx].allocate()?;
-        
+
         // Update total memory usage
-        self.total_memory_usage.fetch_add(
-            size_class.buffer_size() as u64,
-            Ordering::Relaxed
-        );
+        self.total_memory_usage
+            .fetch_add(size_class.buffer_size() as u64, Ordering::Relaxed);
 
         Ok(buffer)
     }
@@ -299,12 +295,10 @@ impl AIMemoryManager {
     pub fn deallocate(&self, buffer: AIBuffer) -> Result<(), &'static str> {
         let size_class = buffer.size_class();
         let pool_idx = size_class as usize;
-        
+
         // Update total memory usage
-        self.total_memory_usage.fetch_sub(
-            size_class.buffer_size() as u64,
-            Ordering::Relaxed
-        );
+        self.total_memory_usage
+            .fetch_sub(size_class.buffer_size() as u64, Ordering::Relaxed);
 
         self.pools[pool_idx].deallocate(buffer)
     }

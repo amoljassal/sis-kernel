@@ -6,11 +6,11 @@
 //! - ValidatedPointer: Bounds-checked pointer arithmetic for AI data structures
 //! - ResourceGuard: RAII resource management for AI operations
 
-use core::sync::atomic::{AtomicU64, AtomicU32, AtomicUsize, Ordering};
+use alloc::alloc::{alloc_zeroed, dealloc};
+use core::alloc::Layout;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
-use core::alloc::Layout;
-use alloc::alloc::{alloc_zeroed, dealloc};
+use core::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 
 /// DMA-safe buffer with bounds checking and alignment guarantees
 /// Implements ChatGPT's recommendation for safe AI data handling
@@ -33,11 +33,10 @@ impl<T> SafeBuffer<T> {
         let layout = Layout::from_size_align(
             capacity * core::mem::size_of::<T>(),
             64, // 64-byte alignment for modern CPUs
-        ).map_err(|_| "Invalid buffer layout")?;
+        )
+        .map_err(|_| "Invalid buffer layout")?;
 
-        let ptr = unsafe { 
-            alloc_zeroed(layout) as *mut T
-        };
+        let ptr = unsafe { alloc_zeroed(layout) as *mut T };
 
         if ptr.is_null() {
             return Err("Buffer allocation failed");
@@ -111,10 +110,8 @@ impl<T> SafeBuffer<T> {
 impl<T> Drop for SafeBuffer<T> {
     fn drop(&mut self) {
         if !self.ptr.is_null() {
-            let layout = Layout::from_size_align(
-                self.capacity * core::mem::size_of::<T>(),
-                64,
-            ).expect("Invalid layout in drop");
+            let layout = Layout::from_size_align(self.capacity * core::mem::size_of::<T>(), 64)
+                .expect("Invalid layout in drop");
 
             unsafe {
                 // Drop all constructed elements
@@ -161,12 +158,13 @@ impl AtomicMetrics {
     /// Record inference operation completion
     pub fn record_inference(&self, latency_us: u64) {
         self.inference_ops.fetch_add(1, Ordering::Relaxed);
-        
+
         // Update running average latency
         let current_avg = self.avg_inference_latency_us.load(Ordering::Relaxed);
         let ops_count = self.inference_ops.load(Ordering::Relaxed);
         let new_avg = (current_avg * (ops_count - 1) + latency_us) / ops_count;
-        self.avg_inference_latency_us.store(new_avg, Ordering::Relaxed);
+        self.avg_inference_latency_us
+            .store(new_avg, Ordering::Relaxed);
     }
 
     /// Record training step completion
@@ -176,7 +174,8 @@ impl AtomicMetrics {
 
     /// Update peak memory usage if current exceeds peak
     pub fn update_peak_memory(&self, current_bytes: u64) {
-        self.peak_memory_bytes.fetch_max(current_bytes, Ordering::Relaxed);
+        self.peak_memory_bytes
+            .fetch_max(current_bytes, Ordering::Relaxed);
     }
 
     /// Increment active tasks counter
@@ -191,10 +190,8 @@ impl AtomicMetrics {
 
     /// Update hardware accelerator utilization
     pub fn update_hw_utilization(&self, utilization_percent: u32) {
-        self.hw_accel_utilization.store(
-            utilization_percent.min(100), 
-            Ordering::Relaxed
-        );
+        self.hw_accel_utilization
+            .store(utilization_percent.min(100), Ordering::Relaxed);
     }
 }
 
@@ -255,7 +252,9 @@ pub fn init() -> Result<(), &'static str> {
     // Reset metrics to known state
     AI_METRICS.inference_ops.store(0, Ordering::Relaxed);
     AI_METRICS.training_steps.store(0, Ordering::Relaxed);
-    AI_METRICS.avg_inference_latency_us.store(0, Ordering::Relaxed);
+    AI_METRICS
+        .avg_inference_latency_us
+        .store(0, Ordering::Relaxed);
     AI_METRICS.peak_memory_bytes.store(0, Ordering::Relaxed);
     AI_METRICS.active_tasks.store(0, Ordering::Relaxed);
     AI_METRICS.hw_accel_utilization.store(0, Ordering::Relaxed);
@@ -270,11 +269,11 @@ pub fn test_primitives() -> Result<(), &'static str> {
     let mut buffer: SafeBuffer<u64> = SafeBuffer::new(10)?;
     buffer.push(42)?;
     buffer.push(84)?;
-    
+
     if buffer.get(0) != Some(&42) {
         return Err("SafeBuffer get failed");
     }
-    
+
     if buffer.len() != 2 {
         return Err("SafeBuffer length incorrect");
     }
@@ -283,7 +282,7 @@ pub fn test_primitives() -> Result<(), &'static str> {
     let metrics = metrics();
     metrics.record_inference(1000);
     metrics.task_started();
-    
+
     if metrics.inference_ops.load(Ordering::Relaxed) != 1 {
         return Err("AtomicMetrics inference ops failed");
     }

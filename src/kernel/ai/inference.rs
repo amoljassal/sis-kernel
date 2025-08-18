@@ -6,11 +6,11 @@
 //! - Hardware acceleration integration
 //! - Batch processing and request queueing
 
-use crate::kernel::ai::primitives::{SafeBuffer, metrics};
 use crate::kernel::ai::memory_pool::{allocate_ai_buffer, AIBuffer};
+use crate::kernel::ai::primitives::{metrics, SafeBuffer};
 use crate::kernel::ai::{CognitivePriority, WorkloadType};
 use crate::kernel::serial;
-use core::sync::atomic::{AtomicU64, AtomicU32, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 /// Model identifier type
 pub type ModelId = u32;
@@ -115,7 +115,7 @@ impl InferenceEngine {
     /// Create new inference engine
     pub const fn new() -> Self {
         const EMPTY_ENTRY: Option<ModelCacheEntry> = None;
-        
+
         InferenceEngine {
             model_cache: [EMPTY_ENTRY; 16],
             request_counter: AtomicU64::new(0),
@@ -132,7 +132,7 @@ impl InferenceEngine {
             if slot.is_none() {
                 // Allocate buffer for model parameters
                 let parameter_buffer = allocate_ai_buffer(
-                    metadata.parameter_count as usize * 4 // Assume 4 bytes per parameter
+                    metadata.parameter_count as usize * 4, // Assume 4 bytes per parameter
                 )?;
 
                 let cache_entry = ModelCacheEntry {
@@ -151,13 +151,18 @@ impl InferenceEngine {
     }
 
     /// Execute inference request
-    pub fn execute_inference(&self, request: InferenceRequest) -> Result<InferenceResponse, &'static str> {
+    pub fn execute_inference(
+        &self,
+        request: InferenceRequest,
+    ) -> Result<InferenceResponse, &'static str> {
         let start_time = self.get_current_time_us();
-        
+
         // Find model in cache
         let model_entry = self.find_model(request.model_id)?;
         model_entry.usage_count.fetch_add(1, Ordering::Relaxed);
-        model_entry.last_access_time.store(start_time, Ordering::Relaxed);
+        model_entry
+            .last_access_time
+            .store(start_time, Ordering::Relaxed);
 
         // Validate input data size
         if request.input_data.size() != model_entry.metadata.input_size {
@@ -236,7 +241,7 @@ impl InferenceEngine {
     ) -> Result<(), &'static str> {
         // Stub implementation - would contain actual inference logic
         // This would integrate with hardware acceleration APIs
-        
+
         // Simulate computation delay
         for _ in 0..1000 {
             core::hint::spin_loop();

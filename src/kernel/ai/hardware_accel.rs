@@ -6,10 +6,10 @@
 //! - CPU SIMD optimization detection
 //! - DMA-based data transfer optimization
 
-use crate::kernel::ai::primitives::{metrics, AtomicMetrics};
 use crate::kernel::ai::memory_pool::AIBuffer;
+use crate::kernel::ai::primitives::{metrics, AtomicMetrics};
 use crate::kernel::serial;
-use core::sync::atomic::{AtomicU32, AtomicU64, AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 
 /// Hardware acceleration types supported
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -80,21 +80,21 @@ impl AccelDevice {
 
         // Simulate operation execution
         let start_time = self.get_current_time_us();
-        
+
         // Update utilization during operation
         self.utilization.store(85, Ordering::Relaxed);
-        
+
         // Simulate compute work
         for _ in 0..1000 {
             core::hint::spin_loop();
         }
-        
+
         // Reset utilization
         self.utilization.store(10, Ordering::Relaxed);
-        
+
         let end_time = self.get_current_time_us();
         let duration = end_time - start_time;
-        
+
         // Update statistics
         self.operations_completed.fetch_add(1, Ordering::Relaxed);
         metrics().update_hw_utilization(self.utilization.load(Ordering::Relaxed));
@@ -176,7 +176,7 @@ impl HardwareAccelManager {
     /// Create new hardware acceleration manager
     pub const fn new() -> Self {
         const EMPTY_DEVICE: Option<AccelDevice> = None;
-        
+
         HardwareAccelManager {
             devices: [EMPTY_DEVICE; 4],
             device_count: 0,
@@ -187,7 +187,7 @@ impl HardwareAccelManager {
     /// Initialize hardware acceleration manager
     pub fn init(&mut self) -> Result<(), &'static str> {
         self.device_count = 0;
-        
+
         // Detect and initialize available hardware acceleration
         self.detect_cpu_capabilities()?;
         self.detect_npu_capabilities()?;
@@ -209,16 +209,16 @@ impl HardwareAccelManager {
         // Always add CPU device (simplified detection)
         let cpu_caps = AccelCapabilities {
             accel_type: AccelType::CPU,
-            compute_units: 8, // Assume 8 cores
+            compute_units: 8,             // Assume 8 cores
             memory_bandwidth_mbps: 50000, // ~50 GB/s typical
-            peak_flops: 500_000_000_000, // ~500 GFLOPS
+            peak_flops: 500_000_000_000,  // ~500 GFLOPS
             mixed_precision: true,
             sparse_ops: false,
         };
 
         self.devices[self.device_count] = Some(AccelDevice::new(cpu_caps));
         self.device_count += 1;
-        
+
         serial::write_str("[hw_accel] CPU SIMD acceleration detected\n");
         Ok(())
     }
@@ -234,8 +234,8 @@ impl HardwareAccelManager {
         {
             let npu_caps = AccelCapabilities {
                 accel_type: AccelType::NPU,
-                compute_units: 16, // M1 Neural Engine has 16 cores
-                memory_bandwidth_mbps: 68000, // Unified memory bandwidth
+                compute_units: 16,              // M1 Neural Engine has 16 cores
+                memory_bandwidth_mbps: 68000,   // Unified memory bandwidth
                 peak_flops: 15_800_000_000_000, // ~15.8 TOPS
                 mixed_precision: true,
                 sparse_ops: true,
@@ -243,7 +243,7 @@ impl HardwareAccelManager {
 
             self.devices[self.device_count] = Some(AccelDevice::new(npu_caps));
             self.device_count += 1;
-            
+
             serial::write_str("[hw_accel] Neural Engine (NPU) detected\n");
         }
 
@@ -259,7 +259,7 @@ impl HardwareAccelManager {
         // Simplified GPU detection
         let gpu_caps = AccelCapabilities {
             accel_type: AccelType::GPU,
-            compute_units: 1024, // Typical GPU core count
+            compute_units: 1024,            // Typical GPU core count
             memory_bandwidth_mbps: 500_000, // ~500 GB/s high-end GPU
             peak_flops: 20_000_000_000_000, // ~20 TFLOPS
             mixed_precision: true,
@@ -268,7 +268,7 @@ impl HardwareAccelManager {
 
         self.devices[self.device_count] = Some(AccelDevice::new(gpu_caps));
         self.device_count += 1;
-        
+
         serial::write_str("[hw_accel] GPU acceleration detected\n");
         Ok(())
     }
@@ -282,7 +282,7 @@ impl HardwareAccelManager {
     ) -> Result<u64, &'static str> {
         // Find best device for operation
         let device_idx = self.select_best_device(operation)?;
-        
+
         if let Some(device) = &self.devices[device_idx] {
             let duration = device.execute_operation(input, output, operation)?;
             self.total_operations.fetch_add(1, Ordering::Relaxed);
@@ -332,7 +332,7 @@ impl HardwareAccelManager {
     /// Get manager statistics
     pub fn get_stats(&self) -> [Option<DeviceStats>; 4] {
         let mut stats = [None; 4];
-        
+
         for (idx, device_opt) in self.devices.iter().enumerate() {
             if let Some(device) = device_opt {
                 stats[idx] = Some(device.get_stats());

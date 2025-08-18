@@ -87,8 +87,8 @@ impl CognitiveFabric {
             DeviceType::RaspberryPi4 => DeviceCapabilities {
                 has_npu: false,
                 has_gpu: false,
-                memory_mb: 4096,  // 4GB RAM
-                cpu_cores: 4,     // 4 ARM Cortex-A72
+                memory_mb: 4096, // 4GB RAM
+                cpu_cores: 4,    // 4 ARM Cortex-A72
                 network_bandwidth_mbps: 100,
             },
             DeviceType::X86Desktop => DeviceCapabilities {
@@ -128,7 +128,7 @@ impl CognitiveFabric {
     pub fn distribute_task(&self, task: DistributedTask) -> Result<u32, &'static str> {
         // Find optimal node for task execution
         let target_node_id = self.select_optimal_node(&task)?;
-        
+
         if target_node_id == self.local_node.node_id {
             // Execute locally
             self.execute_local_task(&task)?;
