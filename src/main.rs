@@ -494,6 +494,41 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             crate::userland::selftest_usr::run();
         }
 
+        // ARM64 AI-Native Kernel Performance Validation
+        #[cfg(feature = "ai")]
+        {
+            serial::write_str("[CFVS] Starting ARM64 AI-native kernel validation...\n");
+            match crate::kernel::validation::init() {
+                Ok(_) => {
+                    match crate::kernel::validation::run_validation() {
+                        Ok(summary) => {
+                            serial::write_str("[CFVS] Validation completed: ");
+                            if summary.overall_passed {
+                                serial::write_str("PASS");
+                            } else {
+                                serial::write_str("FAIL");
+                            }
+                            serial::write_str("\n[CFVS] Results: ");
+                            crate::kernel::serial::write_dec(summary.passed_tests as u64);
+                            serial::write_str("/");
+                            crate::kernel::serial::write_dec(summary.total_tests as u64);
+                            serial::write_str(" tests passed\n");
+                        }
+                        Err(e) => {
+                            serial::write_str("[CFVS] Validation failed: ");
+                            serial::write_str(e);
+                            serial::write_str("\n");
+                        }
+                    }
+                }
+                Err(e) => {
+                    serial::write_str("[CFVS] Validation init failed: ");
+                    serial::write_str(e);
+                    serial::write_str("\n");
+                }
+            }
+        }
+
         loop {
             arch_x86::cpu::halt();
         }

@@ -114,7 +114,7 @@ pub struct RaftConsensus {
 }
 
 /// Cluster state maintained by Raft
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ClusterState {
     /// Active nodes in cluster
     pub nodes: BTreeMap<NodeId, NodeCapabilities>,
