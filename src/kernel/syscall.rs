@@ -40,7 +40,7 @@ use crate::kernel::ipc;
 
 pub type SyscallHandler = fn(u64, u64, u64, u64, u64, u64);
 
-static mut SYSCALL_TABLE: [Option<SyscallHandler>; 128] = [None; 128];
+static mut SYSCALL_TABLE: [Option<SyscallHandler>; 4096] = [None; 4096];
 
 pub const SYS_WRITE: usize = 1;
 pub const SYS_EXIT: usize = 2;
@@ -104,6 +104,12 @@ pub const SYS_VFIO_MSI_TRIGGER_E1000: usize = 0x5A;
 #[cfg(feature = "affinity")]
 pub const SYS_SET_AFFINITY: u64 = 0x61;
 
+// Phase 7: AI-Native Cognitive syscalls (0x1000-0x1003)
+pub const SYS_COG_SETUP: u64 = 4000;   // 0xFA0 - Create cognitive channel
+pub const SYS_COG_SUBMIT: u64 = 4001;  // 0xFA1 - Submit operations batch
+pub const SYS_COG_POLL: u64 = 4002;    // 0xFA2 - Non-blocking completion check
+pub const SYS_COG_WAIT: u64 = 4003;    // 0xFA3 - Block until completions
+
 pub fn init() {
     unsafe {
         for slot in SYSCALL_TABLE.iter_mut() {
@@ -160,6 +166,19 @@ pub fn init() {
         {
             SYSCALL_TABLE[SYS_SET_AFFINITY as usize] = Some(sys_set_affinity);
         }
+
+        // Phase 7: AI-Native Cognitive syscalls
+        SYSCALL_TABLE[SYS_COG_SETUP as usize] = Some(sys_cog_setup);
+        SYSCALL_TABLE[SYS_COG_SUBMIT as usize] = Some(sys_cog_submit);
+        SYSCALL_TABLE[SYS_COG_POLL as usize] = Some(sys_cog_poll);
+        SYSCALL_TABLE[SYS_COG_WAIT as usize] = Some(sys_cog_wait);
+    }
+    
+    // Initialize AI syscalls subsystem
+    if let Err(e) = crate::kernel::ai_syscalls::init() {
+        serial::write_str("[syscall] AI subsystem init failed: ");
+        serial::write_str(e);
+        serial::write_str("\n");
     }
 }
 
@@ -1017,5 +1036,83 @@ fn sys_set_affinity(mask: u64, _a1: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64)
             crate::kernel::simple_scheduler::enqueue_task(&*tref);
         }
         crate::kernel::simple_scheduler::set_need_resched();
+    }
+}
+
+// Phase 7: AI-Native Cognitive syscall implementations
+
+/// Create cognitive ring buffer for AI operations
+fn sys_cog_setup(ring_entries: u64, flags: u64, _a2: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::ai_syscalls::sys_cognitive_setup(ring_entries as u32, flags as u32) {
+        Ok(ring_fd) => {
+            serial::write_str("[sys_cog_setup] Cognitive ring created, fd=");
+            serial::write_u64(ring_fd as u64);
+            serial::write_str("\n");
+        }
+        Err(err) => {
+            serial::write_str("[sys_cog_setup] Failed to create cognitive ring: ");
+            serial::write_str(err.as_str());
+            serial::write_str("\n");
+        }
+    }
+}
+
+/// Submit batch of AI operations to cognitive ring
+fn sys_cog_submit(ring_fd: u64, ops_ptr: u64, num_ops: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::ai_syscalls::sys_cognitive_submit(
+        ring_fd as i32,
+        ops_ptr,
+        num_ops as u32,
+    ) {
+        Ok(submitted) => {
+            serial::write_str("[sys_cog_submit] Submitted ");
+            serial::write_u64(submitted as u64);
+            serial::write_str(" operations\n");
+        }
+        Err(err) => {
+            serial::write_str("[sys_cog_submit] Failed to submit operations: ");
+            serial::write_str(err.as_str());
+            serial::write_str("\n");
+        }
+    }
+}
+
+/// Poll for completed AI operations (non-blocking)
+fn sys_cog_poll(ring_fd: u64, completions_ptr: u64, max_completions: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::ai_syscalls::sys_cognitive_poll(
+        ring_fd as i32,
+        completions_ptr,
+        max_completions as u32,
+    ) {
+        Ok(completed) => {
+            serial::write_str("[sys_cog_poll] Retrieved ");
+            serial::write_u64(completed as u64);
+            serial::write_str(" completions\n");
+        }
+        Err(err) => {
+            serial::write_str("[sys_cog_poll] Failed to poll completions: ");
+            serial::write_str(err.as_str());
+            serial::write_str("\n");
+        }
+    }
+}
+
+/// Wait for AI operations to complete (blocking)
+fn sys_cog_wait(ring_fd: u64, min_completions: u64, timeout_ns: u64, _a3: u64, _a4: u64, _a5: u64) {
+    match crate::kernel::ai_syscalls::sys_cognitive_wait(
+        ring_fd as i32,
+        min_completions as u32,
+        if timeout_ns == 0 { None } else { Some(timeout_ns) },
+    ) {
+        Ok(completed) => {
+            serial::write_str("[sys_cog_wait] Completed ");
+            serial::write_u64(completed as u64);
+            serial::write_str(" operations\n");
+        }
+        Err(err) => {
+            serial::write_str("[sys_cog_wait] Failed to wait for completions: ");
+            serial::write_str(err.as_str());
+            serial::write_str("\n");
+        }
     }
 }

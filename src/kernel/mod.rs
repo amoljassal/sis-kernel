@@ -29,6 +29,7 @@ pub mod syscall;
 pub mod task;
 pub mod task_table;
 pub mod validation;
+pub mod ai_syscalls;
 pub mod types;
 pub mod vfio;
 pub mod vfio_stubs;
