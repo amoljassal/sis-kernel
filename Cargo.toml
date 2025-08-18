@@ -24,6 +24,8 @@ lazy_static = { version = "1.4.0", default-features = false, features = ["spin_n
 pic8259 = { version = "0.10.1", default-features = false }
 # Bitflags for capability management
 bitflags = { version = "2.9.1", default-features = false }
+# Half-precision floating point support for NEON SIMD
+half = { version = "2.4.1", default-features = false, features = ["bytemuck"] }
 
 [features]
 default = []

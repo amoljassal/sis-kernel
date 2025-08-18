@@ -14,6 +14,7 @@
 //! - Predictable latency for cognitive workloads
 
 pub mod cognitive_scheduler;
+pub mod distributed;
 pub mod fabric;
 pub mod hardware_accel;
 pub mod inference;
@@ -104,6 +105,8 @@ pub enum WorkloadType {
     Preprocessing,
     /// Model serving/deployment
     Serving,
+    /// Data processing operations
+    DataProcessing,
 }
 
 /// Request cognitive scheduling for a task

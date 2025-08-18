@@ -19,7 +19,7 @@ pub type ModelId = u32;
 pub type RequestId = u64;
 
 /// Model metadata
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ModelMetadata {
     pub model_id: ModelId,
     pub name: &'static str,
@@ -57,7 +57,7 @@ pub enum AccelerationType {
 }
 
 /// Inference request
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct InferenceRequest {
     pub request_id: RequestId,
     pub model_id: ModelId,
@@ -68,7 +68,7 @@ pub struct InferenceRequest {
 }
 
 /// Inference response
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct InferenceResponse {
     pub request_id: RequestId,
     pub model_id: ModelId,

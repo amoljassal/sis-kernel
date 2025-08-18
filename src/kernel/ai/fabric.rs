@@ -24,7 +24,7 @@ pub enum DeviceType {
 }
 
 /// Fabric node descriptor
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FabricNode {
     pub node_id: u32,
     pub device_type: DeviceType,
@@ -163,11 +163,11 @@ impl CognitiveFabric {
 
     /// Calculate suitability score for a node
     fn calculate_node_score(&self, node: &FabricNode, task: &DistributedTask) -> u32 {
-        let mut score = 100; // Base score
+        let mut score: u32 = 100; // Base score
 
         // Penalize high load
         let load = node.current_load.load(Ordering::Relaxed);
-        score = score.saturating_sub(load);
+        score = score.saturating_sub(load as u32);
 
         // Bonus for preferred device type
         if let Some(preferred) = task.preferred_device_type {
@@ -189,7 +189,7 @@ impl CognitiveFabric {
         // Penalize network latency for remote nodes
         if node.node_id != self.local_node.node_id {
             let latency = node.network_latency_us.load(Ordering::Relaxed);
-            score = score.saturating_sub(latency / 1000); // Convert us to score penalty
+            score = score.saturating_sub((latency / 1000) as u32); // Convert us to score penalty
         }
 
         score

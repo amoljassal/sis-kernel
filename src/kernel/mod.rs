@@ -24,6 +24,7 @@ pub mod simple_scheduler;
 #[cfg(feature = "smp")]
 pub mod smp_scheduler;
 pub mod spawn;
+pub mod sync;
 pub mod syscall;
 pub mod task;
 pub mod task_table;

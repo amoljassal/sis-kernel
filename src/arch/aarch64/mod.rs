@@ -8,7 +8,13 @@
 //! - ARM SMMU (System Memory Management Unit) for IOMMU
 
 use crate::kernel::ai::{CognitivePriority, WorkloadType};
+use crate::kernel::sync::InitCell;
 use core::sync::atomic::{AtomicU64, Ordering};
+
+pub mod dma;
+pub mod mmio;
+pub mod neural_engine;
+pub mod neon_simd_optimized as neon_simd;
 
 /// ARM64 CPU core identification
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -331,44 +337,37 @@ pub mod memory {
     }
 }
 
-/// Global ARM64 capabilities
-static mut ARM64_CAPS: Option<ARM64Capabilities> = None;
-/// Global ARM64 AI context
-static mut ARM64_AI_CTX: Option<ARM64AIContext> = None;
+/// Global ARM64 capabilities (memory-safe initialization)
+static ARM64_CAPS: InitCell<ARM64Capabilities> = InitCell::new();
+/// Global ARM64 AI context (memory-safe initialization)
+static ARM64_AI_CTX: InitCell<ARM64AIContext> = InitCell::new();
 
 /// Initialize ARM64 architecture support
 pub fn init() -> Result<(), &'static str> {
-    unsafe {
-        if ARM64_CAPS.is_some() {
-            return Ok(());
-        }
+    // Memory-safe initialization using InitCell
+    let capabilities = ARM64_CAPS.init(|| ARM64Capabilities::detect());
+    let _ai_context = ARM64_AI_CTX.init(|| {
+        ARM64AIContext::new(capabilities).expect("Failed to initialize ARM64 AI context")
+    });
 
-        let capabilities = ARM64Capabilities::detect();
-        let ai_context = ARM64AIContext::new(&capabilities)?;
+    // Initialize subsystems
+    interrupts::GIC::init()?;
+    memory::PageTable::init()?;
+    memory::SMMU::init()?;
+    
+    // Initialize NEON SIMD optimizations
+    neon_simd::init()?;
 
-        ARM64_CAPS = Some(capabilities);
-        ARM64_AI_CTX = Some(ai_context);
-
-        // Initialize subsystems
-        interrupts::GIC::init()?;
-        memory::PageTable::init()?;
-        memory::SMMU::init()?;
-
-        crate::kernel::serial::write_str("[ARM64] Architecture initialized with AI acceleration support\n");
-        Ok(())
-    }
+    crate::kernel::serial::write_str("[ARM64] Architecture initialized with AI acceleration and NEON SIMD support\n");
+    Ok(())
 }
 
 /// Get ARM64 capabilities
 pub fn capabilities() -> Result<&'static ARM64Capabilities, &'static str> {
-    unsafe {
-        ARM64_CAPS.as_ref().ok_or("ARM64 not initialized")
-    }
+    ARM64_CAPS.get().ok_or("ARM64 not initialized")
 }
 
-/// Get ARM64 AI context
+/// Get ARM64 AI context  
 pub fn ai_context() -> Result<&'static ARM64AIContext, &'static str> {
-    unsafe {
-        ARM64_AI_CTX.as_ref().ok_or("ARM64 AI context not initialized")
-    }
+    ARM64_AI_CTX.get().ok_or("ARM64 AI context not initialized")
 }

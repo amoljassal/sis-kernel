@@ -58,6 +58,7 @@ impl PoolSizeClass {
 }
 
 /// AI memory buffer with metadata
+#[derive(Debug)]
 pub struct AIBuffer {
     /// Raw buffer data
     data: *mut u8,

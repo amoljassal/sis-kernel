@@ -223,6 +223,8 @@ impl CognitiveScheduler {
             WorkloadType::Preprocessing => Some(1),
             // Serving uses performance cores for low latency
             WorkloadType::Serving => Some(0),
+            // Data processing can use efficiency cores
+            WorkloadType::DataProcessing => Some(1),
         }
     }
 
