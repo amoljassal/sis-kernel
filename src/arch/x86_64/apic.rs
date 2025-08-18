@@ -243,13 +243,22 @@ const ICR_NO_SHORTHAND: u32 = 0 << 18;
 
 /// Send IPI to target APIC ID with given ICR low bits.
 /// Raw IPI send function (low-level)
-pub unsafe fn send_ipi_raw(apic_id: u32, icr_low: u32) {
-    // Write hi then low.
-    lapic_write(LAPIC_REG_ICR_HIGH, apic_id << 24);
-    lapic_write(LAPIC_REG_ICR_LOW, icr_low | ICR_NO_SHORTHAND);
-    // Busy-wait until delivery finished (bit12: Delivery Status).
-    while (lapic_read(LAPIC_REG_ICR_LOW) & (1 << 12)) != 0 {
-        core::hint::spin_loop();
+pub fn send_ipi_raw(apic_id: u32, icr_low: u32) {
+    unsafe {
+        // Write hi then low.
+        lapic_write(LAPIC_REG_ICR_HIGH, apic_id << 24);
+        lapic_write(LAPIC_REG_ICR_LOW, icr_low | ICR_NO_SHORTHAND);
+        // Busy-wait until delivery finished (bit12: Delivery Status).
+        while (lapic_read(LAPIC_REG_ICR_LOW) & (1 << 12)) != 0 {
+            core::hint::spin_loop();
+        }
+    }
+}
+
+/// Check if ICR delivery is still pending
+pub fn read_icr_delivery_pending() -> bool {
+    unsafe {
+        (lapic_read(LAPIC_REG_ICR_LOW) & (1 << 12)) != 0
     }
 }
 

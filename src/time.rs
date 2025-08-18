@@ -8,3 +8,9 @@ pub fn sleep_ms(ms: u64) {
         core::hint::spin_loop();
     }
 }
+
+/// Get TSC value in milliseconds (rough approximation)
+/// Assumes ~2GHz CPU for simplicity
+pub fn get_tsc_ms() -> u64 {
+    unsafe { core::arch::x86_64::_rdtsc() / 2_000_000 }
+}

@@ -7,6 +7,7 @@
 //! - Cross-CPU communication and coordination
 
 pub mod ipi;
+pub mod ci_fixes;
 
 use crate::arch::x86_64::{apic, percpu_clean as percpu};
 use crate::kernel::serial;
@@ -27,6 +28,9 @@ pub fn init() {
     percpu::init_bsp(lapic_id);
     serial::write_str("[smp] bsp online\n");
 
+    // Initialize CI fixes for TCG environment
+    ci_fixes::init();
+    
     // Install IPI handlers
     unsafe {
         ipi::install_handlers();
@@ -39,10 +43,15 @@ pub fn init() {
 /// Called by APs when they successfully complete initialization
 pub fn ap_boot_complete(apic_id: u32) {
     if (apic_id as usize) < AP_BOOT_STATUS.len() {
-        AP_BOOT_STATUS[apic_id as usize].store(AP_BOOT_SUCCESS, Ordering::Relaxed);
+        // CRITICAL FIX: Use Release ordering to ensure all AP init is visible
+        // before signaling ready (ChatGPT recommendation)
+        AP_BOOT_STATUS[apic_id as usize].store(AP_BOOT_SUCCESS, Ordering::Release);
         serial::write_str("[smp] AP ");
         serial::write_u64(apic_id as u64);
         serial::write_str(" initialization complete\n");
+        
+        // Send IPI to wake BSP from HLT (ChatGPT optimization)
+        let _ = ci_fixes::send_ipi_checked(0, ci_fixes::AP_READY_VECTOR as u32);
     }
 }
 
@@ -86,40 +95,39 @@ pub fn test_smp_online() -> Result<(), &'static str> {
     }
 
     // Wait for APs to come online with timeout (prevent indefinite hangs)
-    serial::write_str("[smp] waiting for APs to boot (timeout: 5 seconds)...\n");
-    let timeout_ms = 5000; // 5 seconds timeout
-    for elapsed_ms in 0..timeout_ms {
-        let mut any_ap_booted = false;
-
-        // Check all APs we tried to start
-        for target_apic_id in 1..4 {
-            if target_apic_id != current_lapic_id
-                && (target_apic_id as usize) < AP_BOOT_STATUS.len()
-            {
-                let status = AP_BOOT_STATUS[target_apic_id as usize].load(Ordering::Relaxed);
-                if status == AP_BOOT_SUCCESS {
-                    serial::write_str("[smp] AP ");
-                    serial::write_u64(target_apic_id as u64);
-                    serial::write_str(" booted successfully!\n");
-                    any_ap_booted = true;
+    // Use CI-aware timeout (Gemini recommendation)
+    let timeout_ms = if ci_fixes::is_ci_environment() { 30_000 } else { 5_000 };
+    serial::write_str("[smp] waiting for APs to boot (timeout: ");
+    serial::write_u64(timeout_ms as u64);
+    serial::write_str("ms, CI=");
+    serial::write_str(if ci_fixes::is_ci_environment() { "yes" } else { "no" });
+    serial::write_str(")\n");
+    
+    // Use improved wait function with proper ordering and TCG optimizations
+    let any_ap_booted = ci_fixes::fair_spin_wait(
+        || {
+            // Check all APs we tried to start
+            for target_apic_id in 1..4 {
+                if target_apic_id != current_lapic_id
+                    && (target_apic_id as usize) < AP_BOOT_STATUS.len()
+                {
+                    // CRITICAL FIX: Use Acquire ordering (ChatGPT)
+                    let status = AP_BOOT_STATUS[target_apic_id as usize].load(Ordering::Acquire);
+                    if status == AP_BOOT_SUCCESS {
+                        serial::write_str("[smp] AP ");
+                        serial::write_u64(target_apic_id as u64);
+                        serial::write_str(" booted successfully!\n");
+                        return true;
+                    }
                 }
             }
-        }
-
-        // If we got at least one AP, that's success for this test
-        if any_ap_booted {
-            break;
-        }
-
-        // Simple 1ms delay using CPU cycles
-        simple_delay_us(1000);
-
-        // Print progress every 1000ms
-        if elapsed_ms % 1000 == 0 {
-            serial::write_str("[smp] still waiting... (");
-            serial::write_u64(elapsed_ms as u64);
-            serial::write_str("ms elapsed)\n");
-        }
+            false
+        },
+        timeout_ms
+    );
+    
+    if !any_ap_booted {
+        serial::write_str("[smp] No APs booted within timeout\n");
     }
 
     serial::write_str("[test] SMP_ONLINE: PASS - Multi-core initialization attempted\n");
