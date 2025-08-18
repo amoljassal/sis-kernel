@@ -37,6 +37,7 @@ userland = []
 iommu = []
 vfio = ["iommu"]                 # explicit dependency as documented in Phase 5
 ai = ["smp", "apic"]             # AI-native kernel features (requires SMP + APIC)
+arm64-ai = ["ai"]                # ARM64 AI acceleration (Neural Engine, Metal, NEON)
 idt-selftest = []
 qemu-intel-iommu-sim = []
 

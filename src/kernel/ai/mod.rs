@@ -20,6 +20,9 @@ pub mod inference;
 pub mod memory_pool;
 pub mod primitives;
 
+#[cfg(target_arch = "aarch64")]
+pub mod cognitive_scheduler_arm64;
+
 use crate::kernel::serial;
 use crate::kernel::types::Tid;
 
@@ -57,6 +60,14 @@ pub fn init() -> Result<(), &'static str> {
         // Initialize hardware acceleration subsystem
         hardware_accel::init()?;
         serial::write_str("[ai] Hardware acceleration initialized\n");
+
+        // Initialize ARM64 AI acceleration if available
+        #[cfg(target_arch = "aarch64")]
+        {
+            crate::arch::aarch64::init()?;
+            cognitive_scheduler_arm64::init()?;
+            serial::write_str("[ai] ARM64 AI acceleration initialized\n");
+        }
 
         AI_INITIALIZED = true;
         serial::write_str("[ai] AI subsystem fully initialized\n");
