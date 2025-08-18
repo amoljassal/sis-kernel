@@ -112,11 +112,30 @@ unsafe fn map_apic_mmio() -> Result<(), &'static str> {
     let ioapic_va = VirtAddr::new(0xFFFF_FF80_0000_0000u64 + IOAPIC_DEFAULT_PHYS);
 
     // Map using existing memory infrastructure
-    memory::map_user_page(lapic_va).ok(); // Try to map, ignore errors for now
-    memory::map_user_page(ioapic_va).ok();
+    if memory::map_user_page(lapic_va).is_err() {
+        serial::write_str("[apic] WARNING: Failed to map LAPIC MMIO\n");
+        return Err("failed to map LAPIC MMIO");
+    }
+    if memory::map_user_page(ioapic_va).is_err() {
+        serial::write_str("[apic] WARNING: Failed to map IOAPIC MMIO\n");
+        return Err("failed to map IOAPIC MMIO");
+    }
 
     LAPIC_BASE_VA = Some(lapic_va.as_mut_ptr());
     IOAPIC_BASE_VA = Some(ioapic_va.as_mut_ptr());
+
+    // Validate MMIO mappings work by reading LAPIC version register
+    let lapic_version = lapic_read(LAPIC_REG_VERSION);
+    if lapic_version == 0 || lapic_version == 0xFFFFFFFF {
+        serial::write_str("[apic] MMIO validation failed - lapic_version=0x");
+        crate::kernel::serial::write_hex64(lapic_version as u64);
+        serial::write_str("\n");
+        return Err("LAPIC MMIO validation failed");
+    }
+
+    serial::write_str("[apic] MMIO validation passed - lapic_version=0x");
+    crate::kernel::serial::write_hex64(lapic_version as u64);
+    serial::write_str("\n");
 
     Ok(())
 }
