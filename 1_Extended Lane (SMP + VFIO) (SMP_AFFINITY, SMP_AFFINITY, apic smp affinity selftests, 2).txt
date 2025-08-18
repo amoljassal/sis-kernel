@@ -1,0 +1,1531 @@
+﻿2025-08-14T22:15:17.0098929Z Current runner version: '2.327.1'
+2025-08-14T22:15:17.0129171Z ##[group]Runner Image Provisioner
+2025-08-14T22:15:17.0130160Z Hosted Compute Agent
+2025-08-14T22:15:17.0130711Z Version: 20250812.370
+2025-08-14T22:15:17.0131286Z Commit: 4a2b2bf7520004e3e907c2150c8cabe342a3da32
+2025-08-14T22:15:17.0132030Z Build Date: 2025-08-12T16:08:14Z
+2025-08-14T22:15:17.0132588Z ##[endgroup]
+2025-08-14T22:15:17.0133116Z ##[group]Operating System
+2025-08-14T22:15:17.0133800Z Ubuntu
+2025-08-14T22:15:17.0134247Z 22.04.5
+2025-08-14T22:15:17.0134729Z LTS
+2025-08-14T22:15:17.0135196Z ##[endgroup]
+2025-08-14T22:15:17.0135827Z ##[group]Runner Image
+2025-08-14T22:15:17.0136515Z Image: ubuntu-22.04
+2025-08-14T22:15:17.0137084Z Version: 20250804.2.0
+2025-08-14T22:15:17.0138060Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20250804.2/images/ubuntu/Ubuntu2204-Readme.md
+2025-08-14T22:15:17.0139670Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20250804.2
+2025-08-14T22:15:17.0140715Z ##[endgroup]
+2025-08-14T22:15:17.0141828Z ##[group]GITHUB_TOKEN Permissions
+2025-08-14T22:15:17.0144142Z Contents: read
+2025-08-14T22:15:17.0144669Z Metadata: read
+2025-08-14T22:15:17.0145161Z Packages: read
+2025-08-14T22:15:17.0145776Z ##[endgroup]
+2025-08-14T22:15:17.0148450Z Secret source: Actions
+2025-08-14T22:15:17.0149518Z Prepare workflow directory
+2025-08-14T22:15:17.0570401Z Prepare all required actions
+2025-08-14T22:15:17.0612816Z Getting action download info
+2025-08-14T22:15:17.3957588Z Download action repository 'actions/checkout@v4' (SHA:08eba0b27e820071cde6df949e0beb9ba4906955)
+2025-08-14T22:15:17.8259956Z Download action repository 'dtolnay/rust-toolchain@v1' (SHA:b3b07ba8b418998c39fb20f53e8b695cdcc8de1b)
+2025-08-14T22:15:18.0679684Z Download action repository 'actions/cache@v4' (SHA:0400d5f644dc74513175e3cd8d07132dd4860809)
+2025-08-14T22:15:18.5029128Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2025-08-14T22:15:18.7681572Z Complete job name: Extended Lane (SMP + VFIO) (SMP_AFFINITY, SMP_AFFINITY, apic smp affinity selftests, 2)
+2025-08-14T22:15:18.8447102Z ##[group]Run actions/checkout@v4
+2025-08-14T22:15:18.8448440Z with:
+2025-08-14T22:15:18.8449198Z   repository: amoljassal/sis-kernel
+2025-08-14T22:15:18.8450430Z   token: ***
+2025-08-14T22:15:18.8451158Z   ssh-strict: true
+2025-08-14T22:15:18.8451913Z   ssh-user: git
+2025-08-14T22:15:18.8452669Z   persist-credentials: true
+2025-08-14T22:15:18.8453514Z   clean: true
+2025-08-14T22:15:18.8454286Z   sparse-checkout-cone-mode: true
+2025-08-14T22:15:18.8455215Z   fetch-depth: 1
+2025-08-14T22:15:18.8455947Z   fetch-tags: false
+2025-08-14T22:15:18.8456861Z   show-progress: true
+2025-08-14T22:15:18.8457660Z   lfs: false
+2025-08-14T22:15:18.8458378Z   submodules: false
+2025-08-14T22:15:18.8459154Z   set-safe-directory: true
+2025-08-14T22:15:18.8460230Z env:
+2025-08-14T22:15:18.8460942Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:18.8461819Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:18.8462792Z ##[endgroup]
+2025-08-14T22:15:18.9623863Z Syncing repository: amoljassal/sis-kernel
+2025-08-14T22:15:18.9627381Z ##[group]Getting Git version info
+2025-08-14T22:15:18.9629519Z Working directory is '/home/runner/work/sis-kernel/sis-kernel'
+2025-08-14T22:15:18.9632717Z [command]/usr/bin/git version
+2025-08-14T22:15:18.9634390Z git version 2.50.1
+2025-08-14T22:15:18.9661556Z ##[endgroup]
+2025-08-14T22:15:18.9684718Z Temporarily overriding HOME='/home/runner/work/_temp/46879741-a245-42d2-9bdc-b39ae961fdc4' before making global git config changes
+2025-08-14T22:15:18.9687879Z Adding repository directory to the temporary git global config as a safe directory
+2025-08-14T22:15:18.9691277Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sis-kernel/sis-kernel
+2025-08-14T22:15:18.9724636Z Deleting the contents of '/home/runner/work/sis-kernel/sis-kernel'
+2025-08-14T22:15:18.9727934Z ##[group]Initializing the repository
+2025-08-14T22:15:18.9731632Z [command]/usr/bin/git init /home/runner/work/sis-kernel/sis-kernel
+2025-08-14T22:15:18.9797328Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-08-14T22:15:18.9803950Z hint: is subject to change. To configure the initial branch name to use in all
+2025-08-14T22:15:18.9807270Z hint: of your new repositories, which will suppress this warning, call:
+2025-08-14T22:15:18.9809440Z hint:
+2025-08-14T22:15:18.9811007Z hint: 	git config --global init.defaultBranch <name>
+2025-08-14T22:15:18.9813061Z hint:
+2025-08-14T22:15:18.9814473Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-08-14T22:15:18.9816523Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-08-14T22:15:18.9818847Z hint:
+2025-08-14T22:15:18.9820082Z hint: 	git branch -m <name>
+2025-08-14T22:15:18.9821355Z hint:
+2025-08-14T22:15:18.9823132Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2025-08-14T22:15:18.9826027Z Initialized empty Git repository in /home/runner/work/sis-kernel/sis-kernel/.git/
+2025-08-14T22:15:18.9829594Z [command]/usr/bin/git remote add origin https://github.com/amoljassal/sis-kernel
+2025-08-14T22:15:18.9865835Z ##[endgroup]
+2025-08-14T22:15:18.9868509Z ##[group]Disabling automatic garbage collection
+2025-08-14T22:15:18.9870346Z [command]/usr/bin/git config --local gc.auto 0
+2025-08-14T22:15:18.9912534Z ##[endgroup]
+2025-08-14T22:15:18.9914745Z ##[group]Setting up auth
+2025-08-14T22:15:18.9919764Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-08-14T22:15:18.9950153Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-08-14T22:15:19.0222039Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-08-14T22:15:19.0259092Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-08-14T22:15:19.0512146Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-08-14T22:15:19.0555099Z ##[endgroup]
+2025-08-14T22:15:19.0557773Z ##[group]Fetching the repository
+2025-08-14T22:15:19.0566396Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +e6ebdd137eb5fb6ee18b7bb1f1dc48e9fd58cbc6:refs/remotes/origin/main
+2025-08-14T22:15:22.0304825Z From https://github.com/amoljassal/sis-kernel
+2025-08-14T22:15:22.0307156Z  * [new ref]         e6ebdd137eb5fb6ee18b7bb1f1dc48e9fd58cbc6 -> origin/main
+2025-08-14T22:15:22.0328527Z ##[endgroup]
+2025-08-14T22:15:22.0329281Z ##[group]Determining the checkout info
+2025-08-14T22:15:22.0330422Z ##[endgroup]
+2025-08-14T22:15:22.0335474Z [command]/usr/bin/git sparse-checkout disable
+2025-08-14T22:15:22.0371633Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-08-14T22:15:22.0401891Z ##[group]Checking out the ref
+2025-08-14T22:15:22.0402552Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2025-08-14T22:15:23.2694011Z Updating files:  95% (657/691)
+2025-08-14T22:15:23.2713940Z Updating files:  96% (664/691)
+2025-08-14T22:15:23.3023496Z Updating files:  97% (671/691)
+2025-08-14T22:15:23.3024103Z Updating files:  98% (678/691)
+2025-08-14T22:15:23.3028500Z Updating files:  99% (685/691)
+2025-08-14T22:15:23.3029300Z Updating files: 100% (691/691)
+2025-08-14T22:15:23.3031458Z Updating files: 100% (691/691), done.
+2025-08-14T22:15:23.3050305Z Switched to a new branch 'main'
+2025-08-14T22:15:23.3053521Z branch 'main' set up to track 'origin/main'.
+2025-08-14T22:15:23.3100249Z ##[endgroup]
+2025-08-14T22:15:23.3141859Z [command]/usr/bin/git log -1 --format=%H
+2025-08-14T22:15:23.3164594Z e6ebdd137eb5fb6ee18b7bb1f1dc48e9fd58cbc6
+2025-08-14T22:15:23.3444655Z ##[group]Run dtolnay/rust-toolchain@v1
+2025-08-14T22:15:23.3445160Z with:
+2025-08-14T22:15:23.3445351Z   toolchain: nightly-2025-08-01
+2025-08-14T22:15:23.3445648Z   components: rustfmt, clippy, rust-src, llvm-tools-preview
+2025-08-14T22:15:23.3445951Z   targets: x86_64-unknown-none
+2025-08-14T22:15:23.3446337Z env:
+2025-08-14T22:15:23.3446507Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:23.3446730Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:23.3446985Z ##[endgroup]
+2025-08-14T22:15:23.3536876Z ##[group]Run : parse toolchain version
+2025-08-14T22:15:23.3537233Z [36;1m: parse toolchain version[0m
+2025-08-14T22:15:23.3537593Z [36;1mif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then[0m
+2025-08-14T22:15:23.3537933Z [36;1m  if [[ Linux == macOS ]]; then[0m
+2025-08-14T22:15:23.3538376Z [36;1m    echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:23.3538841Z [36;1m  else[0m
+2025-08-14T22:15:23.3539194Z [36;1m    echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:23.3539575Z [36;1m  fi[0m
+2025-08-14T22:15:23.3539839Z [36;1melif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then[0m
+2025-08-14T22:15:23.3540283Z [36;1m  echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:23.3540677Z [36;1melif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then[0m
+2025-08-14T22:15:23.3541106Z [36;1m  echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:23.3541520Z [36;1melse[0m
+2025-08-14T22:15:23.3541731Z [36;1m  echo "toolchain=$toolchain" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:23.3541993Z [36;1mfi[0m
+2025-08-14T22:15:23.3575814Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:23.3576368Z env:
+2025-08-14T22:15:23.3576557Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:23.3576813Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:23.3577065Z   toolchain: nightly-2025-08-01
+2025-08-14T22:15:23.3650297Z ##[endgroup]
+2025-08-14T22:15:23.3800040Z ##[group]Run : construct rustup command line
+2025-08-14T22:15:23.3800366Z [36;1m: construct rustup command line[0m
+2025-08-14T22:15:23.3800764Z [36;1mecho "targets=$(for t in ${targets//,/ }; do echo -n ' --target' $t; done)" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:23.3801324Z [36;1mecho "components=$(for c in ${components//,/ }; do echo -n ' --component' $c; done)" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:23.3801752Z [36;1mecho "downgrade=" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:23.3830290Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:23.3830605Z env:
+2025-08-14T22:15:23.3830779Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:23.3831003Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:23.3831258Z   targets: x86_64-unknown-none
+2025-08-14T22:15:23.3831531Z   components: rustfmt, clippy, rust-src, llvm-tools-preview
+2025-08-14T22:15:23.3831845Z ##[endgroup]
+2025-08-14T22:15:23.3916110Z ##[group]Run : set $CARGO_HOME
+2025-08-14T22:15:23.3916683Z [36;1m: set $CARGO_HOME[0m
+2025-08-14T22:15:23.3916978Z [36;1mecho CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV[0m
+2025-08-14T22:15:23.3945917Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:23.3946426Z env:
+2025-08-14T22:15:23.3946605Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:23.3946833Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:23.3947079Z ##[endgroup]
+2025-08-14T22:15:23.4030224Z ##[group]Run : install rustup if needed
+2025-08-14T22:15:23.4030521Z [36;1m: install rustup if needed[0m
+2025-08-14T22:15:23.4030778Z [36;1mif ! command -v rustup &>/dev/null; then[0m
+2025-08-14T22:15:23.4031690Z [36;1m  curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y[0m
+2025-08-14T22:15:23.4032522Z [36;1m  echo "$CARGO_HOME/bin" >> $GITHUB_PATH[0m
+2025-08-14T22:15:23.4032763Z [36;1mfi[0m
+2025-08-14T22:15:23.4060657Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:23.4060972Z env:
+2025-08-14T22:15:23.4061139Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:23.4061362Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:23.4061613Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:23.4061830Z ##[endgroup]
+2025-08-14T22:15:23.4139434Z ##[group]Run rustup toolchain install nightly-2025-08-01 --target x86_64-unknown-none --component rustfmt --component clippy --component rust-src --component llvm-tools-preview --profile minimal --no-self-update
+2025-08-14T22:15:23.4140765Z [36;1mrustup toolchain install nightly-2025-08-01 --target x86_64-unknown-none --component rustfmt --component clippy --component rust-src --component llvm-tools-preview --profile minimal --no-self-update[0m
+2025-08-14T22:15:23.4168160Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:23.4168487Z env:
+2025-08-14T22:15:23.4168657Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:23.4168885Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:23.4169147Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:23.4169376Z ##[endgroup]
+2025-08-14T22:15:23.4587707Z info: syncing channel updates for 'nightly-2025-08-01-x86_64-unknown-linux-gnu'
+2025-08-14T22:15:23.7837778Z info: latest update on 2025-08-01, rust version 1.90.0-nightly (adcb3d3b4 2025-07-31)
+2025-08-14T22:15:23.7838737Z info: downloading component 'cargo'
+2025-08-14T22:15:23.8360218Z info: downloading component 'clippy'
+2025-08-14T22:15:24.0961605Z info: downloading component 'llvm-tools'
+2025-08-14T22:15:24.5361126Z info: downloading component 'rust-src'
+2025-08-14T22:15:24.7719315Z info: downloading component 'rust-std'
+2025-08-14T22:15:24.9014497Z info: downloading component 'rust-std' for 'x86_64-unknown-none'
+2025-08-14T22:15:24.9687027Z info: downloading component 'rustc'
+2025-08-14T22:15:25.2800479Z info: downloading component 'rustfmt'
+2025-08-14T22:15:25.3041684Z info: installing component 'cargo'
+2025-08-14T22:15:26.0138006Z info: installing component 'clippy'
+2025-08-14T22:15:26.3900495Z info: installing component 'llvm-tools'
+2025-08-14T22:15:28.8252989Z info: installing component 'rust-src'
+2025-08-14T22:15:29.2402123Z info: installing component 'rust-std'
+2025-08-14T22:15:31.2846072Z info: installing component 'rust-std' for 'x86_64-unknown-none'
+2025-08-14T22:15:32.2308358Z info: installing component 'rustc'
+2025-08-14T22:15:37.1301424Z info: installing component 'rustfmt'
+2025-08-14T22:15:37.4433618Z 
+2025-08-14T22:15:37.4538819Z   nightly-2025-08-01-x86_64-unknown-linux-gnu installed - rustc 1.90.0-nightly (adcb3d3b4 2025-07-31)
+2025-08-14T22:15:37.4542847Z 
+2025-08-14T22:15:37.4591095Z ##[group]Run rustup default nightly-2025-08-01
+2025-08-14T22:15:37.4591426Z [36;1mrustup default nightly-2025-08-01[0m
+2025-08-14T22:15:37.4618364Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:37.4618707Z env:
+2025-08-14T22:15:37.4618879Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:37.4619101Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:37.4619364Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:37.4619580Z ##[endgroup]
+2025-08-14T22:15:37.4721881Z info: using existing install for 'nightly-2025-08-01-x86_64-unknown-linux-gnu'
+2025-08-14T22:15:37.5091686Z info: default toolchain set to 'nightly-2025-08-01-x86_64-unknown-linux-gnu'
+2025-08-14T22:15:37.5092224Z 
+2025-08-14T22:15:37.5192638Z info: note that the toolchain 'nightly-2025-08-01-x86_64-unknown-linux-gnu' is currently in use (overridden by environment variable RUSTUP_TOOLCHAIN)
+2025-08-14T22:15:37.5193963Z   nightly-2025-08-01-x86_64-unknown-linux-gnu unchanged - rustc 1.90.0-nightly (adcb3d3b4 2025-07-31)
+2025-08-14T22:15:37.5194587Z 
+2025-08-14T22:15:37.5234345Z ##[group]Run : create cachekey
+2025-08-14T22:15:37.5234809Z [36;1m: create cachekey[0m
+2025-08-14T22:15:37.5235302Z [36;1mDATE=$(rustc +nightly-2025-08-01 --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')[0m
+2025-08-14T22:15:37.5236127Z [36;1mHASH=$(rustc +nightly-2025-08-01 --version --verbose | sed -ne 's/^commit-hash: //p')[0m
+2025-08-14T22:15:37.5237140Z [36;1mecho "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:37.5264143Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:37.5264432Z env:
+2025-08-14T22:15:37.5264599Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:37.5264816Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:37.5265068Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:37.5265280Z ##[endgroup]
+2025-08-14T22:15:37.5674214Z ##[group]Run : disable incremental compilation
+2025-08-14T22:15:37.5674544Z [36;1m: disable incremental compilation[0m
+2025-08-14T22:15:37.5674846Z [36;1mif [ -z "${CARGO_INCREMENTAL+set}" ]; then[0m
+2025-08-14T22:15:37.5675166Z [36;1m  echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV[0m
+2025-08-14T22:15:37.5675429Z [36;1mfi[0m
+2025-08-14T22:15:37.5702093Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:37.5702425Z env:
+2025-08-14T22:15:37.5702604Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:37.5702836Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:37.5703093Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:37.5703319Z ##[endgroup]
+2025-08-14T22:15:37.5770226Z ##[group]Run : enable colors in Cargo output
+2025-08-14T22:15:37.5770542Z [36;1m: enable colors in Cargo output[0m
+2025-08-14T22:15:37.5770829Z [36;1mif [ -z "${CARGO_TERM_COLOR+set}" ]; then[0m
+2025-08-14T22:15:37.5771152Z [36;1m  echo CARGO_TERM_COLOR=always >> $GITHUB_ENV[0m
+2025-08-14T22:15:37.5771414Z [36;1mfi[0m
+2025-08-14T22:15:37.5797909Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:37.5798217Z env:
+2025-08-14T22:15:37.5798382Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:37.5798620Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:37.5798874Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:37.5799097Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:37.5799277Z ##[endgroup]
+2025-08-14T22:15:37.5864900Z ##[group]Run : enable Cargo sparse registry
+2025-08-14T22:15:37.5865197Z [36;1m: enable Cargo sparse registry[0m
+2025-08-14T22:15:37.5865516Z [36;1m# implemented in 1.66, stabilized in 1.68, made default in 1.70[0m
+2025-08-14T22:15:37.5866138Z [36;1mif [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then[0m
+2025-08-14T22:15:37.5867075Z [36;1m  if rustc +nightly-2025-08-01 --version --verbose | grep -q '^release: 1\.6[89]\.'; then[0m
+2025-08-14T22:15:37.5867606Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2025-08-14T22:15:37.5868081Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV[0m
+2025-08-14T22:15:37.5868553Z [36;1m  elif rustc +nightly-2025-08-01 --version --verbose | grep -q '^release: 1\.6[67]\.'; then[0m
+2025-08-14T22:15:37.5869090Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2025-08-14T22:15:37.5869547Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV[0m
+2025-08-14T22:15:37.5869843Z [36;1m  fi[0m
+2025-08-14T22:15:37.5870018Z [36;1mfi[0m
+2025-08-14T22:15:37.5895295Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:37.5895596Z env:
+2025-08-14T22:15:37.5895768Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:37.5895990Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:37.5896485Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:37.5896705Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:37.5896891Z ##[endgroup]
+2025-08-14T22:15:37.6281192Z ##[group]Run : work around spurious network errors in curl 8.0
+2025-08-14T22:15:37.6281621Z [36;1m: work around spurious network errors in curl 8.0[0m
+2025-08-14T22:15:37.6282374Z [36;1m# https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation[0m
+2025-08-14T22:15:37.6283186Z [36;1mif rustc +nightly-2025-08-01 --version --verbose | grep -q '^release: 1\.7[01]\.'; then[0m
+2025-08-14T22:15:37.6283680Z [36;1m  echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV[0m
+2025-08-14T22:15:37.6283981Z [36;1mfi[0m
+2025-08-14T22:15:37.6310656Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:37.6310976Z env:
+2025-08-14T22:15:37.6311145Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:37.6311377Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:37.6311628Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:37.6311859Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:37.6312043Z ##[endgroup]
+2025-08-14T22:15:37.6538216Z ##[group]Run rustc +nightly-2025-08-01 --version --verbose
+2025-08-14T22:15:37.6538635Z [36;1mrustc +nightly-2025-08-01 --version --verbose[0m
+2025-08-14T22:15:37.6565307Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:37.6565618Z env:
+2025-08-14T22:15:37.6565806Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:37.6566027Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:37.6566472Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:37.6566706Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:37.6566905Z ##[endgroup]
+2025-08-14T22:15:37.6746800Z rustc 1.90.0-nightly (adcb3d3b4 2025-07-31)
+2025-08-14T22:15:37.6747301Z binary: rustc
+2025-08-14T22:15:37.6747695Z commit-hash: adcb3d3b4cd3b7c4cde642f3ed537037f293738e
+2025-08-14T22:15:37.6748174Z commit-date: 2025-07-31
+2025-08-14T22:15:37.6748519Z host: x86_64-unknown-linux-gnu
+2025-08-14T22:15:37.6748827Z release: 1.90.0-nightly
+2025-08-14T22:15:37.6749182Z LLVM version: 20.1.8
+2025-08-14T22:15:37.6879026Z ##[group]Run set -euxo pipefail
+2025-08-14T22:15:37.6879322Z [36;1mset -euxo pipefail[0m
+2025-08-14T22:15:37.6879534Z [36;1mrustc -Vv[0m
+2025-08-14T22:15:37.6879707Z [36;1mcargo -V[0m
+2025-08-14T22:15:37.6879903Z [36;1mrustup show active-toolchain[0m
+2025-08-14T22:15:37.6880166Z [36;1mrustup component list --installed[0m
+2025-08-14T22:15:37.6880443Z [36;1mrustup target list --installed[0m
+2025-08-14T22:15:37.6908628Z shell: /usr/bin/bash -e {0}
+2025-08-14T22:15:37.6908843Z env:
+2025-08-14T22:15:37.6909013Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:37.6909234Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:37.6909474Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:37.6909695Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:37.6909876Z ##[endgroup]
+2025-08-14T22:15:37.6953957Z + rustc -Vv
+2025-08-14T22:15:37.7466788Z rustc 1.90.0-nightly (adcb3d3b4 2025-07-31)
+2025-08-14T22:15:37.7467280Z binary: rustc
+2025-08-14T22:15:37.7467762Z commit-hash: adcb3d3b4cd3b7c4cde642f3ed537037f293738e
+2025-08-14T22:15:37.7468140Z commit-date: 2025-07-31
+2025-08-14T22:15:37.7468369Z host: x86_64-unknown-linux-gnu
+2025-08-14T22:15:37.7468588Z release: 1.90.0-nightly
+2025-08-14T22:15:37.7468873Z LLVM version: 20.1.8
+2025-08-14T22:15:37.7485628Z + cargo -V
+2025-08-14T22:15:37.7957069Z cargo 1.90.0-nightly (9b296973b 2025-07-25)
+2025-08-14T22:15:37.7964975Z + rustup show active-toolchain
+2025-08-14T22:15:37.8378231Z nightly-2025-08-01-x86_64-unknown-linux-gnu (overridden by environment variable RUSTUP_TOOLCHAIN)
+2025-08-14T22:15:37.8403389Z + rustup component list --installed
+2025-08-14T22:15:37.9124888Z cargo-x86_64-unknown-linux-gnu
+2025-08-14T22:15:37.9125350Z clippy-x86_64-unknown-linux-gnu
+2025-08-14T22:15:37.9125737Z llvm-tools-x86_64-unknown-linux-gnu
+2025-08-14T22:15:37.9126112Z rust-src
+2025-08-14T22:15:37.9126569Z rust-std-x86_64-unknown-linux-gnu
+2025-08-14T22:15:37.9126947Z rust-std-x86_64-unknown-none
+2025-08-14T22:15:37.9127296Z rustc-x86_64-unknown-linux-gnu
+2025-08-14T22:15:37.9127690Z rustfmt-x86_64-unknown-linux-gnu
+2025-08-14T22:15:37.9149039Z + rustup target list --installed
+2025-08-14T22:15:37.9890549Z x86_64-unknown-linux-gnu
+2025-08-14T22:15:37.9890967Z x86_64-unknown-none
+2025-08-14T22:15:38.1362376Z ##[group]Run actions/cache@v4
+2025-08-14T22:15:38.1362696Z with:
+2025-08-14T22:15:38.1363189Z   key: Linux-cargo-nightly-2025-08-01-d4c5c725b9b3c52327779d4eed10f8a40f8d3f7d7905a5ac9c7e105afa5d2f3a
+2025-08-14T22:15:38.1364071Z   path: ~/.cargo/registry
+~/.cargo/git
+target
+
+2025-08-14T22:15:38.1364379Z   enableCrossOsArchive: false
+2025-08-14T22:15:38.1364631Z   fail-on-cache-miss: false
+2025-08-14T22:15:38.1364879Z   lookup-only: false
+2025-08-14T22:15:38.1365081Z   save-always: false
+2025-08-14T22:15:38.1365275Z env:
+2025-08-14T22:15:38.1365459Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:38.1365700Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:38.1365983Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:38.1366509Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:38.1366733Z ##[endgroup]
+2025-08-14T22:15:38.3815893Z Cache hit for: Linux-cargo-nightly-2025-08-01-d4c5c725b9b3c52327779d4eed10f8a40f8d3f7d7905a5ac9c7e105afa5d2f3a
+2025-08-14T22:15:39.5340773Z Received 109051904 of 162503562 (67.1%), 103.7 MBs/sec
+2025-08-14T22:15:39.9348509Z Received 162503562 of 162503562 (100.0%), 110.4 MBs/sec
+2025-08-14T22:15:39.9349747Z Cache Size: ~155 MB (162503562 B)
+2025-08-14T22:15:39.9450262Z [command]/usr/bin/tar -xf /home/runner/work/_temp/b9d4de37-4e49-4ec5-ae02-2c04defe87a9/cache.tzst -P -C /home/runner/work/sis-kernel/sis-kernel --use-compress-program unzstd
+2025-08-14T22:15:41.2239210Z Cache restored successfully
+2025-08-14T22:15:41.2673001Z Cache restored from key: Linux-cargo-nightly-2025-08-01-d4c5c725b9b3c52327779d4eed10f8a40f8d3f7d7905a5ac9c7e105afa5d2f3a
+2025-08-14T22:15:41.2769972Z ##[group]Run sudo apt-get update && sudo apt-get install -y qemu-system-x86
+2025-08-14T22:15:41.2770555Z [36;1msudo apt-get update && sudo apt-get install -y qemu-system-x86[0m
+2025-08-14T22:15:41.2798148Z shell: /usr/bin/bash -e {0}
+2025-08-14T22:15:41.2798439Z env:
+2025-08-14T22:15:41.2798671Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:41.2798962Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:41.2799295Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:41.2799592Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:41.2799858Z ##[endgroup]
+2025-08-14T22:15:41.3810873Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2025-08-14T22:15:41.4163952Z Hit:2 http://azure.archive.ubuntu.com/ubuntu jammy InRelease
+2025-08-14T22:15:41.4186596Z Get:3 http://azure.archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]
+2025-08-14T22:15:41.4236410Z Get:4 http://azure.archive.ubuntu.com/ubuntu jammy-backports InRelease [127 kB]
+2025-08-14T22:15:41.4277155Z Get:5 http://azure.archive.ubuntu.com/ubuntu jammy-security InRelease [129 kB]
+2025-08-14T22:15:41.4539429Z Get:6 https://packages.microsoft.com/repos/azure-cli jammy InRelease [3596 B]
+2025-08-14T22:15:41.4580514Z Get:7 https://packages.microsoft.com/ubuntu/22.04/prod jammy InRelease [3632 B]
+2025-08-14T22:15:41.6041112Z Get:8 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages [2803 kB]
+2025-08-14T22:15:41.6254090Z Get:9 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main Translation-en [443 kB]
+2025-08-14T22:15:41.6282042Z Get:10 http://azure.archive.ubuntu.com/ubuntu jammy-updates/restricted amd64 Packages [4163 kB]
+2025-08-14T22:15:41.6536405Z Get:11 http://azure.archive.ubuntu.com/ubuntu jammy-updates/restricted Translation-en [756 kB]
+2025-08-14T22:15:41.6597189Z Get:12 http://azure.archive.ubuntu.com/ubuntu jammy-updates/universe amd64 Packages [1226 kB]
+2025-08-14T22:15:41.7029500Z Get:13 http://azure.archive.ubuntu.com/ubuntu jammy-backports/universe amd64 Packages [30.0 kB]
+2025-08-14T22:15:41.7041718Z Get:14 http://azure.archive.ubuntu.com/ubuntu jammy-backports/universe Translation-en [16.6 kB]
+2025-08-14T22:15:41.7891886Z Get:15 http://azure.archive.ubuntu.com/ubuntu jammy-security/main amd64 Packages [2559 kB]
+2025-08-14T22:15:41.8024081Z Get:16 http://azure.archive.ubuntu.com/ubuntu jammy-security/main Translation-en [380 kB]
+2025-08-14T22:15:41.8060684Z Get:17 http://azure.archive.ubuntu.com/ubuntu jammy-security/restricted amd64 Packages [4018 kB]
+2025-08-14T22:15:41.8475085Z Get:21 https://packages.microsoft.com/repos/azure-cli jammy/main amd64 Packages [2575 B]
+2025-08-14T22:15:41.8691068Z Get:18 http://azure.archive.ubuntu.com/ubuntu jammy-security/restricted Translation-en [732 kB]
+2025-08-14T22:15:41.8738586Z Get:19 http://azure.archive.ubuntu.com/ubuntu jammy-security/universe amd64 Packages [994 kB]
+2025-08-14T22:15:41.8806960Z Get:20 http://azure.archive.ubuntu.com/ubuntu jammy-security/universe Translation-en [217 kB]
+2025-08-14T22:15:41.8926765Z Get:22 https://packages.microsoft.com/ubuntu/22.04/prod jammy/main arm64 Packages [75.6 kB]
+2025-08-14T22:15:41.9125776Z Get:23 https://packages.microsoft.com/ubuntu/22.04/prod jammy/main amd64 Packages [241 kB]
+2025-08-14T22:15:46.3326129Z Fetched 19.0 MB in 2s (8674 kB/s)
+2025-08-14T22:15:47.2221912Z Reading package lists...
+2025-08-14T22:15:47.2819394Z Reading package lists...
+2025-08-14T22:15:47.5021015Z Building dependency tree...
+2025-08-14T22:15:47.5033817Z Reading state information...
+2025-08-14T22:15:47.6715960Z The following additional packages will be installed:
+2025-08-14T22:15:47.6717457Z   cpu-checker gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+2025-08-14T22:15:47.6718794Z   gstreamer1.0-x ibverbs-providers ipxe-qemu ipxe-qemu-256k-compat-efi-roms
+2025-08-14T22:15:47.6720042Z   libaa1 libasyncns0 libavc1394-0 libboost-iostreams1.74.0
+2025-08-14T22:15:47.6721199Z   libboost-thread1.74.0 libbrlapi0.8 libcaca0 libcacard0 libcdparanoia0
+2025-08-14T22:15:47.6722575Z   libdaxctl1 libdecor-0-0 libdecor-0-plugin-1-cairo libdv4 libfdt1 libflac8
+2025-08-14T22:15:47.6723274Z   libgfapi0 libgfrpc0 libgfxdr0 libglusterfs0 libgstreamer-plugins-base1.0-0
+2025-08-14T22:15:47.6724245Z   libgstreamer-plugins-good1.0-0 libibverbs1 libiec61883-0 libiscsi7
+2025-08-14T22:15:47.6725264Z   libjack-jackd2-0 libmp3lame0 libmpg123-0 libndctl6 libnl-route-3-200
+2025-08-14T22:15:47.6726074Z   libopus0 liborc-0.4-0 libpcsclite1 libpmem1 libpmemobj1 libpulse0 librados2
+2025-08-14T22:15:47.6726985Z   libraw1394-11 librbd1 librdmacm1 libsamplerate0 libsdl2-2.0-0 libshout3
+2025-08-14T22:15:47.6727601Z   libsndfile1 libspeex1 libspice-server1 libtag1v5 libtag1v5-vanilla
+2025-08-14T22:15:47.6728247Z   libtheora0 libtwolame0 liburing2 libusbredirparser1 libv4l-0 libv4lconvert0
+2025-08-14T22:15:47.6728911Z   libvirglrenderer1 libvisual-0.4-0 libvorbisenc2 libvpx7 libvte-2.91-0
+2025-08-14T22:15:47.6729541Z   libvte-2.91-common libwavpack1 libxv1 msr-tools ovmf qemu-block-extra
+2025-08-14T22:15:47.6730169Z   qemu-system-common qemu-system-data qemu-system-gui qemu-utils seabios
+2025-08-14T22:15:47.6730941Z Suggested packages:
+2025-08-14T22:15:47.6731628Z   gvfs libdv-bin oss-compat libvisual-0.4-plugins jackd2 opus-tools pcscd
+2025-08-14T22:15:47.6732327Z   pulseaudio libraw1394-doc speex gstreamer1.0-libav gstreamer1.0-plugins-ugly
+2025-08-14T22:15:47.6732743Z   samba vde2 debootstrap
+2025-08-14T22:15:47.7241947Z The following NEW packages will be installed:
+2025-08-14T22:15:47.7242792Z   cpu-checker gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+2025-08-14T22:15:47.7243760Z   gstreamer1.0-x ibverbs-providers ipxe-qemu ipxe-qemu-256k-compat-efi-roms
+2025-08-14T22:15:47.7244732Z   libaa1 libasyncns0 libavc1394-0 libboost-iostreams1.74.0
+2025-08-14T22:15:47.7245584Z   libboost-thread1.74.0 libbrlapi0.8 libcaca0 libcacard0 libcdparanoia0
+2025-08-14T22:15:47.7246833Z   libdaxctl1 libdecor-0-0 libdecor-0-plugin-1-cairo libdv4 libfdt1 libflac8
+2025-08-14T22:15:47.7247858Z   libgfapi0 libgfrpc0 libgfxdr0 libglusterfs0 libgstreamer-plugins-base1.0-0
+2025-08-14T22:15:47.7248624Z   libgstreamer-plugins-good1.0-0 libibverbs1 libiec61883-0 libiscsi7
+2025-08-14T22:15:47.7249232Z   libjack-jackd2-0 libmp3lame0 libmpg123-0 libndctl6 libnl-route-3-200
+2025-08-14T22:15:47.7249892Z   libopus0 liborc-0.4-0 libpcsclite1 libpmem1 libpmemobj1 libpulse0 librados2
+2025-08-14T22:15:47.7250880Z   libraw1394-11 librbd1 librdmacm1 libsamplerate0 libsdl2-2.0-0 libshout3
+2025-08-14T22:15:47.7251804Z   libsndfile1 libspeex1 libspice-server1 libtag1v5 libtag1v5-vanilla
+2025-08-14T22:15:47.7252466Z   libtheora0 libtwolame0 liburing2 libusbredirparser1 libv4l-0 libv4lconvert0
+2025-08-14T22:15:47.7253475Z   libvirglrenderer1 libvisual-0.4-0 libvorbisenc2 libvpx7 libvte-2.91-0
+2025-08-14T22:15:47.7254035Z   libvte-2.91-common libwavpack1 libxv1 msr-tools ovmf qemu-block-extra
+2025-08-14T22:15:47.7254589Z   qemu-system-common qemu-system-data qemu-system-gui qemu-system-x86
+2025-08-14T22:15:47.7255028Z   qemu-utils seabios
+2025-08-14T22:15:47.7451724Z 0 upgraded, 77 newly installed, 0 to remove and 29 not upgraded.
+2025-08-14T22:15:47.7454565Z Need to get 45.2 MB of archives.
+2025-08-14T22:15:47.7455364Z After this operation, 159 MB of additional disk space will be used.
+2025-08-14T22:15:47.7456482Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+2025-08-14T22:15:47.7955128Z Get:2 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 msr-tools amd64 1.3-4 [10.3 kB]
+2025-08-14T22:15:47.8280132Z Get:3 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 cpu-checker amd64 0.7-1.3build1 [6800 B]
+2025-08-14T22:15:47.8590170Z Get:4 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libcdparanoia0 amd64 3.10.2+debian-14build2 [49.3 kB]
+2025-08-14T22:15:47.8961721Z Get:5 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 liborc-0.4-0 amd64 1:0.4.32-2ubuntu0.1 [228 kB]
+2025-08-14T22:15:47.9681372Z Get:6 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libgstreamer-plugins-base1.0-0 amd64 1.20.1-1ubuntu0.4 [848 kB]
+2025-08-14T22:15:48.1459353Z Get:7 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libopus0 amd64 1.3.1-0.1build2 [203 kB]
+2025-08-14T22:15:48.2287598Z Get:8 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libtheora0 amd64 1.1.1+dfsg.1-15ubuntu4 [209 kB]
+2025-08-14T22:15:48.3258545Z Get:9 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libvisual-0.4-0 amd64 0.4.0-17build2 [108 kB]
+2025-08-14T22:15:48.3840476Z Get:10 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libvorbisenc2 amd64 1.3.7-1build2 [82.6 kB]
+2025-08-14T22:15:48.4307546Z Get:11 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 gstreamer1.0-plugins-base amd64 1.20.1-1ubuntu0.4 [712 kB]
+2025-08-14T22:15:48.6343934Z Get:12 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libaa1 amd64 1.4p5-50build1 [51.9 kB]
+2025-08-14T22:15:48.6798598Z Get:13 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libraw1394-11 amd64 2.1.2-2build2 [27.0 kB]
+2025-08-14T22:15:48.7149228Z Get:14 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libavc1394-0 amd64 0.5.4-5build2 [17.0 kB]
+2025-08-14T22:15:48.7490357Z Get:15 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libcaca0 amd64 0.99.beta19-2.2ubuntu4 [224 kB]
+2025-08-14T22:15:48.8196868Z Get:16 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libdv4 amd64 1.0.0-14build1 [61.9 kB]
+2025-08-14T22:15:48.8634058Z Get:17 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libflac8 amd64 1.3.3-2ubuntu0.2 [111 kB]
+2025-08-14T22:15:48.9252030Z Get:18 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libgstreamer-plugins-good1.0-0 amd64 1.20.3-0ubuntu1.3 [30.1 kB]
+2025-08-14T22:15:48.9900832Z Get:19 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libiec61883-0 amd64 1.2.0-4build3 [25.9 kB]
+2025-08-14T22:15:49.0757374Z Get:20 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libsamplerate0 amd64 0.2.2-1build1 [1359 kB]
+2025-08-14T22:15:49.3961256Z Get:21 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libjack-jackd2-0 amd64 1.9.20~dfsg-1 [293 kB]
+2025-08-14T22:15:49.4994332Z Get:22 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libmp3lame0 amd64 3.100-3build2 [141 kB]
+2025-08-14T22:15:49.5657660Z Get:23 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libmpg123-0 amd64 1.29.3-1ubuntu0.1 [172 kB]
+2025-08-14T22:15:49.6460799Z Get:24 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libasyncns0 amd64 0.8-6build2 [12.8 kB]
+2025-08-14T22:15:49.6849863Z Get:25 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libsndfile1 amd64 1.0.31-2ubuntu0.2 [196 kB]
+2025-08-14T22:15:49.7609169Z Get:26 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libpulse0 amd64 1:15.99.1+dfsg1-1ubuntu2.2 [298 kB]
+2025-08-14T22:15:49.8444156Z Get:27 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libspeex1 amd64 1.2~rc1.2-1.1ubuntu3 [57.9 kB]
+2025-08-14T22:15:49.8867791Z Get:28 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libshout3 amd64 2.4.5-1build3 [54.5 kB]
+2025-08-14T22:15:49.9257872Z Get:29 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libtag1v5-vanilla amd64 1.11.1+dfsg.1-3ubuntu3 [304 kB]
+2025-08-14T22:15:50.0107563Z Get:30 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libtag1v5 amd64 1.11.1+dfsg.1-3ubuntu3 [11.5 kB]
+2025-08-14T22:15:50.0467308Z Get:31 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libtwolame0 amd64 0.4.0-2build2 [52.5 kB]
+2025-08-14T22:15:50.0866637Z Get:32 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libv4lconvert0 amd64 1.22.1-2build1 [82.4 kB]
+2025-08-14T22:15:50.1354562Z Get:33 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libv4l-0 amd64 1.22.1-2build1 [44.9 kB]
+2025-08-14T22:15:50.1811863Z Get:34 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libvpx7 amd64 1.11.0-2ubuntu2.4 [1078 kB]
+2025-08-14T22:15:50.6081721Z Get:35 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libwavpack1 amd64 5.4.0-1build2 [83.7 kB]
+2025-08-14T22:15:50.6642907Z Get:36 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 gstreamer1.0-plugins-good amd64 1.20.3-0ubuntu1.3 [2010 kB]
+2025-08-14T22:15:51.0331015Z Get:37 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libxv1 amd64 2:1.0.11-1build2 [11.2 kB]
+2025-08-14T22:15:51.0674254Z Get:38 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 gstreamer1.0-x amd64 1.20.1-1ubuntu0.4 [85.1 kB]
+2025-08-14T22:15:51.1600125Z Get:39 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libnl-route-3-200 amd64 3.5.0-0.1 [180 kB]
+2025-08-14T22:15:51.2301152Z Get:40 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libibverbs1 amd64 39.0-1 [69.3 kB]
+2025-08-14T22:15:51.2755828Z Get:41 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 ibverbs-providers amd64 39.0-1 [341 kB]
+2025-08-14T22:15:51.3848599Z Get:42 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 ipxe-qemu all 1.21.1+git-20220113.fbbdc3926-0ubuntu1 [1569 kB]
+2025-08-14T22:15:51.7528864Z Get:43 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 ipxe-qemu-256k-compat-efi-roms all 1.0.0+git-20150424.a25a16d-0ubuntu4 [552 kB]
+2025-08-14T22:15:51.8833119Z Get:44 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libboost-iostreams1.74.0 amd64 1.74.0-14ubuntu3 [245 kB]
+2025-08-14T22:15:51.9638603Z Get:45 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libboost-thread1.74.0 amd64 1.74.0-14ubuntu3 [262 kB]
+2025-08-14T22:15:52.0353231Z Get:46 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libbrlapi0.8 amd64 6.4-4ubuntu3 [28.7 kB]
+2025-08-14T22:15:52.0699807Z Get:47 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libpcsclite1 amd64 1.9.5-3ubuntu1 [19.8 kB]
+2025-08-14T22:15:52.1026752Z Get:48 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libcacard0 amd64 1:2.8.0-3build2 [38.0 kB]
+2025-08-14T22:15:52.1397941Z Get:49 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libdaxctl1 amd64 72.1-1 [19.8 kB]
+2025-08-14T22:15:52.1747383Z Get:50 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libdecor-0-0 amd64 0.1.0-3build1 [15.1 kB]
+2025-08-14T22:15:52.2105745Z Get:51 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libdecor-0-plugin-1-cairo amd64 0.1.0-3build1 [20.4 kB]
+2025-08-14T22:15:52.2468021Z Get:52 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libgfxdr0 amd64 10.1-1ubuntu0.2 [22.3 kB]
+2025-08-14T22:15:52.2793485Z Get:53 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libglusterfs0 amd64 10.1-1ubuntu0.2 [287 kB]
+2025-08-14T22:15:52.3532138Z Get:54 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libgfrpc0 amd64 10.1-1ubuntu0.2 [47.1 kB]
+2025-08-14T22:15:52.3905401Z Get:55 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libgfapi0 amd64 10.1-1ubuntu0.2 [77.3 kB]
+2025-08-14T22:15:52.4336363Z Get:56 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 librdmacm1 amd64 39.0-1 [71.2 kB]
+2025-08-14T22:15:52.5526516Z Get:57 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libiscsi7 amd64 1.19.0-3build2 [70.6 kB]
+2025-08-14T22:15:52.5933791Z Get:58 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libndctl6 amd64 72.1-1 [57.7 kB]
+2025-08-14T22:15:52.6347099Z Get:59 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libpmem1 amd64 1.11.1-3build1 [81.4 kB]
+2025-08-14T22:15:52.6810974Z Get:60 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libpmemobj1 amd64 1.11.1-3build1 [124 kB]
+2025-08-14T22:15:52.7396693Z Get:61 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 librados2 amd64 17.2.7-0ubuntu0.22.04.2 [3594 kB]
+2025-08-14T22:15:53.3510281Z Get:62 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 librbd1 amd64 17.2.7-0ubuntu0.22.04.2 [3548 kB]
+2025-08-14T22:15:54.0141027Z Get:63 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libsdl2-2.0-0 amd64 2.0.20+dfsg-2ubuntu1.22.04.1 [582 kB]
+2025-08-14T22:15:54.1332605Z Get:64 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libspice-server1 amd64 0.15.0-2ubuntu4 [351 kB]
+2025-08-14T22:15:54.2161844Z Get:65 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 liburing2 amd64 2.1-2build1 [10.3 kB]
+2025-08-14T22:15:54.2500593Z Get:66 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libusbredirparser1 amd64 0.11.0-2build1 [15.9 kB]
+2025-08-14T22:15:54.2848196Z Get:67 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libvirglrenderer1 amd64 0.9.1-1~exp1ubuntu2 [188 kB]
+2025-08-14T22:15:54.3509853Z Get:68 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libvte-2.91-common amd64 0.68.0-1ubuntu0.1 [9408 B]
+2025-08-14T22:15:54.3857191Z Get:69 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 libvte-2.91-0 amd64 0.68.0-1ubuntu0.1 [214 kB]
+2025-08-14T22:15:54.4699826Z Get:70 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 libfdt1 amd64 1.6.1-1 [20.0 kB]
+2025-08-14T22:15:54.5047812Z Get:71 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 qemu-system-common amd64 1:6.2+dfsg-2ubuntu6.26 [2047 kB]
+2025-08-14T22:15:54.9187319Z Get:72 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 qemu-system-data all 1:6.2+dfsg-2ubuntu6.26 [1430 kB]
+2025-08-14T22:15:55.1519755Z Get:73 http://azure.archive.ubuntu.com/ubuntu jammy/main amd64 seabios all 1.15.0-1 [174 kB]
+2025-08-14T22:15:55.2127652Z Get:74 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 qemu-system-x86 amd64 1:6.2+dfsg-2ubuntu6.26 [10.1 MB]
+2025-08-14T22:15:56.7026536Z Get:75 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 qemu-utils amd64 1:6.2+dfsg-2ubuntu6.26 [1527 kB]
+2025-08-14T22:15:56.9279673Z Get:76 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 qemu-block-extra amd64 1:6.2+dfsg-2ubuntu6.26 [68.2 kB]
+2025-08-14T22:15:56.9650265Z Get:77 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 qemu-system-gui amd64 1:6.2+dfsg-2ubuntu6.26 [220 kB]
+2025-08-14T22:15:57.0309666Z Get:78 http://azure.archive.ubuntu.com/ubuntu jammy-updates/main amd64 ovmf all 2022.02-3ubuntu0.22.04.3 [7561 kB]
+2025-08-14T22:15:58.3498683Z Fetched 45.2 MB in 10s (4433 kB/s)
+2025-08-14T22:15:58.3750087Z Selecting previously unselected package msr-tools.
+2025-08-14T22:15:58.4000980Z (Reading database ... 
+2025-08-14T22:15:58.4001353Z (Reading database ... 5%
+2025-08-14T22:15:58.4001661Z (Reading database ... 10%
+2025-08-14T22:15:58.4001958Z (Reading database ... 15%
+2025-08-14T22:15:58.4002287Z (Reading database ... 20%
+2025-08-14T22:15:58.4002577Z (Reading database ... 25%
+2025-08-14T22:15:58.4002875Z (Reading database ... 30%
+2025-08-14T22:15:58.4003150Z (Reading database ... 35%
+2025-08-14T22:15:58.4003401Z (Reading database ... 40%
+2025-08-14T22:15:58.4003652Z (Reading database ... 45%
+2025-08-14T22:15:58.4004300Z (Reading database ... 50%
+2025-08-14T22:15:58.4342723Z (Reading database ... 55%
+2025-08-14T22:15:58.4646534Z (Reading database ... 60%
+2025-08-14T22:15:58.4927525Z (Reading database ... 65%
+2025-08-14T22:15:58.5291652Z (Reading database ... 70%
+2025-08-14T22:15:58.5935250Z (Reading database ... 75%
+2025-08-14T22:15:58.6322713Z (Reading database ... 80%
+2025-08-14T22:15:58.7064300Z (Reading database ... 85%
+2025-08-14T22:15:58.7483586Z (Reading database ... 90%
+2025-08-14T22:15:58.7968028Z (Reading database ... 95%
+2025-08-14T22:15:58.7968716Z (Reading database ... 100%
+2025-08-14T22:15:58.7969588Z (Reading database ... 267991 files and directories currently installed.)
+2025-08-14T22:15:58.8027118Z Preparing to unpack .../00-msr-tools_1.3-4_amd64.deb ...
+2025-08-14T22:15:58.8058271Z Unpacking msr-tools (1.3-4) ...
+2025-08-14T22:15:58.8442922Z Selecting previously unselected package cpu-checker.
+2025-08-14T22:15:58.8616590Z Preparing to unpack .../01-cpu-checker_0.7-1.3build1_amd64.deb ...
+2025-08-14T22:15:58.8625746Z Unpacking cpu-checker (0.7-1.3build1) ...
+2025-08-14T22:15:58.8941883Z Selecting previously unselected package libcdparanoia0:amd64.
+2025-08-14T22:15:58.9110320Z Preparing to unpack .../02-libcdparanoia0_3.10.2+debian-14build2_amd64.deb ...
+2025-08-14T22:15:58.9138222Z Unpacking libcdparanoia0:amd64 (3.10.2+debian-14build2) ...
+2025-08-14T22:15:58.9453036Z Selecting previously unselected package liborc-0.4-0:amd64.
+2025-08-14T22:15:58.9624171Z Preparing to unpack .../03-liborc-0.4-0_1%3a0.4.32-2ubuntu0.1_amd64.deb ...
+2025-08-14T22:15:58.9637071Z Unpacking liborc-0.4-0:amd64 (1:0.4.32-2ubuntu0.1) ...
+2025-08-14T22:15:58.9929730Z Selecting previously unselected package libgstreamer-plugins-base1.0-0:amd64.
+2025-08-14T22:15:59.0100256Z Preparing to unpack .../04-libgstreamer-plugins-base1.0-0_1.20.1-1ubuntu0.4_amd64.deb ...
+2025-08-14T22:15:59.0112299Z Unpacking libgstreamer-plugins-base1.0-0:amd64 (1.20.1-1ubuntu0.4) ...
+2025-08-14T22:15:59.0484337Z Selecting previously unselected package libopus0:amd64.
+2025-08-14T22:15:59.0657081Z Preparing to unpack .../05-libopus0_1.3.1-0.1build2_amd64.deb ...
+2025-08-14T22:15:59.0670173Z Unpacking libopus0:amd64 (1.3.1-0.1build2) ...
+2025-08-14T22:15:59.0948111Z Selecting previously unselected package libtheora0:amd64.
+2025-08-14T22:15:59.1121084Z Preparing to unpack .../06-libtheora0_1.1.1+dfsg.1-15ubuntu4_amd64.deb ...
+2025-08-14T22:15:59.1132624Z Unpacking libtheora0:amd64 (1.1.1+dfsg.1-15ubuntu4) ...
+2025-08-14T22:15:59.1401349Z Selecting previously unselected package libvisual-0.4-0:amd64.
+2025-08-14T22:15:59.1574090Z Preparing to unpack .../07-libvisual-0.4-0_0.4.0-17build2_amd64.deb ...
+2025-08-14T22:15:59.1585136Z Unpacking libvisual-0.4-0:amd64 (0.4.0-17build2) ...
+2025-08-14T22:15:59.1899323Z Selecting previously unselected package libvorbisenc2:amd64.
+2025-08-14T22:15:59.2070952Z Preparing to unpack .../08-libvorbisenc2_1.3.7-1build2_amd64.deb ...
+2025-08-14T22:15:59.2081686Z Unpacking libvorbisenc2:amd64 (1.3.7-1build2) ...
+2025-08-14T22:15:59.2338375Z Selecting previously unselected package gstreamer1.0-plugins-base:amd64.
+2025-08-14T22:15:59.2513839Z Preparing to unpack .../09-gstreamer1.0-plugins-base_1.20.1-1ubuntu0.4_amd64.deb ...
+2025-08-14T22:15:59.2524229Z Unpacking gstreamer1.0-plugins-base:amd64 (1.20.1-1ubuntu0.4) ...
+2025-08-14T22:15:59.2867600Z Selecting previously unselected package libaa1:amd64.
+2025-08-14T22:15:59.3040721Z Preparing to unpack .../10-libaa1_1.4p5-50build1_amd64.deb ...
+2025-08-14T22:15:59.3053293Z Unpacking libaa1:amd64 (1.4p5-50build1) ...
+2025-08-14T22:15:59.3298460Z Selecting previously unselected package libraw1394-11:amd64.
+2025-08-14T22:15:59.3473214Z Preparing to unpack .../11-libraw1394-11_2.1.2-2build2_amd64.deb ...
+2025-08-14T22:15:59.3484016Z Unpacking libraw1394-11:amd64 (2.1.2-2build2) ...
+2025-08-14T22:15:59.3755662Z Selecting previously unselected package libavc1394-0:amd64.
+2025-08-14T22:15:59.3928370Z Preparing to unpack .../12-libavc1394-0_0.5.4-5build2_amd64.deb ...
+2025-08-14T22:15:59.3940796Z Unpacking libavc1394-0:amd64 (0.5.4-5build2) ...
+2025-08-14T22:15:59.4179879Z Selecting previously unselected package libcaca0:amd64.
+2025-08-14T22:15:59.4352718Z Preparing to unpack .../13-libcaca0_0.99.beta19-2.2ubuntu4_amd64.deb ...
+2025-08-14T22:15:59.4364218Z Unpacking libcaca0:amd64 (0.99.beta19-2.2ubuntu4) ...
+2025-08-14T22:15:59.4648079Z Selecting previously unselected package libdv4:amd64.
+2025-08-14T22:15:59.4823229Z Preparing to unpack .../14-libdv4_1.0.0-14build1_amd64.deb ...
+2025-08-14T22:15:59.4837708Z Unpacking libdv4:amd64 (1.0.0-14build1) ...
+2025-08-14T22:15:59.5106396Z Selecting previously unselected package libflac8:amd64.
+2025-08-14T22:15:59.5278694Z Preparing to unpack .../15-libflac8_1.3.3-2ubuntu0.2_amd64.deb ...
+2025-08-14T22:15:59.5290105Z Unpacking libflac8:amd64 (1.3.3-2ubuntu0.2) ...
+2025-08-14T22:15:59.5547283Z Selecting previously unselected package libgstreamer-plugins-good1.0-0:amd64.
+2025-08-14T22:15:59.5717918Z Preparing to unpack .../16-libgstreamer-plugins-good1.0-0_1.20.3-0ubuntu1.3_amd64.deb ...
+2025-08-14T22:15:59.5729168Z Unpacking libgstreamer-plugins-good1.0-0:amd64 (1.20.3-0ubuntu1.3) ...
+2025-08-14T22:15:59.5965806Z Selecting previously unselected package libiec61883-0:amd64.
+2025-08-14T22:15:59.6134757Z Preparing to unpack .../17-libiec61883-0_1.2.0-4build3_amd64.deb ...
+2025-08-14T22:15:59.6145486Z Unpacking libiec61883-0:amd64 (1.2.0-4build3) ...
+2025-08-14T22:15:59.6377779Z Selecting previously unselected package libsamplerate0:amd64.
+2025-08-14T22:15:59.6550852Z Preparing to unpack .../18-libsamplerate0_0.2.2-1build1_amd64.deb ...
+2025-08-14T22:15:59.6561234Z Unpacking libsamplerate0:amd64 (0.2.2-1build1) ...
+2025-08-14T22:15:59.6854706Z Selecting previously unselected package libjack-jackd2-0:amd64.
+2025-08-14T22:15:59.7027310Z Preparing to unpack .../19-libjack-jackd2-0_1.9.20~dfsg-1_amd64.deb ...
+2025-08-14T22:15:59.7037687Z Unpacking libjack-jackd2-0:amd64 (1.9.20~dfsg-1) ...
+2025-08-14T22:15:59.7318868Z Selecting previously unselected package libmp3lame0:amd64.
+2025-08-14T22:15:59.7490889Z Preparing to unpack .../20-libmp3lame0_3.100-3build2_amd64.deb ...
+2025-08-14T22:15:59.7502489Z Unpacking libmp3lame0:amd64 (3.100-3build2) ...
+2025-08-14T22:15:59.7755679Z Selecting previously unselected package libmpg123-0:amd64.
+2025-08-14T22:15:59.7924240Z Preparing to unpack .../21-libmpg123-0_1.29.3-1ubuntu0.1_amd64.deb ...
+2025-08-14T22:15:59.7936434Z Unpacking libmpg123-0:amd64 (1.29.3-1ubuntu0.1) ...
+2025-08-14T22:15:59.8187464Z Selecting previously unselected package libasyncns0:amd64.
+2025-08-14T22:15:59.8357518Z Preparing to unpack .../22-libasyncns0_0.8-6build2_amd64.deb ...
+2025-08-14T22:15:59.8368385Z Unpacking libasyncns0:amd64 (0.8-6build2) ...
+2025-08-14T22:15:59.8612877Z Selecting previously unselected package libsndfile1:amd64.
+2025-08-14T22:15:59.8784171Z Preparing to unpack .../23-libsndfile1_1.0.31-2ubuntu0.2_amd64.deb ...
+2025-08-14T22:15:59.8796338Z Unpacking libsndfile1:amd64 (1.0.31-2ubuntu0.2) ...
+2025-08-14T22:15:59.9087808Z Selecting previously unselected package libpulse0:amd64.
+2025-08-14T22:15:59.9260546Z Preparing to unpack .../24-libpulse0_1%3a15.99.1+dfsg1-1ubuntu2.2_amd64.deb ...
+2025-08-14T22:15:59.9393550Z Unpacking libpulse0:amd64 (1:15.99.1+dfsg1-1ubuntu2.2) ...
+2025-08-14T22:15:59.9681791Z Selecting previously unselected package libspeex1:amd64.
+2025-08-14T22:15:59.9857006Z Preparing to unpack .../25-libspeex1_1.2~rc1.2-1.1ubuntu3_amd64.deb ...
+2025-08-14T22:15:59.9871934Z Unpacking libspeex1:amd64 (1.2~rc1.2-1.1ubuntu3) ...
+2025-08-14T22:16:00.0117898Z Selecting previously unselected package libshout3:amd64.
+2025-08-14T22:16:00.0292206Z Preparing to unpack .../26-libshout3_2.4.5-1build3_amd64.deb ...
+2025-08-14T22:16:00.0302778Z Unpacking libshout3:amd64 (2.4.5-1build3) ...
+2025-08-14T22:16:00.0558687Z Selecting previously unselected package libtag1v5-vanilla:amd64.
+2025-08-14T22:16:00.0736040Z Preparing to unpack .../27-libtag1v5-vanilla_1.11.1+dfsg.1-3ubuntu3_amd64.deb ...
+2025-08-14T22:16:00.0749319Z Unpacking libtag1v5-vanilla:amd64 (1.11.1+dfsg.1-3ubuntu3) ...
+2025-08-14T22:16:00.1013393Z Selecting previously unselected package libtag1v5:amd64.
+2025-08-14T22:16:00.1185972Z Preparing to unpack .../28-libtag1v5_1.11.1+dfsg.1-3ubuntu3_amd64.deb ...
+2025-08-14T22:16:00.1196584Z Unpacking libtag1v5:amd64 (1.11.1+dfsg.1-3ubuntu3) ...
+2025-08-14T22:16:00.1433046Z Selecting previously unselected package libtwolame0:amd64.
+2025-08-14T22:16:00.1606915Z Preparing to unpack .../29-libtwolame0_0.4.0-2build2_amd64.deb ...
+2025-08-14T22:16:00.1618599Z Unpacking libtwolame0:amd64 (0.4.0-2build2) ...
+2025-08-14T22:16:00.1859537Z Selecting previously unselected package libv4lconvert0:amd64.
+2025-08-14T22:16:00.2031544Z Preparing to unpack .../30-libv4lconvert0_1.22.1-2build1_amd64.deb ...
+2025-08-14T22:16:00.2042750Z Unpacking libv4lconvert0:amd64 (1.22.1-2build1) ...
+2025-08-14T22:16:00.2282278Z Selecting previously unselected package libv4l-0:amd64.
+2025-08-14T22:16:00.2455095Z Preparing to unpack .../31-libv4l-0_1.22.1-2build1_amd64.deb ...
+2025-08-14T22:16:00.2463415Z Unpacking libv4l-0:amd64 (1.22.1-2build1) ...
+2025-08-14T22:16:00.2715861Z Selecting previously unselected package libvpx7:amd64.
+2025-08-14T22:16:00.2887516Z Preparing to unpack .../32-libvpx7_1.11.0-2ubuntu2.4_amd64.deb ...
+2025-08-14T22:16:00.2897463Z Unpacking libvpx7:amd64 (1.11.0-2ubuntu2.4) ...
+2025-08-14T22:16:00.3249043Z Selecting previously unselected package libwavpack1:amd64.
+2025-08-14T22:16:00.3422474Z Preparing to unpack .../33-libwavpack1_5.4.0-1build2_amd64.deb ...
+2025-08-14T22:16:00.3430758Z Unpacking libwavpack1:amd64 (5.4.0-1build2) ...
+2025-08-14T22:16:00.3667137Z Selecting previously unselected package gstreamer1.0-plugins-good:amd64.
+2025-08-14T22:16:00.3837453Z Preparing to unpack .../34-gstreamer1.0-plugins-good_1.20.3-0ubuntu1.3_amd64.deb ...
+2025-08-14T22:16:00.3846014Z Unpacking gstreamer1.0-plugins-good:amd64 (1.20.3-0ubuntu1.3) ...
+2025-08-14T22:16:00.4419585Z Selecting previously unselected package libxv1:amd64.
+2025-08-14T22:16:00.4591065Z Preparing to unpack .../35-libxv1_2%3a1.0.11-1build2_amd64.deb ...
+2025-08-14T22:16:00.4602428Z Unpacking libxv1:amd64 (2:1.0.11-1build2) ...
+2025-08-14T22:16:00.4814295Z Selecting previously unselected package gstreamer1.0-x:amd64.
+2025-08-14T22:16:00.4987938Z Preparing to unpack .../36-gstreamer1.0-x_1.20.1-1ubuntu0.4_amd64.deb ...
+2025-08-14T22:16:00.4998696Z Unpacking gstreamer1.0-x:amd64 (1.20.1-1ubuntu0.4) ...
+2025-08-14T22:16:00.5242332Z Selecting previously unselected package libnl-route-3-200:amd64.
+2025-08-14T22:16:00.5413423Z Preparing to unpack .../37-libnl-route-3-200_3.5.0-0.1_amd64.deb ...
+2025-08-14T22:16:00.5422585Z Unpacking libnl-route-3-200:amd64 (3.5.0-0.1) ...
+2025-08-14T22:16:00.5671964Z Selecting previously unselected package libibverbs1:amd64.
+2025-08-14T22:16:00.5842792Z Preparing to unpack .../38-libibverbs1_39.0-1_amd64.deb ...
+2025-08-14T22:16:00.5851594Z Unpacking libibverbs1:amd64 (39.0-1) ...
+2025-08-14T22:16:00.6099412Z Selecting previously unselected package ibverbs-providers:amd64.
+2025-08-14T22:16:00.6272159Z Preparing to unpack .../39-ibverbs-providers_39.0-1_amd64.deb ...
+2025-08-14T22:16:00.6404115Z Unpacking ibverbs-providers:amd64 (39.0-1) ...
+2025-08-14T22:16:00.6708782Z Selecting previously unselected package ipxe-qemu.
+2025-08-14T22:16:00.6881220Z Preparing to unpack .../40-ipxe-qemu_1.21.1+git-20220113.fbbdc3926-0ubuntu1_all.deb ...
+2025-08-14T22:16:00.6889754Z Unpacking ipxe-qemu (1.21.1+git-20220113.fbbdc3926-0ubuntu1) ...
+2025-08-14T22:16:00.7272299Z Selecting previously unselected package ipxe-qemu-256k-compat-efi-roms.
+2025-08-14T22:16:00.7444115Z Preparing to unpack .../41-ipxe-qemu-256k-compat-efi-roms_1.0.0+git-20150424.a25a16d-0ubuntu4_all.deb ...
+2025-08-14T22:16:00.7454598Z Unpacking ipxe-qemu-256k-compat-efi-roms (1.0.0+git-20150424.a25a16d-0ubuntu4) ...
+2025-08-14T22:16:00.7968113Z Selecting previously unselected package libboost-iostreams1.74.0:amd64.
+2025-08-14T22:16:00.8141090Z Preparing to unpack .../42-libboost-iostreams1.74.0_1.74.0-14ubuntu3_amd64.deb ...
+2025-08-14T22:16:00.8150210Z Unpacking libboost-iostreams1.74.0:amd64 (1.74.0-14ubuntu3) ...
+2025-08-14T22:16:00.8462406Z Selecting previously unselected package libboost-thread1.74.0:amd64.
+2025-08-14T22:16:00.8633176Z Preparing to unpack .../43-libboost-thread1.74.0_1.74.0-14ubuntu3_amd64.deb ...
+2025-08-14T22:16:00.8642201Z Unpacking libboost-thread1.74.0:amd64 (1.74.0-14ubuntu3) ...
+2025-08-14T22:16:00.8934089Z Selecting previously unselected package libbrlapi0.8:amd64.
+2025-08-14T22:16:00.9101023Z Preparing to unpack .../44-libbrlapi0.8_6.4-4ubuntu3_amd64.deb ...
+2025-08-14T22:16:00.9109502Z Unpacking libbrlapi0.8:amd64 (6.4-4ubuntu3) ...
+2025-08-14T22:16:00.9349361Z Selecting previously unselected package libpcsclite1:amd64.
+2025-08-14T22:16:00.9520920Z Preparing to unpack .../45-libpcsclite1_1.9.5-3ubuntu1_amd64.deb ...
+2025-08-14T22:16:00.9531271Z Unpacking libpcsclite1:amd64 (1.9.5-3ubuntu1) ...
+2025-08-14T22:16:00.9751214Z Selecting previously unselected package libcacard0:amd64.
+2025-08-14T22:16:00.9924204Z Preparing to unpack .../46-libcacard0_1%3a2.8.0-3build2_amd64.deb ...
+2025-08-14T22:16:00.9932761Z Unpacking libcacard0:amd64 (1:2.8.0-3build2) ...
+2025-08-14T22:16:01.0162198Z Selecting previously unselected package libdaxctl1:amd64.
+2025-08-14T22:16:01.0336875Z Preparing to unpack .../47-libdaxctl1_72.1-1_amd64.deb ...
+2025-08-14T22:16:01.0346665Z Unpacking libdaxctl1:amd64 (72.1-1) ...
+2025-08-14T22:16:01.0592698Z Selecting previously unselected package libdecor-0-0:amd64.
+2025-08-14T22:16:01.0769549Z Preparing to unpack .../48-libdecor-0-0_0.1.0-3build1_amd64.deb ...
+2025-08-14T22:16:01.0791289Z Unpacking libdecor-0-0:amd64 (0.1.0-3build1) ...
+2025-08-14T22:16:01.1013629Z Selecting previously unselected package libdecor-0-plugin-1-cairo:amd64.
+2025-08-14T22:16:01.1188368Z Preparing to unpack .../49-libdecor-0-plugin-1-cairo_0.1.0-3build1_amd64.deb ...
+2025-08-14T22:16:01.1197786Z Unpacking libdecor-0-plugin-1-cairo:amd64 (0.1.0-3build1) ...
+2025-08-14T22:16:01.1476101Z Selecting previously unselected package libgfxdr0:amd64.
+2025-08-14T22:16:01.1649127Z Preparing to unpack .../50-libgfxdr0_10.1-1ubuntu0.2_amd64.deb ...
+2025-08-14T22:16:01.1658712Z Unpacking libgfxdr0:amd64 (10.1-1ubuntu0.2) ...
+2025-08-14T22:16:01.1897232Z Selecting previously unselected package libglusterfs0:amd64.
+2025-08-14T22:16:01.2069959Z Preparing to unpack .../51-libglusterfs0_10.1-1ubuntu0.2_amd64.deb ...
+2025-08-14T22:16:01.2079587Z Unpacking libglusterfs0:amd64 (10.1-1ubuntu0.2) ...
+2025-08-14T22:16:01.2336087Z Selecting previously unselected package libgfrpc0:amd64.
+2025-08-14T22:16:01.2508495Z Preparing to unpack .../52-libgfrpc0_10.1-1ubuntu0.2_amd64.deb ...
+2025-08-14T22:16:01.2516801Z Unpacking libgfrpc0:amd64 (10.1-1ubuntu0.2) ...
+2025-08-14T22:16:01.2748928Z Selecting previously unselected package libgfapi0:amd64.
+2025-08-14T22:16:01.2919642Z Preparing to unpack .../53-libgfapi0_10.1-1ubuntu0.2_amd64.deb ...
+2025-08-14T22:16:01.2928786Z Unpacking libgfapi0:amd64 (10.1-1ubuntu0.2) ...
+2025-08-14T22:16:01.3167387Z Selecting previously unselected package librdmacm1:amd64.
+2025-08-14T22:16:01.3341622Z Preparing to unpack .../54-librdmacm1_39.0-1_amd64.deb ...
+2025-08-14T22:16:01.3351187Z Unpacking librdmacm1:amd64 (39.0-1) ...
+2025-08-14T22:16:01.3584772Z Selecting previously unselected package libiscsi7:amd64.
+2025-08-14T22:16:01.3762746Z Preparing to unpack .../55-libiscsi7_1.19.0-3build2_amd64.deb ...
+2025-08-14T22:16:01.3772178Z Unpacking libiscsi7:amd64 (1.19.0-3build2) ...
+2025-08-14T22:16:01.4013428Z Selecting previously unselected package libndctl6:amd64.
+2025-08-14T22:16:01.4187050Z Preparing to unpack .../56-libndctl6_72.1-1_amd64.deb ...
+2025-08-14T22:16:01.4197817Z Unpacking libndctl6:amd64 (72.1-1) ...
+2025-08-14T22:16:01.4430285Z Selecting previously unselected package libpmem1:amd64.
+2025-08-14T22:16:01.4604586Z Preparing to unpack .../57-libpmem1_1.11.1-3build1_amd64.deb ...
+2025-08-14T22:16:01.4613693Z Unpacking libpmem1:amd64 (1.11.1-3build1) ...
+2025-08-14T22:16:01.4881959Z Selecting previously unselected package libpmemobj1:amd64.
+2025-08-14T22:16:01.5050761Z Preparing to unpack .../58-libpmemobj1_1.11.1-3build1_amd64.deb ...
+2025-08-14T22:16:01.5061969Z Unpacking libpmemobj1:amd64 (1.11.1-3build1) ...
+2025-08-14T22:16:01.5335473Z Selecting previously unselected package librados2.
+2025-08-14T22:16:01.5510086Z Preparing to unpack .../59-librados2_17.2.7-0ubuntu0.22.04.2_amd64.deb ...
+2025-08-14T22:16:01.5519614Z Unpacking librados2 (17.2.7-0ubuntu0.22.04.2) ...
+2025-08-14T22:16:01.6247578Z Selecting previously unselected package librbd1.
+2025-08-14T22:16:01.6420796Z Preparing to unpack .../60-librbd1_17.2.7-0ubuntu0.22.04.2_amd64.deb ...
+2025-08-14T22:16:01.6431069Z Unpacking librbd1 (17.2.7-0ubuntu0.22.04.2) ...
+2025-08-14T22:16:01.7212308Z Selecting previously unselected package libsdl2-2.0-0:amd64.
+2025-08-14T22:16:01.7383794Z Preparing to unpack .../61-libsdl2-2.0-0_2.0.20+dfsg-2ubuntu1.22.04.1_amd64.deb ...
+2025-08-14T22:16:01.7394023Z Unpacking libsdl2-2.0-0:amd64 (2.0.20+dfsg-2ubuntu1.22.04.1) ...
+2025-08-14T22:16:01.7681125Z Selecting previously unselected package libspice-server1:amd64.
+2025-08-14T22:16:01.7851959Z Preparing to unpack .../62-libspice-server1_0.15.0-2ubuntu4_amd64.deb ...
+2025-08-14T22:16:01.7860952Z Unpacking libspice-server1:amd64 (0.15.0-2ubuntu4) ...
+2025-08-14T22:16:01.8140113Z Selecting previously unselected package liburing2:amd64.
+2025-08-14T22:16:01.8318254Z Preparing to unpack .../63-liburing2_2.1-2build1_amd64.deb ...
+2025-08-14T22:16:01.8328879Z Unpacking liburing2:amd64 (2.1-2build1) ...
+2025-08-14T22:16:01.8551917Z Selecting previously unselected package libusbredirparser1:amd64.
+2025-08-14T22:16:01.8723267Z Preparing to unpack .../64-libusbredirparser1_0.11.0-2build1_amd64.deb ...
+2025-08-14T22:16:01.8732339Z Unpacking libusbredirparser1:amd64 (0.11.0-2build1) ...
+2025-08-14T22:16:01.8952723Z Selecting previously unselected package libvirglrenderer1:amd64.
+2025-08-14T22:16:01.9122754Z Preparing to unpack .../65-libvirglrenderer1_0.9.1-1~exp1ubuntu2_amd64.deb ...
+2025-08-14T22:16:01.9131300Z Unpacking libvirglrenderer1:amd64 (0.9.1-1~exp1ubuntu2) ...
+2025-08-14T22:16:01.9374241Z Selecting previously unselected package libvte-2.91-common.
+2025-08-14T22:16:01.9544237Z Preparing to unpack .../66-libvte-2.91-common_0.68.0-1ubuntu0.1_amd64.deb ...
+2025-08-14T22:16:01.9553650Z Unpacking libvte-2.91-common (0.68.0-1ubuntu0.1) ...
+2025-08-14T22:16:01.9799058Z Selecting previously unselected package libvte-2.91-0:amd64.
+2025-08-14T22:16:01.9973431Z Preparing to unpack .../67-libvte-2.91-0_0.68.0-1ubuntu0.1_amd64.deb ...
+2025-08-14T22:16:01.9982588Z Unpacking libvte-2.91-0:amd64 (0.68.0-1ubuntu0.1) ...
+2025-08-14T22:16:02.0236390Z Selecting previously unselected package libfdt1:amd64.
+2025-08-14T22:16:02.0409640Z Preparing to unpack .../68-libfdt1_1.6.1-1_amd64.deb ...
+2025-08-14T22:16:02.0440793Z Unpacking libfdt1:amd64 (1.6.1-1) ...
+2025-08-14T22:16:02.0671104Z Selecting previously unselected package qemu-system-common.
+2025-08-14T22:16:02.0845335Z Preparing to unpack .../69-qemu-system-common_1%3a6.2+dfsg-2ubuntu6.26_amd64.deb ...
+2025-08-14T22:16:02.0854941Z Unpacking qemu-system-common (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:02.1784843Z Selecting previously unselected package qemu-system-data.
+2025-08-14T22:16:02.1954626Z Preparing to unpack .../70-qemu-system-data_1%3a6.2+dfsg-2ubuntu6.26_all.deb ...
+2025-08-14T22:16:02.1962669Z Unpacking qemu-system-data (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:02.2654678Z Selecting previously unselected package seabios.
+2025-08-14T22:16:02.2849021Z Preparing to unpack .../71-seabios_1.15.0-1_all.deb ...
+2025-08-14T22:16:02.2851394Z Unpacking seabios (1.15.0-1) ...
+2025-08-14T22:16:02.3103386Z Selecting previously unselected package qemu-system-x86.
+2025-08-14T22:16:02.3276131Z Preparing to unpack .../72-qemu-system-x86_1%3a6.2+dfsg-2ubuntu6.26_amd64.deb ...
+2025-08-14T22:16:02.3284378Z Unpacking qemu-system-x86 (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:02.4853320Z Selecting previously unselected package qemu-utils.
+2025-08-14T22:16:02.5034843Z Preparing to unpack .../73-qemu-utils_1%3a6.2+dfsg-2ubuntu6.26_amd64.deb ...
+2025-08-14T22:16:02.5044076Z Unpacking qemu-utils (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:02.5621346Z Selecting previously unselected package qemu-block-extra.
+2025-08-14T22:16:02.5793029Z Preparing to unpack .../74-qemu-block-extra_1%3a6.2+dfsg-2ubuntu6.26_amd64.deb ...
+2025-08-14T22:16:02.5801056Z Unpacking qemu-block-extra (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:02.6027739Z Selecting previously unselected package qemu-system-gui.
+2025-08-14T22:16:02.6200192Z Preparing to unpack .../75-qemu-system-gui_1%3a6.2+dfsg-2ubuntu6.26_amd64.deb ...
+2025-08-14T22:16:02.6209529Z Unpacking qemu-system-gui (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:02.6461178Z Selecting previously unselected package ovmf.
+2025-08-14T22:16:02.6633691Z Preparing to unpack .../76-ovmf_2022.02-3ubuntu0.22.04.3_all.deb ...
+2025-08-14T22:16:02.6642125Z Unpacking ovmf (2022.02-3ubuntu0.22.04.3) ...
+2025-08-14T22:16:02.7634402Z Setting up libcdparanoia0:amd64 (3.10.2+debian-14build2) ...
+2025-08-14T22:16:02.7657847Z Setting up libraw1394-11:amd64 (2.1.2-2build2) ...
+2025-08-14T22:16:02.7679735Z Setting up libtag1v5-vanilla:amd64 (1.11.1+dfsg.1-3ubuntu3) ...
+2025-08-14T22:16:02.7701299Z Setting up libmpg123-0:amd64 (1.29.3-1ubuntu0.1) ...
+2025-08-14T22:16:02.7722238Z Setting up libspeex1:amd64 (1.2~rc1.2-1.1ubuntu3) ...
+2025-08-14T22:16:02.7743381Z Setting up libcaca0:amd64 (0.99.beta19-2.2ubuntu4) ...
+2025-08-14T22:16:02.7766004Z Setting up libtwolame0:amd64 (0.4.0-2build2) ...
+2025-08-14T22:16:02.7788137Z Setting up libvte-2.91-common (0.68.0-1ubuntu0.1) ...
+2025-08-14T22:16:02.7822654Z Setting up libvisual-0.4-0:amd64 (0.4.0-17build2) ...
+2025-08-14T22:16:02.7843235Z Setting up libboost-iostreams1.74.0:amd64 (1.74.0-14ubuntu3) ...
+2025-08-14T22:16:02.7866357Z Setting up msr-tools (1.3-4) ...
+2025-08-14T22:16:02.7888911Z Setting up libfdt1:amd64 (1.6.1-1) ...
+2025-08-14T22:16:02.7909805Z Setting up libvte-2.91-0:amd64 (0.68.0-1ubuntu0.1) ...
+2025-08-14T22:16:02.7930726Z Setting up libusbredirparser1:amd64 (0.11.0-2build1) ...
+2025-08-14T22:16:02.7956807Z Setting up libflac8:amd64 (1.3.3-2ubuntu0.2) ...
+2025-08-14T22:16:02.7987736Z Setting up libnl-route-3-200:amd64 (3.5.0-0.1) ...
+2025-08-14T22:16:02.8015606Z Setting up ovmf (2022.02-3ubuntu0.22.04.3) ...
+2025-08-14T22:16:02.8035904Z Setting up libglusterfs0:amd64 (10.1-1ubuntu0.2) ...
+2025-08-14T22:16:02.8058028Z Setting up libvirglrenderer1:amd64 (0.9.1-1~exp1ubuntu2) ...
+2025-08-14T22:16:02.8099087Z Setting up libopus0:amd64 (1.3.1-0.1build2) ...
+2025-08-14T22:16:02.8136007Z Setting up libxv1:amd64 (2:1.0.11-1build2) ...
+2025-08-14T22:16:02.8159286Z Setting up liborc-0.4-0:amd64 (1:0.4.32-2ubuntu0.1) ...
+2025-08-14T22:16:02.8180852Z Setting up libpcsclite1:amd64 (1.9.5-3ubuntu1) ...
+2025-08-14T22:16:02.8202192Z Setting up libdaxctl1:amd64 (72.1-1) ...
+2025-08-14T22:16:02.8225642Z Setting up qemu-system-data (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:02.8250141Z Setting up seabios (1.15.0-1) ...
+2025-08-14T22:16:02.8276095Z Setting up libtag1v5:amd64 (1.11.1+dfsg.1-3ubuntu3) ...
+2025-08-14T22:16:02.8303970Z Setting up cpu-checker (0.7-1.3build1) ...
+2025-08-14T22:16:02.8330719Z Setting up libdv4:amd64 (1.0.0-14build1) ...
+2025-08-14T22:16:02.8357205Z Setting up libasyncns0:amd64 (0.8-6build2) ...
+2025-08-14T22:16:02.8382238Z Setting up libwavpack1:amd64 (5.4.0-1build2) ...
+2025-08-14T22:16:02.8413546Z Setting up ipxe-qemu (1.21.1+git-20220113.fbbdc3926-0ubuntu1) ...
+2025-08-14T22:16:02.8450472Z Setting up libtheora0:amd64 (1.1.1+dfsg.1-15ubuntu4) ...
+2025-08-14T22:16:02.8482258Z Setting up libv4lconvert0:amd64 (1.22.1-2build1) ...
+2025-08-14T22:16:02.8507065Z Setting up libdecor-0-0:amd64 (0.1.0-3build1) ...
+2025-08-14T22:16:02.8530763Z Setting up libndctl6:amd64 (72.1-1) ...
+2025-08-14T22:16:02.8559385Z Setting up ipxe-qemu-256k-compat-efi-roms (1.0.0+git-20150424.a25a16d-0ubuntu4) ...
+2025-08-14T22:16:02.8582831Z Setting up libvpx7:amd64 (1.11.0-2ubuntu2.4) ...
+2025-08-14T22:16:02.8605948Z Setting up libbrlapi0.8:amd64 (6.4-4ubuntu3) ...
+2025-08-14T22:16:02.8634269Z Setting up liburing2:amd64 (2.1-2build1) ...
+2025-08-14T22:16:02.8657469Z Setting up libsamplerate0:amd64 (0.2.2-1build1) ...
+2025-08-14T22:16:02.8681392Z Setting up libpmem1:amd64 (1.11.1-3build1) ...
+2025-08-14T22:16:02.8710779Z Setting up libmp3lame0:amd64 (3.100-3build2) ...
+2025-08-14T22:16:02.8738080Z Setting up libvorbisenc2:amd64 (1.3.7-1build2) ...
+2025-08-14T22:16:02.8759444Z Setting up libgfxdr0:amd64 (10.1-1ubuntu0.2) ...
+2025-08-14T22:16:02.8784063Z Setting up libboost-thread1.74.0:amd64 (1.74.0-14ubuntu3) ...
+2025-08-14T22:16:02.8806932Z Setting up libaa1:amd64 (1.4p5-50build1) ...
+2025-08-14T22:16:02.8829510Z Setting up libiec61883-0:amd64 (1.2.0-4build3) ...
+2025-08-14T22:16:02.8850181Z Setting up libavc1394-0:amd64 (0.5.4-5build2) ...
+2025-08-14T22:16:02.8874394Z Setting up libibverbs1:amd64 (39.0-1) ...
+2025-08-14T22:16:02.9499568Z Setting up ibverbs-providers:amd64 (39.0-1) ...
+2025-08-14T22:16:02.9766737Z Setting up libgstreamer-plugins-base1.0-0:amd64 (1.20.1-1ubuntu0.4) ...
+2025-08-14T22:16:02.9788800Z Setting up libcacard0:amd64 (1:2.8.0-3build2) ...
+2025-08-14T22:16:02.9811147Z Setting up libv4l-0:amd64 (1.22.1-2build1) ...
+2025-08-14T22:16:02.9835546Z Setting up libgstreamer-plugins-good1.0-0:amd64 (1.20.3-0ubuntu1.3) ...
+2025-08-14T22:16:02.9856391Z Setting up gstreamer1.0-plugins-base:amd64 (1.20.1-1ubuntu0.4) ...
+2025-08-14T22:16:02.9878532Z Setting up libshout3:amd64 (2.4.5-1build3) ...
+2025-08-14T22:16:02.9898653Z Setting up libpmemobj1:amd64 (1.11.1-3build1) ...
+2025-08-14T22:16:02.9920389Z Setting up libdecor-0-plugin-1-cairo:amd64 (0.1.0-3build1) ...
+2025-08-14T22:16:02.9943086Z Setting up libjack-jackd2-0:amd64 (1.9.20~dfsg-1) ...
+2025-08-14T22:16:02.9963641Z Setting up libsndfile1:amd64 (1.0.31-2ubuntu0.2) ...
+2025-08-14T22:16:02.9983024Z Setting up qemu-utils (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:03.0033041Z Setting up libgfrpc0:amd64 (10.1-1ubuntu0.2) ...
+2025-08-14T22:16:03.0055897Z Setting up librdmacm1:amd64 (39.0-1) ...
+2025-08-14T22:16:03.0081776Z Setting up librados2 (17.2.7-0ubuntu0.22.04.2) ...
+2025-08-14T22:16:03.0105924Z Setting up gstreamer1.0-x:amd64 (1.20.1-1ubuntu0.4) ...
+2025-08-14T22:16:03.0128567Z Setting up libpulse0:amd64 (1:15.99.1+dfsg1-1ubuntu2.2) ...
+2025-08-14T22:16:03.0206887Z Setting up gstreamer1.0-plugins-good:amd64 (1.20.3-0ubuntu1.3) ...
+2025-08-14T22:16:03.0229399Z Setting up libspice-server1:amd64 (0.15.0-2ubuntu4) ...
+2025-08-14T22:16:03.0254232Z Setting up librbd1 (17.2.7-0ubuntu0.22.04.2) ...
+2025-08-14T22:16:03.0277896Z Setting up libgfapi0:amd64 (10.1-1ubuntu0.2) ...
+2025-08-14T22:16:03.0300762Z Setting up libiscsi7:amd64 (1.19.0-3build2) ...
+2025-08-14T22:16:03.0330868Z Setting up libsdl2-2.0-0:amd64 (2.0.20+dfsg-2ubuntu1.22.04.1) ...
+2025-08-14T22:16:03.0356696Z Setting up qemu-block-extra (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:03.3462635Z Created symlink /etc/systemd/system/multi-user.target.wants/run-qemu.mount → /lib/systemd/system/run-qemu.mount.
+2025-08-14T22:16:04.2507897Z Setting up qemu-system-common (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:04.5210649Z Created symlink /etc/systemd/system/multi-user.target.wants/qemu-kvm.service → /lib/systemd/system/qemu-kvm.service.
+2025-08-14T22:16:05.7538975Z Setting up qemu-system-x86 (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:05.8535996Z Setting up qemu-system-gui (1:6.2+dfsg-2ubuntu6.26) ...
+2025-08-14T22:16:05.9083316Z Processing triggers for man-db (2.10.2-1) ...
+2025-08-14T22:16:06.5953966Z Processing triggers for hicolor-icon-theme (0.17-2) ...
+2025-08-14T22:16:07.4140585Z Processing triggers for libc-bin (2.35-0ubuntu3.10) ...
+2025-08-14T22:16:07.7605616Z NEEDRESTART-VER: 3.5
+2025-08-14T22:16:08.0409580Z NEEDRESTART-KCUR: 6.8.0-1031-azure
+2025-08-14T22:16:08.0410070Z NEEDRESTART-KEXP: 6.8.0-1031-azure
+2025-08-14T22:16:08.0410457Z NEEDRESTART-KSTA: 1
+2025-08-14T22:16:08.0410842Z NEEDRESTART-SVC: hosted-compute-agent.service
+2025-08-14T22:16:09.6311887Z ##[group]Run set -euxo pipefail
+2025-08-14T22:16:09.6312476Z [36;1mset -euxo pipefail[0m
+2025-08-14T22:16:09.6312949Z [36;1mcargo build --target x86_64-unknown-none --features "apic smp affinity selftests" -Z build-std=core,alloc[0m
+2025-08-14T22:16:09.6340518Z shell: /usr/bin/bash -e {0}
+2025-08-14T22:16:09.6340751Z env:
+2025-08-14T22:16:09.6340927Z   CARGO_TERM_COLOR: always
+2025-08-14T22:16:09.6341156Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:16:09.6341421Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:16:09.6341647Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:16:09.6341868Z   RUSTFLAGS: --cfg selftest_SMP_AFFINITY
+2025-08-14T22:16:09.6342118Z ##[endgroup]
+2025-08-14T22:16:09.6393176Z + cargo build --target x86_64-unknown-none --features 'apic smp affinity selftests' -Z build-std=core,alloc
+2025-08-14T22:16:09.8456525Z [1m[32m   Compiling[0m compiler_builtins v0.1.160 (/home/runner/.rustup/toolchains/nightly-2025-08-01-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/compiler-builtins/compiler-builtins)
+2025-08-14T22:16:09.8458397Z [1m[32m   Compiling[0m core v0.0.0 (/home/runner/.rustup/toolchains/nightly-2025-08-01-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core)
+2025-08-14T22:16:09.8485226Z [1m[32m   Compiling[0m sis_kernel v0.1.0 (/home/runner/work/sis-kernel/sis-kernel)
+2025-08-14T22:16:09.8639278Z [1m[32m   Compiling[0m lock_api v0.4.13
+2025-08-14T22:16:09.8640460Z [1m[32m   Compiling[0m bootloader_api v0.11.11
+2025-08-14T22:16:10.1588860Z [1m[33mwarning[0m[1m:[0m sis_kernel@0.1.0: boot.rs: (re)building BIOS disk image …
+2025-08-14T22:16:19.7423907Z [1m[32m   Compiling[0m alloc v0.0.0 (/home/runner/.rustup/toolchains/nightly-2025-08-01-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc)
+2025-08-14T22:16:21.3163267Z [1m[32m   Compiling[0m bit_field v0.10.2
+2025-08-14T22:16:21.3163782Z [1m[32m   Compiling[0m volatile v0.4.6
+2025-08-14T22:16:21.3164230Z [1m[32m   Compiling[0m scopeguard v1.2.0
+2025-08-14T22:16:21.3630861Z [1m[32m   Compiling[0m bitflags v2.9.1
+2025-08-14T22:16:21.4161851Z [1m[32m   Compiling[0m spin v0.9.8
+2025-08-14T22:16:21.5404859Z [1m[32m   Compiling[0m x86_64 v0.14.13
+2025-08-14T22:16:21.5426666Z [1m[32m   Compiling[0m spinning_top v0.2.5
+2025-08-14T22:16:21.5452770Z [1m[32m   Compiling[0m bitflags v1.3.2
+2025-08-14T22:16:21.5808193Z [1m[32m   Compiling[0m linked_list_allocator v0.10.5
+2025-08-14T22:16:21.5917648Z [1m[32m   Compiling[0m lazy_static v1.5.0
+2025-08-14T22:16:22.3599872Z [1m[32m   Compiling[0m pic8259 v0.10.4
+2025-08-14T22:16:22.3600575Z [1m[32m   Compiling[0m uart_16550 v0.2.19
+2025-08-14T22:16:22.5746836Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_RING3`[0m
+2025-08-14T22:16:22.5748145Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/idt.rs:574:49[0m
+2025-08-14T22:16:22.5748906Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5749707Z [0m[1m[38;5;12m574[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m            #[cfg(all(feature = "idt-selftest", selftest_RING3))][0m
+2025-08-14T22:16:22.5750578Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                                 [0m[0m[1m[33m^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5751104Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5751819Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: expected names are: `docsrs`, `feature`, and `test` and 31 more[0m
+2025-08-14T22:16:22.5752938Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5754337Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5755242Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5756623Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_RING3)'] }[0m
+2025-08-14T22:16:22.5763768Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_RING3)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5765416Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5766652Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unexpected_cfgs)]` on by default[0m
+2025-08-14T22:16:22.5766990Z 
+2025-08-14T22:16:22.5767285Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_SYSCALL`[0m
+2025-08-14T22:16:22.5768063Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/idt.rs:581:49[0m
+2025-08-14T22:16:22.5768630Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5769437Z [0m[1m[38;5;12m581[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m            #[cfg(all(feature = "idt-selftest", selftest_SYSCALL))][0m
+2025-08-14T22:16:22.5770372Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                                 [0m[0m[1m[33m^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5770947Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5771585Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5772620Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5773396Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5774073Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SYSCALL)'] }[0m
+2025-08-14T22:16:22.5775123Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SYSCALL)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5776321Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5776892Z 
+2025-08-14T22:16:22.5777158Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_RING3`[0m
+2025-08-14T22:16:22.5777609Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/idt.rs:586:49[0m
+2025-08-14T22:16:22.5778201Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5779011Z [0m[1m[38;5;12m586[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m            #[cfg(all(feature = "idt-selftest", selftest_RING3))][0m
+2025-08-14T22:16:22.5779932Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                                 [0m[0m[1m[33m^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5780486Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5781131Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5782166Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5782941Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5783614Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_RING3)'] }[0m
+2025-08-14T22:16:22.5784974Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_RING3)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5786935Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5787937Z 
+2025-08-14T22:16:22.5788385Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_RING3_RT`[0m
+2025-08-14T22:16:22.5789163Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/idt.rs:602:41[0m
+2025-08-14T22:16:22.5789696Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5790734Z [0m[1m[38;5;12m602[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    #[cfg(all(feature = "idt-selftest", selftest_RING3_RT))][0m
+2025-08-14T22:16:22.5791794Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                         [0m[0m[1m[33m^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5792333Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5792971Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5793629Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5794064Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5794461Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_RING3_RT)'] }[0m
+2025-08-14T22:16:22.5795243Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_RING3_RT)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5796485Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5797042Z 
+2025-08-14T22:16:22.5797298Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_SMP_ONLINE`[0m
+2025-08-14T22:16:22.5798103Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/smp/mod.rs:30:28[0m
+2025-08-14T22:16:22.5798669Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5799402Z [0m[1m[38;5;12m30[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m#[cfg(all(feature = "smp", selftest_SMP_ONLINE))][0m
+2025-08-14T22:16:22.5800215Z [0m   [0m[0m[1m[38;5;12m|[0m[0m                            [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5800764Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5801407Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5802440Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5803206Z [0m            [lints.rust][0m
+2025-08-14T22:16:22.5803816Z [0m            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SMP_ONLINE)'] }[0m
+2025-08-14T22:16:22.5804637Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SMP_ONLINE)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5805659Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5806381Z 
+2025-08-14T22:16:22.5806668Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_SCHEDULER_PREEMPT`[0m
+2025-08-14T22:16:22.5807171Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/scheduler_selftest.rs:31:7[0m
+2025-08-14T22:16:22.5807507Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5807889Z [0m[1m[38;5;12m31[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m#[cfg(selftest_SCHEDULER_PREEMPT)][0m
+2025-08-14T22:16:22.5808328Z [0m   [0m[0m[1m[38;5;12m|[0m[0m       [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5808633Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5808987Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5809553Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5809985Z [0m            [lints.rust][0m
+2025-08-14T22:16:22.5810406Z [0m            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SCHEDULER_PREEMPT)'] }[0m
+2025-08-14T22:16:22.5811419Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SCHEDULER_PREEMPT)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5812585Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5813127Z 
+2025-08-14T22:16:22.5813444Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_TIMER`[0m
+2025-08-14T22:16:22.5813882Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/scheduler.rs:19:37[0m
+2025-08-14T22:16:22.5814192Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5814606Z [0m[1m[38;5;12m19[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m#[cfg(all(feature = "idt-selftest", selftest_TIMER))][0m
+2025-08-14T22:16:22.5815083Z [0m   [0m[0m[1m[38;5;12m|[0m[0m                                     [0m[0m[1m[33m^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5815392Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5815766Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5816481Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5816922Z [0m            [lints.rust][0m
+2025-08-14T22:16:22.5817303Z [0m            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_TIMER)'] }[0m
+2025-08-14T22:16:22.5818054Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_TIMER)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5819047Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5819591Z 
+2025-08-14T22:16:22.5819842Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_LAPIC_TIMER`[0m
+2025-08-14T22:16:22.5820299Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/scheduler.rs:22:37[0m
+2025-08-14T22:16:22.5820612Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5821041Z [0m[1m[38;5;12m22[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m#[cfg(all(feature = "idt-selftest", selftest_LAPIC_TIMER))][0m
+2025-08-14T22:16:22.5821538Z [0m   [0m[0m[1m[38;5;12m|[0m[0m                                     [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5821859Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5822213Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5822783Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5823217Z [0m            [lints.rust][0m
+2025-08-14T22:16:22.5823610Z [0m            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_LAPIC_TIMER)'] }[0m
+2025-08-14T22:16:22.5824416Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_LAPIC_TIMER)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5825428Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5825965Z 
+2025-08-14T22:16:22.5826296Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_TIMER`[0m
+2025-08-14T22:16:22.5826749Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/scheduler.rs:300:41[0m
+2025-08-14T22:16:22.5827048Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5827476Z [0m[1m[38;5;12m300[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    #[cfg(all(feature = "idt-selftest", selftest_TIMER))][0m
+2025-08-14T22:16:22.5828104Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                         [0m[0m[1m[33m^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5828430Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5828940Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5829511Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5829984Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5830373Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_TIMER)'] }[0m
+2025-08-14T22:16:22.5831115Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_TIMER)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5832112Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5832658Z 
+2025-08-14T22:16:22.5832908Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_LAPIC_TIMER`[0m
+2025-08-14T22:16:22.5833366Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/scheduler.rs:311:41[0m
+2025-08-14T22:16:22.5833662Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5834100Z [0m[1m[38;5;12m311[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    #[cfg(all(feature = "idt-selftest", selftest_LAPIC_TIMER))][0m
+2025-08-14T22:16:22.5834599Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                         [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5834912Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5835266Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5835832Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5836392Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5836929Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_LAPIC_TIMER)'] }[0m
+2025-08-14T22:16:22.5837717Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_LAPIC_TIMER)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5838723Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5839257Z 
+2025-08-14T22:16:22.5839497Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_SMP_2`[0m
+2025-08-14T22:16:22.5839930Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/scheduler.rs:335:41[0m
+2025-08-14T22:16:22.5840227Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5840650Z [0m[1m[38;5;12m335[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    #[cfg(all(feature = "idt-selftest", selftest_SMP_2))][0m
+2025-08-14T22:16:22.5841129Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                         [0m[0m[1m[33m^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5841437Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5841794Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5842359Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5842781Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5843180Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SMP_2)'] }[0m
+2025-08-14T22:16:22.5843915Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SMP_2)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5845036Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5845775Z 
+2025-08-14T22:16:22.5846044Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_SCHED_SMP_FAIR`[0m
+2025-08-14T22:16:22.5846725Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/smp_scheduler.rs:589:37[0m
+2025-08-14T22:16:22.5847139Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5847596Z [0m[1m[38;5;12m589[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m#[cfg(all(feature = "idt-selftest", selftest_SCHED_SMP_FAIR))][0m
+2025-08-14T22:16:22.5848105Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                     [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5848413Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5848773Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5849350Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5849778Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5850173Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SCHED_SMP_FAIR)'] }[0m
+2025-08-14T22:16:22.5850966Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SCHED_SMP_FAIR)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5851975Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5852541Z 
+2025-08-14T22:16:22.5852790Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_RING3_RT`[0m
+2025-08-14T22:16:22.5853229Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/syscall.rs:206:45[0m
+2025-08-14T22:16:22.5853538Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5853978Z [0m[1m[38;5;12m206[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(all(feature = "idt-selftest", selftest_RING3_RT))][0m
+2025-08-14T22:16:22.5854475Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                             [0m[0m[1m[33m^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5854781Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5855143Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5855711Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5856132Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5856717Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_RING3_RT)'] }[0m
+2025-08-14T22:16:22.5857489Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_RING3_RT)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5858493Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5859029Z 
+2025-08-14T22:16:22.5859296Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_IPC_XCPU_PING`[0m
+2025-08-14T22:16:22.5859741Z [0m [0m[0m[1m[38;5;12m--> [0m[0msrc/selftest/mod.rs:6:7[0m
+2025-08-14T22:16:22.5860040Z [0m  [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5860397Z [0m[1m[38;5;12m6[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m#[cfg(selftest_IPC_XCPU_PING)][0m
+2025-08-14T22:16:22.5860804Z [0m  [0m[0m[1m[38;5;12m|[0m[0m       [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5861102Z [0m  [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5861589Z [0m  [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5862271Z [0m  [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5862694Z [0m           [lints.rust][0m
+2025-08-14T22:16:22.5863084Z [0m           unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_IPC_XCPU_PING)'] }[0m
+2025-08-14T22:16:22.5863870Z [0m  [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_IPC_XCPU_PING)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5865597Z [0m  [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5866628Z 
+2025-08-14T22:16:22.5866884Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `ci_fast`[0m
+2025-08-14T22:16:22.5867326Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/selftest/smp_affinity.rs:22:15[0m
+2025-08-14T22:16:22.5867662Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5868019Z [0m[1m[38;5;12m22[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(ci_fast)][0m
+2025-08-14T22:16:22.5868418Z [0m   [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^^^^[0m
+2025-08-14T22:16:22.5868723Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5869094Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5869663Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5870100Z [0m            [lints.rust][0m
+2025-08-14T22:16:22.5870461Z [0m            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(ci_fast)'] }[0m
+2025-08-14T22:16:22.5871206Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(ci_fast)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5872188Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5872736Z 
+2025-08-14T22:16:22.5872951Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `ci_fast`[0m
+2025-08-14T22:16:22.5873382Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/selftest/smp_affinity.rs:24:19[0m
+2025-08-14T22:16:22.5873697Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5874051Z [0m[1m[38;5;12m24[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(not(ci_fast))][0m
+2025-08-14T22:16:22.5874466Z [0m   [0m[0m[1m[38;5;12m|[0m[0m                   [0m[0m[1m[33m^^^^^^^[0m
+2025-08-14T22:16:22.5874772Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5875129Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5875697Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5876133Z [0m            [lints.rust][0m
+2025-08-14T22:16:22.5876769Z [0m            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(ci_fast)'] }[0m
+2025-08-14T22:16:22.5877469Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(ci_fast)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5878439Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5878980Z 
+2025-08-14T22:16:22.5879192Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `ci_fast`[0m
+2025-08-14T22:16:22.5879787Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/selftest/sched_fair_meter.rs:21:11[0m
+2025-08-14T22:16:22.5880113Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5880571Z [0m[1m[38;5;12m21[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    #[cfg(ci_fast)][0m
+2025-08-14T22:16:22.5880962Z [0m   [0m[0m[1m[38;5;12m|[0m[0m           [0m[0m[1m[33m^^^^^^^[0m
+2025-08-14T22:16:22.5881258Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5881607Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5882169Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5882596Z [0m            [lints.rust][0m
+2025-08-14T22:16:22.5882946Z [0m            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(ci_fast)'] }[0m
+2025-08-14T22:16:22.5883647Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(ci_fast)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5884620Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5885162Z 
+2025-08-14T22:16:22.5885381Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `ci_fast`[0m
+2025-08-14T22:16:22.5885816Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/selftest/sched_fair_meter.rs:23:15[0m
+2025-08-14T22:16:22.5886129Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5886624Z [0m[1m[38;5;12m23[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    #[cfg(not(ci_fast))][0m
+2025-08-14T22:16:22.5887028Z [0m   [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^^^^[0m
+2025-08-14T22:16:22.5887318Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5887675Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5888247Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5888683Z [0m            [lints.rust][0m
+2025-08-14T22:16:22.5889029Z [0m            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(ci_fast)'] }[0m
+2025-08-14T22:16:22.5889721Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(ci_fast)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5890692Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5891226Z 
+2025-08-14T22:16:22.5891443Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `ci_fast`[0m
+2025-08-14T22:16:22.5891868Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/selftest/sched_preempt_rr.rs:32:11[0m
+2025-08-14T22:16:22.5892214Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5892846Z [0m[1m[38;5;12m32[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    #[cfg(ci_fast)][0m
+2025-08-14T22:16:22.5893382Z [0m   [0m[0m[1m[38;5;12m|[0m[0m           [0m[0m[1m[33m^^^^^^^[0m
+2025-08-14T22:16:22.5893682Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5894047Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5894622Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5895044Z [0m            [lints.rust][0m
+2025-08-14T22:16:22.5895405Z [0m            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(ci_fast)'] }[0m
+2025-08-14T22:16:22.5896117Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(ci_fast)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5897477Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5898132Z 
+2025-08-14T22:16:22.5898353Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `ci_fast`[0m
+2025-08-14T22:16:22.5898789Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/selftest/sched_preempt_rr.rs:34:15[0m
+2025-08-14T22:16:22.5899115Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5899468Z [0m[1m[38;5;12m34[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    #[cfg(not(ci_fast))][0m
+2025-08-14T22:16:22.5899863Z [0m   [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^^^^[0m
+2025-08-14T22:16:22.5900153Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5900507Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5901080Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5901508Z [0m            [lints.rust][0m
+2025-08-14T22:16:22.5901861Z [0m            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(ci_fast)'] }[0m
+2025-08-14T22:16:22.5902556Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(ci_fast)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5903513Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5904053Z 
+2025-08-14T22:16:22.5904314Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_VFIO_MSI_SMOKE`[0m
+2025-08-14T22:16:22.5904747Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:183:15[0m
+2025-08-14T22:16:22.5905035Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5905422Z [0m[1m[38;5;12m183[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(selftest_VFIO_MSI_SMOKE)][0m
+2025-08-14T22:16:22.5905865Z [0m    [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5906296Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5906665Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5907227Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5907654Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5908060Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_MSI_SMOKE)'] }[0m
+2025-08-14T22:16:22.5908850Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_MSI_SMOKE)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5909865Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5910407Z 
+2025-08-14T22:16:22.5910667Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_VFIO_MSI_SMOKE`[0m
+2025-08-14T22:16:22.5911099Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:185:19[0m
+2025-08-14T22:16:22.5911385Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5911766Z [0m[1m[38;5;12m185[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(not(selftest_VFIO_MSI_SMOKE))][0m
+2025-08-14T22:16:22.5912213Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                   [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5912520Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5912872Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5913576Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5914116Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5914515Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_MSI_SMOKE)'] }[0m
+2025-08-14T22:16:22.5915295Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_MSI_SMOKE)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5916623Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5917174Z 
+2025-08-14T22:16:22.5917445Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_VFIO_MSI_SOAK`[0m
+2025-08-14T22:16:22.5917874Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:187:15[0m
+2025-08-14T22:16:22.5918159Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5918547Z [0m[1m[38;5;12m187[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(selftest_VFIO_MSI_SOAK)][0m
+2025-08-14T22:16:22.5918986Z [0m    [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5919294Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5919645Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5920216Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5920649Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5921047Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_MSI_SOAK)'] }[0m
+2025-08-14T22:16:22.5921838Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_MSI_SOAK)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5922853Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5923388Z 
+2025-08-14T22:16:22.5923636Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_SMP_ONLINE`[0m
+2025-08-14T22:16:22.5924056Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:232:13[0m
+2025-08-14T22:16:22.5924334Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5924698Z [0m[1m[38;5;12m232[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m            selftest_SMP_ONLINE[0m
+2025-08-14T22:16:22.5925119Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5925412Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5925766Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5926466Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5926908Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5927315Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SMP_ONLINE)'] }[0m
+2025-08-14T22:16:22.5928136Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SMP_ONLINE)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5929143Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5929716Z 
+2025-08-14T22:16:22.5929985Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_SCHED_SMP_FAIR`[0m
+2025-08-14T22:16:22.5930568Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:255:62[0m
+2025-08-14T22:16:22.5930875Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5931509Z [0m[1m[38;5;12m255[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(all(feature = "smp", feature = "idt-selftest", selftest_SCHED_SMP_FAIR))][0m
+2025-08-14T22:16:22.5932075Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                                              [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5932391Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5932755Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5933330Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5933759Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5934160Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SCHED_SMP_FAIR)'] }[0m
+2025-08-14T22:16:22.5934953Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SCHED_SMP_FAIR)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5935977Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5936672Z 
+2025-08-14T22:16:22.5936941Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_IPC_XCPU_PING`[0m
+2025-08-14T22:16:22.5937369Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:277:36[0m
+2025-08-14T22:16:22.5937650Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5938076Z [0m[1m[38;5;12m277[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(all(feature = "smp", selftest_IPC_XCPU_PING))][0m
+2025-08-14T22:16:22.5938567Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                    [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5938877Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5939242Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5939815Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5940247Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5940639Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_IPC_XCPU_PING)'] }[0m
+2025-08-14T22:16:22.5941432Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_IPC_XCPU_PING)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5942452Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5942990Z 
+2025-08-14T22:16:22.5943244Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_PROC_STATS`[0m
+2025-08-14T22:16:22.5943666Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:284:15[0m
+2025-08-14T22:16:22.5943968Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5944348Z [0m[1m[38;5;12m284[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(selftest_PROC_STATS)][0m
+2025-08-14T22:16:22.5944779Z [0m    [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5945087Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5945445Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5946015Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5946550Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5947083Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_PROC_STATS)'] }[0m
+2025-08-14T22:16:22.5947968Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_PROC_STATS)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5948967Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5949500Z 
+2025-08-14T22:16:22.5949773Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_SCHED_PREEMPT_RR`[0m
+2025-08-14T22:16:22.5950215Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:292:15[0m
+2025-08-14T22:16:22.5950496Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5950881Z [0m[1m[38;5;12m292[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(selftest_SCHED_PREEMPT_RR)][0m
+2025-08-14T22:16:22.5951335Z [0m    [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5951657Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5952017Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5952584Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5953008Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5953416Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SCHED_PREEMPT_RR)'] }[0m
+2025-08-14T22:16:22.5954269Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SCHED_PREEMPT_RR)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5955305Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5955846Z 
+2025-08-14T22:16:22.5956113Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_SCHED_FAIR_METER`[0m
+2025-08-14T22:16:22.5956674Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:305:15[0m
+2025-08-14T22:16:22.5956958Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5957345Z [0m[1m[38;5;12m305[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(selftest_SCHED_FAIR_METER)][0m
+2025-08-14T22:16:22.5957790Z [0m    [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5958094Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5958446Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5959009Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5959435Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5959846Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SCHED_FAIR_METER)'] }[0m
+2025-08-14T22:16:22.5960643Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SCHED_FAIR_METER)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5961656Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5962197Z 
+2025-08-14T22:16:22.5962449Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_TLB_SHOOTDOWN`[0m
+2025-08-14T22:16:22.5962877Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:323:13[0m
+2025-08-14T22:16:22.5963157Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5963687Z [0m[1m[38;5;12m323[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m            selftest_TLB_SHOOTDOWN[0m
+2025-08-14T22:16:22.5964225Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5964531Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5964886Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5965448Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5965875Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5966404Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_TLB_SHOOTDOWN)'] }[0m
+2025-08-14T22:16:22.5967200Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_TLB_SHOOTDOWN)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5968226Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5968771Z 
+2025-08-14T22:16:22.5969026Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_SMP_AFFINITY`[0m
+2025-08-14T22:16:22.5969453Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:350:13[0m
+2025-08-14T22:16:22.5969731Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5970100Z [0m[1m[38;5;12m350[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m            selftest_SMP_AFFINITY[0m
+2025-08-14T22:16:22.5970529Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5970832Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5971178Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5971742Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5972171Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5972570Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_SMP_AFFINITY)'] }[0m
+2025-08-14T22:16:22.5973340Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_SMP_AFFINITY)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5974344Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5974881Z 
+2025-08-14T22:16:22.5975143Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_VFIO_BIND_E1000`[0m
+2025-08-14T22:16:22.5975572Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:358:37[0m
+2025-08-14T22:16:22.5975848Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5976374Z [0m[1m[38;5;12m358[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(all(feature = "vfio", selftest_VFIO_BIND_E1000))][0m
+2025-08-14T22:16:22.5976873Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                     [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5977192Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5977539Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5978102Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5978528Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5978922Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_BIND_E1000)'] }[0m
+2025-08-14T22:16:22.5979843Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_BIND_E1000)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5980973Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5981501Z 
+2025-08-14T22:16:22.5981770Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_VFIO_MSI_SMOKE`[0m
+2025-08-14T22:16:22.5982200Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:397:63[0m
+2025-08-14T22:16:22.5982472Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5982977Z [0m[1m[38;5;12m397[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(all(feature = "vfio", feature = "idt-selftest", selftest_VFIO_MSI_SMOKE))][0m
+2025-08-14T22:16:22.5983543Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                                               [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5983868Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5984261Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5984829Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5985259Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5985653Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_MSI_SMOKE)'] }[0m
+2025-08-14T22:16:22.5986560Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_MSI_SMOKE)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5987579Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5988116Z 
+2025-08-14T22:16:22.5988386Z [0m[1m[33mwarning[0m[0m[1m: unexpected `cfg` condition name: `selftest_VFIO_MSI_SOAK`[0m
+2025-08-14T22:16:22.5988825Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:438:63[0m
+2025-08-14T22:16:22.5989107Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5989604Z [0m[1m[38;5;12m438[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        #[cfg(all(feature = "vfio", feature = "idt-selftest", selftest_VFIO_MSI_SOAK))][0m
+2025-08-14T22:16:22.5990163Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                                                               [0m[0m[1m[33m^^^^^^^^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5990478Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5990851Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: consider using a Cargo feature instead[0m
+2025-08-14T22:16:22.5991425Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:[0m
+2025-08-14T22:16:22.5991863Z [0m             [lints.rust][0m
+2025-08-14T22:16:22.5992258Z [0m             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(selftest_VFIO_MSI_SOAK)'] }[0m
+2025-08-14T22:16:22.5993047Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: or consider adding `println!("cargo::rustc-check-cfg=cfg(selftest_VFIO_MSI_SOAK)");` to the top of the `build.rs`[0m
+2025-08-14T22:16:22.5994061Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration[0m
+2025-08-14T22:16:22.5994595Z 
+2025-08-14T22:16:22.5995058Z [0m[1m[33mwarning[0m[0m[1m: the feature `naked_functions` has been stable since 1.88.0 and no longer requires an attribute to enable[0m
+2025-08-14T22:16:22.5995603Z [0m [0m[0m[1m[38;5;12m--> [0m[0msrc/main.rs:5:12[0m
+2025-08-14T22:16:22.5995888Z [0m  [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5996537Z [0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m#![feature(naked_functions)][0m
+2025-08-14T22:16:22.5996976Z [0m  [0m[0m[1m[38;5;12m|[0m[0m            [0m[0m[1m[33m^^^^^^^^^^^^^^^[0m
+2025-08-14T22:16:22.5997398Z [0m  [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5997756Z [0m  [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(stable_features)]` on by default[0m
+2025-08-14T22:16:22.5998003Z 
+2025-08-14T22:16:22.5998448Z [0m[1m[33mwarning[0m[0m[1m: use of deprecated function `x86_64::instructions::segmentation::set_cs`: use `CS::set_reg()` instead[0m
+2025-08-14T22:16:22.5999010Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/gdt.rs:63:9[0m
+2025-08-14T22:16:22.5999304Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.5999674Z [0m[1m[38;5;12m63[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        set_cs(GDT.1.code_ring0);[0m
+2025-08-14T22:16:22.6000074Z [0m   [0m[0m[1m[38;5;12m|[0m[0m         [0m[0m[1m[33m^^^^^^[0m
+2025-08-14T22:16:22.6000364Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6000715Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(deprecated)]` on by default[0m
+2025-08-14T22:16:22.6000961Z 
+2025-08-14T22:16:22.6001384Z [0m[1m[33mwarning[0m[0m[1m: use of deprecated function `x86_64::instructions::segmentation::set_cs`: use `CS::set_reg()` instead[0m
+2025-08-14T22:16:22.6001941Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/gdt.rs:58:45[0m
+2025-08-14T22:16:22.6002242Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6002687Z [0m[1m[38;5;12m58[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    use x86_64::instructions::segmentation::set_cs;[0m
+2025-08-14T22:16:22.6003149Z [0m   [0m[0m[1m[38;5;12m|[0m[0m                                             [0m[0m[1m[33m^^^^^^[0m
+2025-08-14T22:16:22.6003357Z 
+2025-08-14T22:16:22.6755433Z [0m[1m[38;5;9merror[E0308][0m[0m[1m: mismatched types[0m
+2025-08-14T22:16:22.6756532Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/selftest/sched_preempt_rr.rs:38:60[0m
+2025-08-14T22:16:22.6757234Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6758678Z [0m[1m[38;5;12m38[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    while pc.ticks.load(Ordering::Relaxed) - start_ticks < TARGET_TICKS {[0m
+2025-08-14T22:16:22.6759987Z [0m   [0m[0m[1m[38;5;12m|[0m[0m           [0m[0m[1m[38;5;12m----------------------------------------------[0m[0m   [0m[0m[1m[38;5;9m^^^^^^^^^^^^[0m[0m [0m[0m[1m[38;5;9mexpected `u64`, found `u32`[0m
+2025-08-14T22:16:22.6760833Z [0m   [0m[0m[1m[38;5;12m|[0m[0m           [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6761491Z [0m   [0m[0m[1m[38;5;12m|[0m[0m           [0m[0m[1m[38;5;12mexpected because this is `u64`[0m
+2025-08-14T22:16:22.6762036Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6762549Z [0m[1m[38;5;14mhelp[0m[0m: you can convert a `u32` to a `u64`[0m
+2025-08-14T22:16:22.6763043Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6764043Z [0m[1m[38;5;12m38[0m[0m [0m[0m[1m[38;5;12m| [0m[0m    while pc.ticks.load(Ordering::Relaxed) - start_ticks < TARGET_TICKS[0m[0m[38;5;10m.into()[0m[0m {[0m
+2025-08-14T22:16:22.6765075Z [0m   [0m[0m[1m[38;5;12m|[0m[0m                                                                        [0m[0m[38;5;10m+++++++[0m
+2025-08-14T22:16:22.6765437Z 
+2025-08-14T22:16:22.6929901Z [0m[1m[33mwarning[0m[0m[1m: variable does not need to be mutable[0m
+2025-08-14T22:16:22.6930676Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/percpu.rs:263:13[0m
+2025-08-14T22:16:22.6931237Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6932110Z [0m[1m[38;5;12m263[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        let mut gs_base_msr = Msr::new(0xC0000101);[0m
+2025-08-14T22:16:22.6932973Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12m----[0m[0m[1m[33m^^^^^^^^^^^[0m
+2025-08-14T22:16:22.6933671Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6934715Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12mhelp: remove this `mut`[0m
+2025-08-14T22:16:22.6935483Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6936125Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_mut)]` on by default[0m
+2025-08-14T22:16:22.6936811Z 
+2025-08-14T22:16:22.6939795Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6940448Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/percpu_clean.rs:70:9[0m
+2025-08-14T22:16:22.6940913Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6941382Z [0m[1m[38;5;12m65[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    unsafe {[0m
+2025-08-14T22:16:22.6942148Z [0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[38;5;12m------[0m[0m [0m[0m[1m[38;5;12mbecause it's nested under this `unsafe` block[0m
+2025-08-14T22:16:22.6942718Z [0m[1m[38;5;12m...[0m
+2025-08-14T22:16:22.6943183Z [0m[1m[38;5;12m70[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        unsafe {[0m
+2025-08-14T22:16:22.6943855Z [0m   [0m[0m[1m[38;5;12m|[0m[0m         [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6944378Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6944901Z [0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_unsafe)]` on by default[0m
+2025-08-14T22:16:22.6945256Z 
+2025-08-14T22:16:22.6956498Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6956988Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/shootdown.rs:79:9[0m
+2025-08-14T22:16:22.6957338Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6957697Z [0m[1m[38;5;12m79[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        unsafe {[0m
+2025-08-14T22:16:22.6958191Z [0m   [0m[0m[1m[38;5;12m|[0m[0m         [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6958473Z 
+2025-08-14T22:16:22.6959400Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6960134Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/smp/ipi.rs:28:5[0m
+2025-08-14T22:16:22.6960691Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6961267Z [0m[1m[38;5;12m28[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    unsafe {[0m
+2025-08-14T22:16:22.6962068Z [0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6962512Z 
+2025-08-14T22:16:22.6962824Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6963492Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/smp/ipi.rs:35:5[0m
+2025-08-14T22:16:22.6964031Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6964598Z [0m[1m[38;5;12m35[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    unsafe {[0m
+2025-08-14T22:16:22.6965404Z [0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6965839Z 
+2025-08-14T22:16:22.6966148Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6967001Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/smp/ipi.rs:42:5[0m
+2025-08-14T22:16:22.6967474Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6967847Z [0m[1m[38;5;12m42[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    unsafe {[0m
+2025-08-14T22:16:22.6968360Z [0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6968643Z 
+2025-08-14T22:16:22.6968832Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6969265Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/smp/ipi.rs:59:5[0m
+2025-08-14T22:16:22.6969601Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6969929Z [0m[1m[38;5;12m59[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    unsafe {[0m
+2025-08-14T22:16:22.6970574Z [0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6970942Z 
+2025-08-14T22:16:22.6971127Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6971507Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/arch/x86_64/smp/ipi.rs:74:5[0m
+2025-08-14T22:16:22.6971808Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.6972125Z [0m[1m[38;5;12m74[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    unsafe {[0m
+2025-08-14T22:16:22.6972566Z [0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.6972805Z 
+2025-08-14T22:16:22.7124427Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.7125280Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/serial.rs:143:5[0m
+2025-08-14T22:16:22.7125805Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7126497Z [0m[1m[38;5;12m143[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    unsafe {[0m
+2025-08-14T22:16:22.7127149Z [0m    [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.7127475Z 
+2025-08-14T22:16:22.7174854Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.7175584Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/smp_scheduler.rs:313:21[0m
+2025-08-14T22:16:22.7176103Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7176858Z [0m[1m[38;5;12m313[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m                    unsafe {[0m
+2025-08-14T22:16:22.7177655Z [0m    [0m[0m[1m[38;5;12m|[0m[0m                     [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.7178082Z 
+2025-08-14T22:16:22.7247463Z [0m[1m[33mwarning[0m[0m[1m: value assigned to `technical` is never read[0m
+2025-08-14T22:16:22.7260618Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/syscall.rs:266:13[0m
+2025-08-14T22:16:22.7261323Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7261914Z [0m[1m[38;5;12m266[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    let mut technical = false;[0m
+2025-08-14T22:16:22.7262528Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[33m^^^^^^^^^[0m
+2025-08-14T22:16:22.7262973Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7263521Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mhelp[0m[0m: maybe it is overwritten before being read?[0m
+2025-08-14T22:16:22.7264259Z [0m    [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(unused_assignments)]` on by default[0m
+2025-08-14T22:16:22.7264641Z 
+2025-08-14T22:16:22.7283257Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.7283797Z [0m    [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/syscall.rs:1002:15[0m
+2025-08-14T22:16:22.7284155Z [0m     [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7284917Z [0m[1m[38;5;12m1002[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    let cur = unsafe { crate::arch::x86_64::percpu_clean::this().cpu_id };[0m
+2025-08-14T22:16:22.7285601Z [0m     [0m[0m[1m[38;5;12m|[0m[0m               [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.7285889Z 
+2025-08-14T22:16:22.7371022Z [0m[1m[33mwarning[0m[0m[1m: variable does not need to be mutable[0m
+2025-08-14T22:16:22.7371631Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/vfio.rs:807:13[0m
+2025-08-14T22:16:22.7372072Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7372885Z [0m[1m[38;5;12m807[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        let mut table_lock = core::ptr::addr_of_mut!(HANDLE_STATES);[0m
+2025-08-14T22:16:22.7373858Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12m----[0m[0m[1m[33m^^^^^^^^^^[0m
+2025-08-14T22:16:22.7375040Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7375653Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12mhelp: remove this `mut`[0m
+2025-08-14T22:16:22.7376145Z 
+2025-08-14T22:16:22.7376691Z [0m[1m[33mwarning[0m[0m[1m: variable does not need to be mutable[0m
+2025-08-14T22:16:22.7377254Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/vfio.rs:846:13[0m
+2025-08-14T22:16:22.7377687Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7378431Z [0m[1m[38;5;12m846[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        let mut table_lock = core::ptr::addr_of_mut!(HANDLE_STATES);[0m
+2025-08-14T22:16:22.7379180Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12m----[0m[0m[1m[33m^^^^^^^^^^[0m
+2025-08-14T22:16:22.7379820Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7380691Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12mhelp: remove this `mut`[0m
+2025-08-14T22:16:22.7381228Z 
+2025-08-14T22:16:22.7381716Z [0m[1m[33mwarning[0m[0m[1m: variable does not need to be mutable[0m
+2025-08-14T22:16:22.7382656Z [0m   [0m[0m[1m[38;5;12m--> [0m[0msrc/kernel/vfio.rs:887:13[0m
+2025-08-14T22:16:22.7383343Z [0m    [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7384513Z [0m[1m[38;5;12m887[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        let mut table_lock = core::ptr::addr_of_mut!(HANDLE_STATES);[0m
+2025-08-14T22:16:22.7385261Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12m----[0m[0m[1m[33m^^^^^^^^^^[0m
+2025-08-14T22:16:22.7385809Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7386512Z [0m    [0m[0m[1m[38;5;12m|[0m[0m             [0m[0m[1m[38;5;12mhelp: remove this `mut`[0m
+2025-08-14T22:16:22.7386841Z 
+2025-08-14T22:16:22.7455373Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.7455968Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/selftest/smp_affinity.rs:69:9[0m
+2025-08-14T22:16:22.7456579Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7457018Z [0m[1m[38;5;12m69[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m        unsafe {[0m
+2025-08-14T22:16:22.7457610Z [0m   [0m[0m[1m[38;5;12m|[0m[0m         [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.7457951Z 
+2025-08-14T22:16:22.7458172Z [0m[1m[33mwarning[0m[0m[1m: unnecessary `unsafe` block[0m
+2025-08-14T22:16:22.7458678Z [0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/selftest/smp_affinity.rs:85:5[0m
+2025-08-14T22:16:22.7459077Z [0m   [0m[0m[1m[38;5;12m|[0m
+2025-08-14T22:16:22.7459541Z [0m[1m[38;5;12m85[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0m    unsafe {[0m
+2025-08-14T22:16:22.7460145Z [0m   [0m[0m[1m[38;5;12m|[0m[0m     [0m[0m[1m[33m^^^^^^[0m[0m [0m[0m[1m[33munnecessary `unsafe` block[0m
+2025-08-14T22:16:22.7460452Z 
+2025-08-14T22:16:22.7529330Z [0m[1mFor more information about this error, try `rustc --explain E0308`.[0m
+2025-08-14T22:16:22.7594625Z [1m[33mwarning[0m[1m:[0m `sis_kernel` (bin "sis_kernel") generated 54 warnings
+2025-08-14T22:16:22.7595571Z [1m[33mwarning[0m[1m:[0m sis_kernel@0.1.0: boot.rs: (re)building BIOS disk image …
+2025-08-14T22:16:22.7596668Z [1m[31merror[0m[1m:[0m could not compile `sis_kernel` (bin "sis_kernel") due to 1 previous error; 54 warnings emitted
+2025-08-14T22:16:22.7675140Z ##[error]Process completed with exit code 101.
+2025-08-14T22:16:22.7736678Z ##[group]Run actions/upload-artifact@v4
+2025-08-14T22:16:22.7736987Z with:
+2025-08-14T22:16:22.7737178Z   name: artifacts-SMP_AFFINITY
+2025-08-14T22:16:22.7737453Z   path: out/qemu-serial.log
+out/*.img
+out/*.json
+2025-08-14T22:16:22.7737730Z   if-no-files-found: warn
+2025-08-14T22:16:22.7737945Z   compression-level: 6
+2025-08-14T22:16:22.7738140Z   overwrite: false
+2025-08-14T22:16:22.7738335Z   include-hidden-files: false
+2025-08-14T22:16:22.7738539Z env:
+2025-08-14T22:16:22.7738710Z   CARGO_TERM_COLOR: always
+2025-08-14T22:16:22.7738942Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:16:22.7739533Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:16:22.7739766Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:16:22.7739954Z ##[endgroup]
+2025-08-14T22:16:22.9981382Z With the provided path, there will be 1 file uploaded
+2025-08-14T22:16:22.9986892Z Artifact name is valid!
+2025-08-14T22:16:22.9988393Z Root directory input is valid!
+2025-08-14T22:16:23.1403344Z Beginning upload of artifact content to blob storage
+2025-08-14T22:16:23.6474192Z Uploaded bytes 1153329
+2025-08-14T22:16:23.6923975Z Finished uploading artifact content to blob storage!
+2025-08-14T22:16:23.6927791Z SHA256 digest of uploaded artifact zip is 6713f9d1d943088b5dee192df21e7217c61c568f6f0a25ce047d344d463bac1a
+2025-08-14T22:16:23.6929035Z Finalizing artifact upload
+2025-08-14T22:16:23.7861467Z Artifact artifacts-SMP_AFFINITY.zip successfully finalized. Artifact ID 3769765810
+2025-08-14T22:16:23.7862775Z Artifact artifacts-SMP_AFFINITY has been successfully uploaded! Final size is 1153329 bytes. Artifact ID is 3769765810
+2025-08-14T22:16:23.7863866Z Artifact download URL: https://github.com/amoljassal/sis-kernel/actions/runs/16977923337/artifacts/3769765810
+2025-08-14T22:16:23.8002124Z Post job cleanup.
+2025-08-14T22:16:23.8995234Z [command]/usr/bin/git version
+2025-08-14T22:16:23.9032980Z git version 2.50.1
+2025-08-14T22:16:23.9077340Z Temporarily overriding HOME='/home/runner/work/_temp/27254e4e-7e7e-4309-b30f-19c998f53cd1' before making global git config changes
+2025-08-14T22:16:23.9078628Z Adding repository directory to the temporary git global config as a safe directory
+2025-08-14T22:16:23.9091405Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sis-kernel/sis-kernel
+2025-08-14T22:16:23.9127067Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-08-14T22:16:23.9160558Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-08-14T22:16:23.9391620Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-08-14T22:16:23.9413320Z http.https://github.com/.extraheader
+2025-08-14T22:16:23.9425927Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2025-08-14T22:16:23.9457028Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-08-14T22:16:23.9804573Z Cleaning up orphan processes

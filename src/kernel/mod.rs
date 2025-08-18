@@ -46,6 +46,10 @@ pub mod vfs;
 #[cfg(not(feature = "userland"))]
 pub mod initfs;
 
+// AI-Native Kernel Subsystem
+#[cfg(feature = "ai")]
+pub mod ai;
+
 // Provide stable re-exports for callers
 pub use pci::read_id;
 pub use pci::{cfg_read32, cfg_write32, find_first_e1000, PciId};

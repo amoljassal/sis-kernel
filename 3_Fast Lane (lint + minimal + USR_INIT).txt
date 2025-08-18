@@ -1,0 +1,433 @@
+﻿2025-08-14T22:15:17.0187410Z Current runner version: '2.327.1'
+2025-08-14T22:15:17.0210017Z ##[group]Runner Image Provisioner
+2025-08-14T22:15:17.0210845Z Hosted Compute Agent
+2025-08-14T22:15:17.0211367Z Version: 20250812.370
+2025-08-14T22:15:17.0211976Z Commit: 4a2b2bf7520004e3e907c2150c8cabe342a3da32
+2025-08-14T22:15:17.0212894Z Build Date: 2025-08-12T16:08:14Z
+2025-08-14T22:15:17.0213592Z ##[endgroup]
+2025-08-14T22:15:17.0214102Z ##[group]Operating System
+2025-08-14T22:15:17.0214649Z Ubuntu
+2025-08-14T22:15:17.0215243Z 22.04.5
+2025-08-14T22:15:17.0215684Z LTS
+2025-08-14T22:15:17.0216122Z ##[endgroup]
+2025-08-14T22:15:17.0216626Z ##[group]Runner Image
+2025-08-14T22:15:17.0217163Z Image: ubuntu-22.04
+2025-08-14T22:15:17.0217620Z Version: 20250804.2.0
+2025-08-14T22:15:17.0218644Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20250804.2/images/ubuntu/Ubuntu2204-Readme.md
+2025-08-14T22:15:17.0220205Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20250804.2
+2025-08-14T22:15:17.0221260Z ##[endgroup]
+2025-08-14T22:15:17.0222245Z ##[group]GITHUB_TOKEN Permissions
+2025-08-14T22:15:17.0224863Z Contents: read
+2025-08-14T22:15:17.0225526Z Metadata: read
+2025-08-14T22:15:17.0225985Z Packages: read
+2025-08-14T22:15:17.0226555Z ##[endgroup]
+2025-08-14T22:15:17.0228597Z Secret source: Actions
+2025-08-14T22:15:17.0229580Z Prepare workflow directory
+2025-08-14T22:15:17.0660521Z Prepare all required actions
+2025-08-14T22:15:17.0714433Z Getting action download info
+2025-08-14T22:15:17.4557468Z Download action repository 'actions/checkout@v4' (SHA:08eba0b27e820071cde6df949e0beb9ba4906955)
+2025-08-14T22:15:17.9361263Z Download action repository 'dtolnay/rust-toolchain@v1' (SHA:b3b07ba8b418998c39fb20f53e8b695cdcc8de1b)
+2025-08-14T22:15:18.1934953Z Download action repository 'actions/cache@v4' (SHA:0400d5f644dc74513175e3cd8d07132dd4860809)
+2025-08-14T22:15:18.7034521Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2025-08-14T22:15:18.9496921Z Complete job name: Fast Lane (lint + minimal + USR_INIT)
+2025-08-14T22:15:19.0286879Z ##[group]Run actions/checkout@v4
+2025-08-14T22:15:19.0288141Z with:
+2025-08-14T22:15:19.0288993Z   repository: amoljassal/sis-kernel
+2025-08-14T22:15:19.0290214Z   token: ***
+2025-08-14T22:15:19.0290948Z   ssh-strict: true
+2025-08-14T22:15:19.0291705Z   ssh-user: git
+2025-08-14T22:15:19.0292782Z   persist-credentials: true
+2025-08-14T22:15:19.0293675Z   clean: true
+2025-08-14T22:15:19.0294443Z   sparse-checkout-cone-mode: true
+2025-08-14T22:15:19.0295379Z   fetch-depth: 1
+2025-08-14T22:15:19.0296143Z   fetch-tags: false
+2025-08-14T22:15:19.0296899Z   show-progress: true
+2025-08-14T22:15:19.0297677Z   lfs: false
+2025-08-14T22:15:19.0298387Z   submodules: false
+2025-08-14T22:15:19.0299170Z   set-safe-directory: true
+2025-08-14T22:15:19.0300321Z env:
+2025-08-14T22:15:19.0301030Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:19.0301928Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:19.0303099Z ##[endgroup]
+2025-08-14T22:15:19.1394970Z Syncing repository: amoljassal/sis-kernel
+2025-08-14T22:15:19.1397901Z ##[group]Getting Git version info
+2025-08-14T22:15:19.1399219Z Working directory is '/home/runner/work/sis-kernel/sis-kernel'
+2025-08-14T22:15:19.1401227Z [command]/usr/bin/git version
+2025-08-14T22:15:19.1469814Z git version 2.50.1
+2025-08-14T22:15:19.1495946Z ##[endgroup]
+2025-08-14T22:15:19.1516950Z Temporarily overriding HOME='/home/runner/work/_temp/b308e76f-09b0-433d-9353-5f283ffcfc7f' before making global git config changes
+2025-08-14T22:15:19.1520332Z Adding repository directory to the temporary git global config as a safe directory
+2025-08-14T22:15:19.1523500Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sis-kernel/sis-kernel
+2025-08-14T22:15:19.1556620Z Deleting the contents of '/home/runner/work/sis-kernel/sis-kernel'
+2025-08-14T22:15:19.1560085Z ##[group]Initializing the repository
+2025-08-14T22:15:19.1564187Z [command]/usr/bin/git init /home/runner/work/sis-kernel/sis-kernel
+2025-08-14T22:15:19.1635250Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-08-14T22:15:19.1638196Z hint: is subject to change. To configure the initial branch name to use in all
+2025-08-14T22:15:19.1641050Z hint: of your new repositories, which will suppress this warning, call:
+2025-08-14T22:15:19.1642586Z hint:
+2025-08-14T22:15:19.1643480Z hint: 	git config --global init.defaultBranch <name>
+2025-08-14T22:15:19.1644600Z hint:
+2025-08-14T22:15:19.1646098Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-08-14T22:15:19.1647777Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-08-14T22:15:19.1649102Z hint:
+2025-08-14T22:15:19.1649996Z hint: 	git branch -m <name>
+2025-08-14T22:15:19.1651336Z hint:
+2025-08-14T22:15:19.1653176Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2025-08-14T22:15:19.1655098Z Initialized empty Git repository in /home/runner/work/sis-kernel/sis-kernel/.git/
+2025-08-14T22:15:19.1658053Z [command]/usr/bin/git remote add origin https://github.com/amoljassal/sis-kernel
+2025-08-14T22:15:19.1686436Z ##[endgroup]
+2025-08-14T22:15:19.1688185Z ##[group]Disabling automatic garbage collection
+2025-08-14T22:15:19.1690429Z [command]/usr/bin/git config --local gc.auto 0
+2025-08-14T22:15:19.1717923Z ##[endgroup]
+2025-08-14T22:15:19.1719402Z ##[group]Setting up auth
+2025-08-14T22:15:19.1723597Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-08-14T22:15:19.1752044Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-08-14T22:15:19.2080880Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-08-14T22:15:19.2109776Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-08-14T22:15:19.2323849Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-08-14T22:15:19.2357348Z ##[endgroup]
+2025-08-14T22:15:19.2358702Z ##[group]Fetching the repository
+2025-08-14T22:15:19.2366613Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +e6ebdd137eb5fb6ee18b7bb1f1dc48e9fd58cbc6:refs/remotes/origin/main
+2025-08-14T22:15:23.0860901Z From https://github.com/amoljassal/sis-kernel
+2025-08-14T22:15:23.0861933Z  * [new ref]         e6ebdd137eb5fb6ee18b7bb1f1dc48e9fd58cbc6 -> origin/main
+2025-08-14T22:15:23.0888314Z ##[endgroup]
+2025-08-14T22:15:23.0890388Z ##[group]Determining the checkout info
+2025-08-14T22:15:23.0891443Z ##[endgroup]
+2025-08-14T22:15:23.0897288Z [command]/usr/bin/git sparse-checkout disable
+2025-08-14T22:15:23.0943080Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-08-14T22:15:23.0971947Z ##[group]Checking out the ref
+2025-08-14T22:15:23.0977018Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2025-08-14T22:15:24.3118717Z Updating files:  95% (657/691)
+2025-08-14T22:15:24.3138616Z Updating files:  96% (664/691)
+2025-08-14T22:15:24.3445946Z Updating files:  97% (671/691)
+2025-08-14T22:15:24.3448080Z Updating files:  98% (678/691)
+2025-08-14T22:15:24.3452164Z Updating files:  99% (685/691)
+2025-08-14T22:15:24.3453216Z Updating files: 100% (691/691)
+2025-08-14T22:15:24.3453985Z Updating files: 100% (691/691), done.
+2025-08-14T22:15:24.3474048Z Switched to a new branch 'main'
+2025-08-14T22:15:24.3477366Z branch 'main' set up to track 'origin/main'.
+2025-08-14T22:15:24.3523381Z ##[endgroup]
+2025-08-14T22:15:24.3566071Z [command]/usr/bin/git log -1 --format=%H
+2025-08-14T22:15:24.3589649Z e6ebdd137eb5fb6ee18b7bb1f1dc48e9fd58cbc6
+2025-08-14T22:15:24.3854825Z ##[group]Run dtolnay/rust-toolchain@v1
+2025-08-14T22:15:24.3855120Z with:
+2025-08-14T22:15:24.3855516Z   toolchain: nightly-2025-08-01
+2025-08-14T22:15:24.3855836Z   components: rustfmt, clippy, rust-src, llvm-tools-preview
+2025-08-14T22:15:24.3856156Z   targets: x86_64-unknown-none
+2025-08-14T22:15:24.3856380Z env:
+2025-08-14T22:15:24.3856551Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:24.3856787Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:24.3857042Z ##[endgroup]
+2025-08-14T22:15:24.3957928Z ##[group]Run : parse toolchain version
+2025-08-14T22:15:24.3958276Z [36;1m: parse toolchain version[0m
+2025-08-14T22:15:24.3958642Z [36;1mif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then[0m
+2025-08-14T22:15:24.3959006Z [36;1m  if [[ Linux == macOS ]]; then[0m
+2025-08-14T22:15:24.3959456Z [36;1m    echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:24.3959916Z [36;1m  else[0m
+2025-08-14T22:15:24.3960265Z [36;1m    echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:24.3960658Z [36;1m  fi[0m
+2025-08-14T22:15:24.3960932Z [36;1melif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then[0m
+2025-08-14T22:15:24.3961391Z [36;1m  echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:24.3961780Z [36;1melif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then[0m
+2025-08-14T22:15:24.4026290Z [36;1m  echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:24.4027140Z [36;1melse[0m
+2025-08-14T22:15:24.4027606Z [36;1m  echo "toolchain=$toolchain" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:24.4028135Z [36;1mfi[0m
+2025-08-14T22:15:24.4065561Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:24.4065913Z env:
+2025-08-14T22:15:24.4066089Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:24.4066340Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:24.4066605Z   toolchain: nightly-2025-08-01
+2025-08-14T22:15:24.4066832Z ##[endgroup]
+2025-08-14T22:15:24.4196583Z ##[group]Run : construct rustup command line
+2025-08-14T22:15:24.4196901Z [36;1m: construct rustup command line[0m
+2025-08-14T22:15:24.4197312Z [36;1mecho "targets=$(for t in ${targets//,/ }; do echo -n ' --target' $t; done)" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:24.4197846Z [36;1mecho "components=$(for c in ${components//,/ }; do echo -n ' --component' $c; done)" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:24.4198272Z [36;1mecho "downgrade=" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:24.4224051Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:24.4224359Z env:
+2025-08-14T22:15:24.4224541Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:24.4224779Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:24.4225049Z   targets: x86_64-unknown-none
+2025-08-14T22:15:24.4225343Z   components: rustfmt, clippy, rust-src, llvm-tools-preview
+2025-08-14T22:15:24.4225652Z ##[endgroup]
+2025-08-14T22:15:24.4299785Z ##[group]Run : set $CARGO_HOME
+2025-08-14T22:15:24.4300028Z [36;1m: set $CARGO_HOME[0m
+2025-08-14T22:15:24.4300328Z [36;1mecho CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV[0m
+2025-08-14T22:15:24.4325703Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:24.4326015Z env:
+2025-08-14T22:15:24.4326193Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:24.4326417Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:24.4326657Z ##[endgroup]
+2025-08-14T22:15:24.4397844Z ##[group]Run : install rustup if needed
+2025-08-14T22:15:24.4398138Z [36;1m: install rustup if needed[0m
+2025-08-14T22:15:24.4398410Z [36;1mif ! command -v rustup &>/dev/null; then[0m
+2025-08-14T22:15:24.4399276Z [36;1m  curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y[0m
+2025-08-14T22:15:24.4399975Z [36;1m  echo "$CARGO_HOME/bin" >> $GITHUB_PATH[0m
+2025-08-14T22:15:24.4400355Z [36;1mfi[0m
+2025-08-14T22:15:24.4425742Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:24.4426060Z env:
+2025-08-14T22:15:24.4426235Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:24.4426475Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:24.4426744Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:24.4426980Z ##[endgroup]
+2025-08-14T22:15:24.4502771Z ##[group]Run rustup toolchain install nightly-2025-08-01 --target x86_64-unknown-none --component rustfmt --component clippy --component rust-src --component llvm-tools-preview --profile minimal --no-self-update
+2025-08-14T22:15:24.4504053Z [36;1mrustup toolchain install nightly-2025-08-01 --target x86_64-unknown-none --component rustfmt --component clippy --component rust-src --component llvm-tools-preview --profile minimal --no-self-update[0m
+2025-08-14T22:15:24.4530409Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:24.4530730Z env:
+2025-08-14T22:15:24.4530912Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:24.4531146Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:24.4531414Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:24.4531650Z ##[endgroup]
+2025-08-14T22:15:24.5569362Z info: syncing channel updates for 'nightly-2025-08-01-x86_64-unknown-linux-gnu'
+2025-08-14T22:15:25.1012855Z info: latest update on 2025-08-01, rust version 1.90.0-nightly (adcb3d3b4 2025-07-31)
+2025-08-14T22:15:25.1013563Z info: downloading component 'cargo'
+2025-08-14T22:15:25.4658431Z info: downloading component 'clippy'
+2025-08-14T22:15:25.7241005Z info: downloading component 'llvm-tools'
+2025-08-14T22:15:26.6550546Z info: downloading component 'rust-src'
+2025-08-14T22:15:26.9170332Z info: downloading component 'rust-std'
+2025-08-14T22:15:27.6174471Z info: downloading component 'rust-std' for 'x86_64-unknown-none'
+2025-08-14T22:15:28.0782622Z info: downloading component 'rustc'
+2025-08-14T22:15:29.8033178Z info: downloading component 'rustfmt'
+2025-08-14T22:15:30.0177789Z info: installing component 'cargo'
+2025-08-14T22:15:30.7015542Z info: installing component 'clippy'
+2025-08-14T22:15:31.0740751Z info: installing component 'llvm-tools'
+2025-08-14T22:15:33.4002118Z info: installing component 'rust-src'
+2025-08-14T22:15:33.8042936Z info: installing component 'rust-std'
+2025-08-14T22:15:35.8013914Z info: installing component 'rust-std' for 'x86_64-unknown-none'
+2025-08-14T22:15:36.7346218Z info: installing component 'rustc'
+2025-08-14T22:15:41.3768981Z info: installing component 'rustfmt'
+2025-08-14T22:15:41.6785214Z 
+2025-08-14T22:15:41.6883339Z   nightly-2025-08-01-x86_64-unknown-linux-gnu installed - rustc 1.90.0-nightly (adcb3d3b4 2025-07-31)
+2025-08-14T22:15:41.6883880Z 
+2025-08-14T22:15:41.6930054Z ##[group]Run rustup default nightly-2025-08-01
+2025-08-14T22:15:41.6930386Z [36;1mrustup default nightly-2025-08-01[0m
+2025-08-14T22:15:41.6956889Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:41.6957207Z env:
+2025-08-14T22:15:41.6957408Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:41.6957638Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:41.6957901Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:41.6958122Z ##[endgroup]
+2025-08-14T22:15:41.7054773Z info: using existing install for 'nightly-2025-08-01-x86_64-unknown-linux-gnu'
+2025-08-14T22:15:41.7417108Z info: default toolchain set to 'nightly-2025-08-01-x86_64-unknown-linux-gnu'
+2025-08-14T22:15:41.7417864Z 
+2025-08-14T22:15:41.7507525Z info: note that the toolchain 'nightly-2025-08-01-x86_64-unknown-linux-gnu' is currently in use (overridden by environment variable RUSTUP_TOOLCHAIN)
+2025-08-14T22:15:41.7508794Z   nightly-2025-08-01-x86_64-unknown-linux-gnu unchanged - rustc 1.90.0-nightly (adcb3d3b4 2025-07-31)
+2025-08-14T22:15:41.7509212Z 
+2025-08-14T22:15:41.7545336Z ##[group]Run : create cachekey
+2025-08-14T22:15:41.7545813Z [36;1m: create cachekey[0m
+2025-08-14T22:15:41.7546303Z [36;1mDATE=$(rustc +nightly-2025-08-01 --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')[0m
+2025-08-14T22:15:41.7547077Z [36;1mHASH=$(rustc +nightly-2025-08-01 --version --verbose | sed -ne 's/^commit-hash: //p')[0m
+2025-08-14T22:15:41.7547559Z [36;1mecho "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT[0m
+2025-08-14T22:15:41.7573984Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:41.7574293Z env:
+2025-08-14T22:15:41.7574474Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:41.7574701Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:41.7574958Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:41.7575179Z ##[endgroup]
+2025-08-14T22:15:41.7962923Z ##[group]Run : disable incremental compilation
+2025-08-14T22:15:41.7963251Z [36;1m: disable incremental compilation[0m
+2025-08-14T22:15:41.7963535Z [36;1mif [ -z "${CARGO_INCREMENTAL+set}" ]; then[0m
+2025-08-14T22:15:41.7963848Z [36;1m  echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV[0m
+2025-08-14T22:15:41.7964100Z [36;1mfi[0m
+2025-08-14T22:15:41.7989925Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:41.7990229Z env:
+2025-08-14T22:15:41.7990394Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:41.7990616Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:41.7990868Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:41.7991091Z ##[endgroup]
+2025-08-14T22:15:41.8048428Z ##[group]Run : enable colors in Cargo output
+2025-08-14T22:15:41.8048724Z [36;1m: enable colors in Cargo output[0m
+2025-08-14T22:15:41.8049004Z [36;1mif [ -z "${CARGO_TERM_COLOR+set}" ]; then[0m
+2025-08-14T22:15:41.8049310Z [36;1m  echo CARGO_TERM_COLOR=always >> $GITHUB_ENV[0m
+2025-08-14T22:15:41.8049560Z [36;1mfi[0m
+2025-08-14T22:15:41.8073277Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:41.8073584Z env:
+2025-08-14T22:15:41.8073755Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:41.8073997Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:41.8074253Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:41.8074489Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:41.8074676Z ##[endgroup]
+2025-08-14T22:15:41.8132234Z ##[group]Run : enable Cargo sparse registry
+2025-08-14T22:15:41.8132799Z [36;1m: enable Cargo sparse registry[0m
+2025-08-14T22:15:41.8133132Z [36;1m# implemented in 1.66, stabilized in 1.68, made default in 1.70[0m
+2025-08-14T22:15:41.8133753Z [36;1mif [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then[0m
+2025-08-14T22:15:41.8134433Z [36;1m  if rustc +nightly-2025-08-01 --version --verbose | grep -q '^release: 1\.6[89]\.'; then[0m
+2025-08-14T22:15:41.8134964Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2025-08-14T22:15:41.8135431Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV[0m
+2025-08-14T22:15:41.8135904Z [36;1m  elif rustc +nightly-2025-08-01 --version --verbose | grep -q '^release: 1\.6[67]\.'; then[0m
+2025-08-14T22:15:41.8136437Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2025-08-14T22:15:41.8136887Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV[0m
+2025-08-14T22:15:41.8137198Z [36;1m  fi[0m
+2025-08-14T22:15:41.8137368Z [36;1mfi[0m
+2025-08-14T22:15:41.8160748Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:41.8161050Z env:
+2025-08-14T22:15:41.8161215Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:41.8161451Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:41.8161706Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:41.8161927Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:41.8162119Z ##[endgroup]
+2025-08-14T22:15:41.8518080Z ##[group]Run : work around spurious network errors in curl 8.0
+2025-08-14T22:15:41.8518481Z [36;1m: work around spurious network errors in curl 8.0[0m
+2025-08-14T22:15:41.8519170Z [36;1m# https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation[0m
+2025-08-14T22:15:41.8519913Z [36;1mif rustc +nightly-2025-08-01 --version --verbose | grep -q '^release: 1\.7[01]\.'; then[0m
+2025-08-14T22:15:41.8520359Z [36;1m  echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV[0m
+2025-08-14T22:15:41.8520645Z [36;1mfi[0m
+2025-08-14T22:15:41.8546784Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:41.8547084Z env:
+2025-08-14T22:15:41.8547262Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:41.8547491Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:41.8547748Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:41.8547976Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:41.8548173Z ##[endgroup]
+2025-08-14T22:15:41.8754803Z ##[group]Run rustc +nightly-2025-08-01 --version --verbose
+2025-08-14T22:15:41.8755183Z [36;1mrustc +nightly-2025-08-01 --version --verbose[0m
+2025-08-14T22:15:41.8780111Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2025-08-14T22:15:41.8780411Z env:
+2025-08-14T22:15:41.8780592Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:41.8780833Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:41.8781089Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:41.8781310Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:41.8781508Z ##[endgroup]
+2025-08-14T22:15:41.8947779Z rustc 1.90.0-nightly (adcb3d3b4 2025-07-31)
+2025-08-14T22:15:41.8948342Z binary: rustc
+2025-08-14T22:15:41.8948823Z commit-hash: adcb3d3b4cd3b7c4cde642f3ed537037f293738e
+2025-08-14T22:15:41.8949479Z commit-date: 2025-07-31
+2025-08-14T22:15:41.8949905Z host: x86_64-unknown-linux-gnu
+2025-08-14T22:15:41.8950259Z release: 1.90.0-nightly
+2025-08-14T22:15:41.8950483Z LLVM version: 20.1.8
+2025-08-14T22:15:41.9017051Z ##[group]Run set -euxo pipefail
+2025-08-14T22:15:41.9017347Z [36;1mset -euxo pipefail[0m
+2025-08-14T22:15:41.9017567Z [36;1mrustc -Vv[0m
+2025-08-14T22:15:41.9017743Z [36;1mcargo -V[0m
+2025-08-14T22:15:41.9017942Z [36;1mrustup show active-toolchain[0m
+2025-08-14T22:15:41.9018204Z [36;1mrustup component list --installed[0m
+2025-08-14T22:15:41.9018478Z [36;1mrustup target list --installed[0m
+2025-08-14T22:15:41.9044904Z shell: /usr/bin/bash -e {0}
+2025-08-14T22:15:41.9045132Z env:
+2025-08-14T22:15:41.9045305Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:41.9045536Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:41.9045799Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:41.9046029Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:41.9046221Z ##[endgroup]
+2025-08-14T22:15:41.9087579Z + rustc -Vv
+2025-08-14T22:15:41.9575495Z rustc 1.90.0-nightly (adcb3d3b4 2025-07-31)
+2025-08-14T22:15:41.9576098Z binary: rustc
+2025-08-14T22:15:41.9576588Z commit-hash: adcb3d3b4cd3b7c4cde642f3ed537037f293738e
+2025-08-14T22:15:41.9577071Z commit-date: 2025-07-31
+2025-08-14T22:15:41.9577361Z host: x86_64-unknown-linux-gnu
+2025-08-14T22:15:41.9577585Z release: 1.90.0-nightly
+2025-08-14T22:15:41.9577800Z LLVM version: 20.1.8
+2025-08-14T22:15:41.9591894Z + cargo -V
+2025-08-14T22:15:42.0058898Z cargo 1.90.0-nightly (9b296973b 2025-07-25)
+2025-08-14T22:15:42.0067112Z + rustup show active-toolchain
+2025-08-14T22:15:42.0469309Z nightly-2025-08-01-x86_64-unknown-linux-gnu (overridden by environment variable RUSTUP_TOOLCHAIN)
+2025-08-14T22:15:42.0492828Z + rustup component list --installed
+2025-08-14T22:15:42.1274106Z cargo-x86_64-unknown-linux-gnu
+2025-08-14T22:15:42.1274621Z clippy-x86_64-unknown-linux-gnu
+2025-08-14T22:15:42.1275055Z llvm-tools-x86_64-unknown-linux-gnu
+2025-08-14T22:15:42.1275458Z rust-src
+2025-08-14T22:15:42.1275768Z rust-std-x86_64-unknown-linux-gnu
+2025-08-14T22:15:42.1276193Z rust-std-x86_64-unknown-none
+2025-08-14T22:15:42.1276592Z rustc-x86_64-unknown-linux-gnu
+2025-08-14T22:15:42.1277022Z rustfmt-x86_64-unknown-linux-gnu
+2025-08-14T22:15:42.1295487Z + rustup target list --installed
+2025-08-14T22:15:42.1994399Z x86_64-unknown-linux-gnu
+2025-08-14T22:15:42.1994797Z x86_64-unknown-none
+2025-08-14T22:15:42.3317217Z ##[group]Run actions/cache@v4
+2025-08-14T22:15:42.3317476Z with:
+2025-08-14T22:15:42.3317903Z   key: Linux-cargo-nightly-2025-08-01-d4c5c725b9b3c52327779d4eed10f8a40f8d3f7d7905a5ac9c7e105afa5d2f3a
+2025-08-14T22:15:42.3318621Z   path: ~/.cargo/registry
+~/.cargo/git
+target
+
+2025-08-14T22:15:42.3318902Z   enableCrossOsArchive: false
+2025-08-14T22:15:42.3319129Z   fail-on-cache-miss: false
+2025-08-14T22:15:42.3319341Z   lookup-only: false
+2025-08-14T22:15:42.3319523Z   save-always: false
+2025-08-14T22:15:42.3319702Z env:
+2025-08-14T22:15:42.3319873Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:42.3320100Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:42.3320359Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:42.3320586Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:42.3320780Z ##[endgroup]
+2025-08-14T22:15:42.5926498Z Cache hit for: Linux-cargo-nightly-2025-08-01-d4c5c725b9b3c52327779d4eed10f8a40f8d3f7d7905a5ac9c7e105afa5d2f3a
+2025-08-14T22:15:43.7950850Z Received 67108864 of 162503562 (41.3%), 64.0 MBs/sec
+2025-08-14T22:15:44.4474911Z Received 162503562 of 162503562 (100.0%), 93.8 MBs/sec
+2025-08-14T22:15:44.4476204Z Cache Size: ~155 MB (162503562 B)
+2025-08-14T22:15:44.4503397Z [command]/usr/bin/tar -xf /home/runner/work/_temp/5095476e-61ec-414e-9309-9a87ba9aae19/cache.tzst -P -C /home/runner/work/sis-kernel/sis-kernel --use-compress-program unzstd
+2025-08-14T22:15:45.8563449Z Cache restored successfully
+2025-08-14T22:15:45.8994519Z Cache restored from key: Linux-cargo-nightly-2025-08-01-d4c5c725b9b3c52327779d4eed10f8a40f8d3f7d7905a5ac9c7e105afa5d2f3a
+2025-08-14T22:15:45.9115725Z ##[group]Run set -euxo pipefail
+2025-08-14T22:15:45.9116074Z [36;1mset -euxo pipefail[0m
+2025-08-14T22:15:45.9116336Z [36;1mcargo fmt --all -- --check[0m
+2025-08-14T22:15:45.9116955Z [36;1mcargo clippy --target x86_64-unknown-none --no-default-features --features "ci-lint-min" -Z build-std=core,alloc -- -A warnings[0m
+2025-08-14T22:15:45.9144682Z shell: /usr/bin/bash -e {0}
+2025-08-14T22:15:45.9144907Z env:
+2025-08-14T22:15:45.9145092Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:45.9145346Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:45.9145624Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:45.9145874Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:45.9146078Z ##[endgroup]
+2025-08-14T22:15:46.0127034Z + cargo fmt --all -- --check
+2025-08-14T22:15:46.2371878Z Diff in /home/runner/work/sis-kernel/sis-kernel/src/selftest/smp_affinity.rs:23:
+2025-08-14T22:15:46.2372999Z          let work = 300u32;
+2025-08-14T22:15:46.2376483Z          #[cfg(not(ci_fast))]
+2025-08-14T22:15:46.2377545Z          let work = 2_000u32;
+2025-08-14T22:15:46.2378452Z -        
+2025-08-14T22:15:46.2384212Z +
+2025-08-14T22:15:46.2384774Z          for _ in 0..work {
+2025-08-14T22:15:46.2388777Z              core::hint::spin_loop();
+2025-08-14T22:15:46.2389055Z          }
+2025-08-14T22:15:46.2408093Z Diff in /home/runner/work/sis-kernel/sis-kernel/src/userland/selftest_usr.rs:179:
+2025-08-14T22:15:46.2408773Z          run_usr_vfs_neg();
+2025-08-14T22:15:46.2409003Z          return;
+2025-08-14T22:15:46.2409180Z      }
+2025-08-14T22:15:46.2409345Z -    
+2025-08-14T22:15:46.2409507Z +
+2025-08-14T22:15:46.2409846Z      // Default to USR_INIT test (including when selftest_USR_INIT is set or no cfg is provided)
+2025-08-14T22:15:46.2410325Z      // This allows USR_INIT to work without cfg flags for fast compilation
+2025-08-14T22:15:46.2410652Z      run_usr_init();
+2025-08-14T22:15:46.2416505Z Diff in /home/runner/work/sis-kernel/sis-kernel/src/userland/selftest_vfio.rs:76:
+2025-08-14T22:15:46.2417011Z      let iters = 16u64;
+2025-08-14T22:15:46.2417227Z      #[cfg(not(ci_fast))]
+2025-08-14T22:15:46.2417428Z      let iters = 100u64;
+2025-08-14T22:15:46.2417623Z -    
+2025-08-14T22:15:46.2417783Z +
+2025-08-14T22:15:46.2417941Z      for _ in 0..iters {
+2025-08-14T22:15:46.2418208Z          if vfio::syscall_msi_trigger_e1000_new(h) != 0 {
+2025-08-14T22:15:46.2418534Z              serial::write_str("[vfio-soak] trigger failed\n");
+2025-08-14T22:15:46.2469097Z ##[error]Process completed with exit code 1.
+2025-08-14T22:15:46.2542443Z ##[group]Run actions/upload-artifact@v4
+2025-08-14T22:15:46.2542731Z with:
+2025-08-14T22:15:46.2543120Z   name: usr-init-artifacts
+2025-08-14T22:15:46.2543383Z   path: out/qemu-serial.log
+out/*.img
+out/*.json
+
+2025-08-14T22:15:46.2543673Z   if-no-files-found: warn
+2025-08-14T22:15:46.2543894Z   compression-level: 6
+2025-08-14T22:15:46.2544094Z   overwrite: false
+2025-08-14T22:15:46.2544296Z   include-hidden-files: false
+2025-08-14T22:15:46.2544510Z env:
+2025-08-14T22:15:46.2544677Z   CARGO_TERM_COLOR: always
+2025-08-14T22:15:46.2544909Z   RUSTUP_TOOLCHAIN: nightly-2025-08-01
+2025-08-14T22:15:46.2545174Z   CARGO_HOME: /home/runner/.cargo
+2025-08-14T22:15:46.2545410Z   CARGO_INCREMENTAL: 0
+2025-08-14T22:15:46.2545614Z ##[endgroup]
+2025-08-14T22:15:46.4626025Z ##[warning]No files were found with the provided path: out/qemu-serial.log
+out/*.img
+out/*.json. No artifacts will be uploaded.
+2025-08-14T22:15:46.4743650Z Post job cleanup.
+2025-08-14T22:15:46.5664428Z [command]/usr/bin/git version
+2025-08-14T22:15:46.5698944Z git version 2.50.1
+2025-08-14T22:15:46.5740744Z Temporarily overriding HOME='/home/runner/work/_temp/680c7554-b8ca-4e53-b392-3ab5ada074de' before making global git config changes
+2025-08-14T22:15:46.5741722Z Adding repository directory to the temporary git global config as a safe directory
+2025-08-14T22:15:46.5752930Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sis-kernel/sis-kernel
+2025-08-14T22:15:46.5784979Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-08-14T22:15:46.5816652Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-08-14T22:15:46.6036857Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-08-14T22:15:46.6056854Z http.https://github.com/.extraheader
+2025-08-14T22:15:46.6068791Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2025-08-14T22:15:46.6097620Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-08-14T22:15:46.6409539Z Cleaning up orphan processes
