@@ -16,6 +16,7 @@ pub mod memory;
 pub mod operations;
 pub mod distributed;
 pub mod hal;
+pub mod vdso;
 
 use crate::kernel::serial;
 use alloc::vec::Vec;
