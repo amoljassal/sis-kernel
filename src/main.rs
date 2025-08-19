@@ -11,7 +11,29 @@
 
 extern crate alloc;
 
+// Global allocator for ARM64
+#[cfg(target_arch = "aarch64")]
+use linked_list_allocator::LockedHeap;
+
+#[cfg(target_arch = "aarch64")]
+#[global_allocator]
+static ALLOCATOR: LockedHeap = LockedHeap::empty();
+
+// Initialize the heap allocator for ARM64
+#[cfg(target_arch = "aarch64")]
+pub fn init_heap() {
+    const HEAP_START: usize = 0x4000_0000;
+    const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
+    unsafe {
+        ALLOCATOR.lock().init(HEAP_START as *mut u8, HEAP_SIZE);
+    }
+}
+
+#[cfg(target_arch = "x86_64")]
 use bootloader_api::{entry_point, BootInfo};
+
+#[cfg(target_arch = "aarch64")]
+use bootloader_api::BootInfo;
 use core::panic::PanicInfo;
 use core::sync::atomic::{AtomicU64, Ordering};
 
@@ -19,8 +41,13 @@ use core::sync::atomic::{AtomicU64, Ordering};
 mod arch;
 #[cfg(feature = "firewall")]
 mod arch {
+    #[cfg(target_arch = "x86_64")]
     pub mod x86_64 {
         pub use crate::arch_minimal::*;
+    }
+    #[cfg(target_arch = "aarch64")]
+    pub mod aarch64 {
+        // Minimal ARM64 support for firewall mode
     }
 }
 
@@ -46,7 +73,10 @@ mod arch_minimal;
 #[cfg(feature = "firewall")]
 mod serial_minimal;
 
-use arch::x86_64 as arch_x86;
+#[cfg(target_arch = "x86_64")]
+use arch::arch_impl as arch_impl;
+#[cfg(target_arch = "aarch64")]
+use arch::arch_impl as arch_impl;
 
 #[cfg(not(feature = "firewall"))]
 use kernel::serial;
@@ -78,7 +108,10 @@ pub fn print_boot_banner() {
     serial::write_str("\n");
 }
 
+#[cfg(target_arch = "x86_64")]
 entry_point!(kernel_main);
+
+#[cfg(target_arch = "x86_64")]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     // Initialise serial logging first
     serial::init();
@@ -108,7 +141,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     {
         serial::write_str("=== FIREWALL MODE - MINIMAL BOOT ===\n");
         loop {
+            #[cfg(target_arch = "x86_64")]
             arch_x86::cpu::halt();
+            #[cfg(target_arch = "aarch64")]
+            unsafe {
+                core::arch::asm!("wfe", options(nomem, nostack, preserves_flags));
+            }
         }
     }
 
@@ -119,6 +157,30 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
         // Continue with full kernel initialization - placeholder for now
         serial::write_str("[kernel] memory initialized, entering main loop\n");
+
+        // Initialize memory management subsystem
+        #[cfg(not(feature = "firewall"))]
+        {
+            serial::write_str("[kernel] Initializing memory management subsystem...\n");
+            match crate::kernel::memory::init() {
+                Ok(_) => serial::write_str("[kernel] Memory management subsystem initialized\n"),
+                Err(e) => {
+                    serial::write_str("[kernel] Memory management init failed\n");
+                }
+            }
+        }
+
+        // Initialize vDSO manager for AI-native syscalls
+        #[cfg(not(feature = "firewall"))]
+        {
+            serial::write_str("[kernel] Initializing vDSO manager...\n");
+            match crate::kernel::vdso_manager::init() {
+                Ok(_) => serial::write_str("[kernel] vDSO manager initialized\n"),
+                Err(e) => {
+                    serial::write_str("[kernel] vDSO manager init failed\n");
+                }
+            }
+        }
 
         // Initialize per-CPU data for SMP
         #[cfg(feature = "smp")]
@@ -530,7 +592,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         }
 
         loop {
+            #[cfg(target_arch = "x86_64")]
             arch_x86::cpu::halt();
+            #[cfg(target_arch = "aarch64")]
+            unsafe {
+                core::arch::asm!("wfe", options(nomem, nostack, preserves_flags));
+            }
         }
     }
 }
@@ -539,13 +606,82 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 fn panic(_info: &PanicInfo) -> ! {
     // Simple panic handler without alloc
     loop {
+        #[cfg(target_arch = "x86_64")]
         arch_x86::cpu::halt();
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            core::arch::asm!("wfe", options(nomem, nostack, preserves_flags));
+        }
+    }
+}
+
+/// ARM64 kernel entry point for Mac M1 native development
+#[cfg(target_arch = "aarch64")]
+#[no_mangle]
+pub extern "C" fn _start() -> ! {
+    // Initialize heap allocator first
+    init_heap();
+    
+    // Initialize serial logging
+    serial::init();
+
+    // Immediate identification for debug
+    serial::write_str("\n=== SIS KERNEL ENTRY (ARM64) ===\n");
+
+    // Boot canary for build verification
+    print_boot_banner();
+
+    serial::write_str("[ARM64] Initializing SIS Kernel for Mac M1...\n");
+
+    // Initialize ARM64 architecture
+    match crate::arch::arch_impl::init() {
+        Ok(_) => serial::write_str("[ARM64] Architecture initialized successfully\n"),
+        Err(e) => {
+            serial::write_str("[ARM64] Architecture init failed: ");
+            serial::write_str(e);
+            serial::write_str("\n");
+        }
+    }
+
+    // Initialize memory management subsystem
+    serial::write_str("[ARM64] Initializing memory management subsystem...\n");
+    match crate::kernel::memory::init() {
+        Ok(_) => serial::write_str("[ARM64] Memory management subsystem initialized\n"),
+        Err(_) => {
+            serial::write_str("[ARM64] Memory management init failed\n");
+        }
+    }
+
+    // Initialize vDSO manager for AI-native syscalls
+    serial::write_str("[ARM64] Initializing vDSO manager...\n");
+    match crate::kernel::vdso_manager::init() {
+        Ok(_) => serial::write_str("[ARM64] vDSO manager initialized - AI-native syscalls ready\n"),
+        Err(_) => {
+            serial::write_str("[ARM64] vDSO manager init failed\n");
+        }
+    }
+
+    serial::write_str("[ARM64] SIS Kernel initialization complete - ARM64 AI-native kernel ready!\n");
+    serial::write_str("[ARM64] Entering main kernel loop...\n");
+
+    // Main kernel loop
+    loop {
+        // Use ARM64 WFE (Wait For Event) for power-efficient idle
+        unsafe {
+            core::arch::asm!("wfe", options(nomem, nostack, preserves_flags));
+        }
     }
 }
 
 #[alloc_error_handler]
 fn alloc_error(_layout: core::alloc::Layout) -> ! {
     loop {
+        #[cfg(target_arch = "x86_64")]
         arch_x86::cpu::halt();
+        
+        #[cfg(target_arch = "aarch64")]
+        unsafe {
+            core::arch::asm!("wfe", options(nomem, nostack, preserves_flags));
+        }
     }
 }

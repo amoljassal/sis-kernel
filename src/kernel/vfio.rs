@@ -12,7 +12,9 @@ use crate::kernel::serial;
 use core::fmt::Write;
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
+#[cfg(target_arch = "x86_64")]
 use crate::arch::x86_64::idt;
+#[cfg(target_arch = "x86_64")]
 use crate::arch::x86_64::irqvec;
 
 // VFIO capability handle type with generation
@@ -82,9 +84,21 @@ struct VfioHandleState {
 static mut HANDLE_STATES: [Option<VfioHandleState>; 16] = [const { None }; 16];
 static NEXT_GEN: AtomicU64 = AtomicU64::new(1);
 
+#[cfg(target_arch = "x86_64")]
 #[inline(always)]
 pub fn tsc() -> u64 {
     unsafe { core::arch::x86_64::_rdtsc() }
+}
+
+#[cfg(target_arch = "aarch64")]
+#[inline(always)]
+pub fn tsc() -> u64 {
+    // Use ARM64 system timer counter
+    unsafe {
+        let count: u64;
+        core::arch::asm!("mrs {}, cntvct_el0", out(reg) count);
+        count
+    }
 }
 
 // Helper types and functions for patch compatibility
@@ -917,7 +931,10 @@ pub fn syscall_msi_trigger_e1000_new(h: VfioHandle) -> i32 {
 
 #[inline(always)]
 pub fn lookup_by_vector(vec: u8) -> Option<(VfioHandle, u64)> {
+    #[cfg(target_arch = "x86_64")]
     let packed = crate::arch::x86_64::idt::vfio_vector_packed_load(vec);
+    #[cfg(target_arch = "aarch64")]
+    let packed = 0u64; // ARM64 stub - no interrupt vectors loaded yet
     if packed == 0 {
         return None;
     }

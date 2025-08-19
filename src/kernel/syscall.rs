@@ -363,7 +363,10 @@ fn sys_spawn(role_id: u64, _arg1: u64, _arg2: u64, _a: u64, _b: u64, _c: u64) {
     fn child_stub() {
         serial::write_str("[child] Hello from a spawned task!\n");
         loop {
+            #[cfg(target_arch = "x86_64")]
             crate::arch::x86_64::cpu::pause();
+            #[cfg(target_arch = "aarch64")]
+            crate::arch::arch_impl::cpu_idle();
         }
     }
     let id = crate::kernel::scheduler::spawn_child(child_stub, parent_role);
@@ -463,7 +466,10 @@ fn sys_sis_execute(
             // 2. Handle GPU/hardware acceleration
             // 3. Manage memory and resources
             loop {
-                crate::arch::x86_64::cpu::pause();
+                #[cfg(target_arch = "x86_64")]
+            crate::arch::x86_64::cpu::pause();
+            #[cfg(target_arch = "aarch64")]
+            crate::arch::arch_impl::cpu_idle();
             }
         }
 

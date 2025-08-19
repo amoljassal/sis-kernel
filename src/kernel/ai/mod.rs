@@ -65,7 +65,7 @@ pub fn init() -> Result<(), &'static str> {
         // Initialize ARM64 AI acceleration if available
         #[cfg(target_arch = "aarch64")]
         {
-            crate::arch::aarch64::init()?;
+            crate::arch::arch_impl::init()?;
             cognitive_scheduler_arm64::init()?;
             serial::write_str("[ai] ARM64 AI acceleration initialized\n");
         }

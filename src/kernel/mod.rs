@@ -7,6 +7,7 @@
 
 pub mod affinity;
 pub mod boot;
+pub mod hal;
 #[cfg(feature = "ipc")]
 pub mod caps;
 pub mod current;
@@ -30,6 +31,8 @@ pub mod task;
 pub mod task_table;
 pub mod validation;
 pub mod ai_syscalls;
+pub mod memory;
+pub mod vdso_manager;
 pub mod types;
 pub mod vfio;
 pub mod vfio_stubs;
@@ -50,7 +53,6 @@ pub mod vfs;
 pub mod initfs;
 
 // AI-Native Kernel Subsystem
-#[cfg(feature = "ai")]
 pub mod ai;
 
 // Provide stable re-exports for callers

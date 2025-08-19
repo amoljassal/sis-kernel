@@ -6,6 +6,7 @@
 //! - Cache-optimized data preprocessing
 //! - Real-world performance improvements
 
+use alloc::{vec, vec::Vec};
 use core::arch::aarch64::*;
 use half::f16;
 

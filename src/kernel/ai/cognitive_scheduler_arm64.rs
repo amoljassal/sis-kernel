@@ -7,7 +7,7 @@
 //! - ARM DynamIQ cluster management
 
 use crate::kernel::ai::{CognitivePriority, WorkloadType};
-use crate::arch::aarch64::{ARM64CoreType, capabilities, ai_context};
+use crate::arch::arch_impl::{ARM64CoreType, capabilities, ai_context};
 use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 /// ARM64-specific cognitive task
@@ -160,7 +160,7 @@ impl ARM64CognitiveScheduler {
     fn select_optimal_core_type(
         &self,
         task: &ARM64CognitiveTask,
-        caps: &crate::arch::aarch64::ARM64Capabilities,
+        caps: &crate::arch::arch_impl::ARM64Capabilities,
     ) -> Result<ARM64CoreType, &'static str> {
         // For high-priority tasks, prefer performance cores
         if task.priority <= CognitivePriority::Interactive {

@@ -100,6 +100,9 @@ pub struct Task {
     // Phase 3: scheduling priority boost
     #[cfg(feature = "scheduler")]
     pub priority_boost: bool,
+
+    // vDSO integration
+    pub vdso: Option<crate::kernel::vdso_manager::TaskVdso>,
 }
 
 #[cfg(feature = "per-task-mm")]
@@ -187,6 +190,9 @@ impl Task {
                 Role::Philosophy | Role::Technical => true,
                 Role::Child => false,
             },
+
+            // vDSO not installed by default
+            vdso: None,
         };
         // Leak the task onto the heap and return a static reference.
         Box::leak(Box::new(task))

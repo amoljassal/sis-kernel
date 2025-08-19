@@ -14,7 +14,8 @@ use core::sync::atomic::{AtomicU64, Ordering};
 pub mod dma;
 pub mod mmio;
 pub mod neural_engine;
-pub mod neon_simd_optimized as neon_simd;
+pub mod neon_simd_optimized;
+pub use neon_simd_optimized as neon_simd;
 
 /// ARM64 CPU core identification
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -370,4 +371,127 @@ pub fn capabilities() -> Result<&'static ARM64Capabilities, &'static str> {
 /// Get ARM64 AI context  
 pub fn ai_context() -> Result<&'static ARM64AIContext, &'static str> {
     ARM64_AI_CTX.get().ok_or("ARM64 AI context not initialized")
+}
+
+// ============================================================================
+// HAL Implementation for ARM64
+// ============================================================================
+
+use crate::kernel::hal::{Hal, HalCapability, InterruptController, MemoryManagement, PageFlags};
+
+/// ARM64 HAL implementation
+pub struct Aarch64Hal;
+
+/// Global HAL instance
+pub static AARCH64_HAL: Aarch64Hal = Aarch64Hal;
+
+impl Hal for Aarch64Hal {
+    fn init() -> Result<(), &'static str> {
+        // Initialize ARM64 architecture
+        super::init()
+    }
+    
+    fn idle() {
+        // ARM64 WFE (Wait For Event) - power efficient
+        unsafe {
+            core::arch::asm!("wfe", options(nomem, nostack, preserves_flags));
+        }
+    }
+    
+    fn send_ipi(cpu_id: u32, vector: u8) {
+        // Use GIC to send Software Generated Interrupt
+        if let Ok(gic) = interrupts::GIC::init() {
+            let _ = gic.send_ipi(cpu_id, vector as u32);
+        }
+    }
+    
+    fn enable_interrupts() {
+        unsafe {
+            core::arch::asm!("msr daifclr, #2", options(nomem, nostack));
+        }
+    }
+    
+    fn disable_interrupts() {
+        unsafe {
+            core::arch::asm!("msr daifset, #2", options(nomem, nostack));
+        }
+    }
+    
+    fn has_capability(cap: HalCapability) -> bool {
+        match cap {
+            HalCapability::NeuralEngine => {
+                // Check if Apple Neural Engine is available
+                capabilities().map(|c| c.has_neural_engine).unwrap_or(false)
+            }
+            HalCapability::GpuCompute => {
+                // M1 has Metal GPU
+                capabilities().map(|c| c.has_neural_engine).unwrap_or(false)
+            }
+            HalCapability::SimdExtensions => {
+                // ARM64 always has NEON
+                true
+            }
+            HalCapability::HardwareRng => {
+                // ARM64 has RNDR instruction (ARMv8.5+)
+                true
+            }
+            HalCapability::Virtualization => {
+                // Check for EL2 support
+                false // Conservative default
+            }
+        }
+    }
+    
+    fn cpu_count() -> u32 {
+        capabilities().map(|c| c.performance_cores + c.efficiency_cores).unwrap_or(1)
+    }
+    
+    fn current_cpu() -> u32 {
+        // Read MPIDR_EL1 for CPU ID
+        let mpidr: u64;
+        unsafe {
+            core::arch::asm!("mrs {}, mpidr_el1", out(reg) mpidr, options(nomem, nostack));
+        }
+        (mpidr & 0xFF) as u32
+    }
+    
+    fn memory_barrier() {
+        // ARM64 full memory barrier (based on Grok's optimization)
+        unsafe {
+            core::arch::asm!("dmb ish", options(nomem, nostack, preserves_flags));
+        }
+    }
+    
+    fn timer_init(frequency_hz: u64) {
+        // Set CNTFRQ_EL0 (Counter Frequency)
+        unsafe {
+            core::arch::asm!(
+                "msr cntfrq_el0, {}",
+                in(reg) frequency_hz,
+                options(nomem, nostack)
+            );
+        }
+    }
+    
+    fn timer_ticks() -> u64 {
+        // Read CNTVCT_EL0 (Virtual Count)
+        let ticks: u64;
+        unsafe {
+            core::arch::asm!("mrs {}, cntvct_el0", out(reg) ticks, options(nomem, nostack));
+        }
+        ticks
+    }
+}
+
+// Export required functions for arch module interface (init already defined above)
+
+pub fn cpu_idle() {
+    <Aarch64Hal as Hal>::idle();
+}
+
+pub fn halt() {
+    // ARM64 doesn't have a direct halt, use WFI (Wait For Interrupt)
+    unsafe {
+        core::arch::asm!("wfi", options(nomem, nostack, preserves_flags));
+    }
 }

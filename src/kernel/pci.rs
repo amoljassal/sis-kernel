@@ -4,8 +4,9 @@
 //! enumeration for VFIO-lite passthrough. It maintains the original
 //! GPU scanning functionality while adding the new Phase 5B API.
 
-use crate::arch::x86_64::io::{inl, outl};
-use crate::kernel::serial::{self, write_hex32};
+#[cfg(target_arch = "x86_64")]
+use crate::arch::arch_impl::io::{inl, outl};
+use crate::kernel::serial::{self};
 use crate::kernel::types::{Bdf, PciBus, PciDev, PciFn};
 use core::fmt::Write;
 
@@ -23,6 +24,7 @@ fn cfg_addr(bus: PciBus, dev: PciDev, func: PciFn, off: u8) -> u32 {
     (1u32 << 31) | ((bus as u32) << 16) | ((dev as u32) << 11) | ((func as u32) << 8) | aligned
 }
 
+#[cfg(target_arch = "x86_64")]
 pub fn cfg_read32(bus: PciBus, dev: PciDev, func: PciFn, off: u8) -> u32 {
     unsafe {
         outl(0xCF8, cfg_addr(bus, dev, func, off));
@@ -30,11 +32,23 @@ pub fn cfg_read32(bus: PciBus, dev: PciDev, func: PciFn, off: u8) -> u32 {
     }
 }
 
+#[cfg(target_arch = "x86_64")]
 pub fn cfg_write32(bus: PciBus, dev: PciDev, func: PciFn, off: u8, val: u32) {
     unsafe {
         outl(0xCF8, cfg_addr(bus, dev, func, off));
         outl(0xCFC, val);
     }
+}
+
+// ARM64 stubs for PCI (no direct PCI config space access)
+#[cfg(target_arch = "aarch64")]
+pub fn cfg_read32(_bus: PciBus, _dev: PciDev, _func: PciFn, _off: u8) -> u32 {
+    0xFFFFFFFF // No device found
+}
+
+#[cfg(target_arch = "aarch64")]
+pub fn cfg_write32(_bus: PciBus, _dev: PciDev, _func: PciFn, _off: u8, _val: u32) {
+    // No-op on ARM64
 }
 
 // Reuse canonical Bdf from types.rs
@@ -209,6 +223,11 @@ fn write_hex8(val: u8) {
 fn write_hex16(val: u16) {
     write_hex8((val >> 8) as u8);
     write_hex8(val as u8);
+}
+
+fn write_hex32(val: u32) {
+    write_hex16((val >> 16) as u16);
+    write_hex16(val as u16);
 }
 
 /// Scan the PCI bus for GPUs and log them.  Assign GPUs to parents

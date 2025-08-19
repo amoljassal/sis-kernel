@@ -14,7 +14,7 @@ use core::arch::asm;
 /// - Prefetch for predictable access
 /// - Conditional moves to avoid branches
 /// - Dual-issue instruction scheduling
-#[naked]
+#[unsafe(naked)]
 #[no_mangle]
 pub unsafe extern "C" fn vdso_submit_fast(
     desc_ptr: *const CognitiveDescriptor,
@@ -80,7 +80,7 @@ pub unsafe extern "C" fn vdso_submit_fast(
 /// Ultra-fast polling for completions
 /// 
 /// Optimized for hot cache with minimal memory accesses
-#[naked]
+#[unsafe(naked)]
 #[no_mangle]
 pub unsafe extern "C" fn vdso_poll_fast(
     ring_ptr: *mut u64,

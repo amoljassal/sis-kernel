@@ -6,10 +6,12 @@
 //! characters, strings and byte buffers to the serial port.
 
 use spin::Mutex;
+
+#[cfg(target_arch = "x86_64")]
 use uart_16550::SerialPort;
 
-// Safe global access to the serial port.  We protect the port with
-// a spinlock to allow concurrent writes from different contexts.
+// Serial port abstraction
+#[cfg(target_arch = "x86_64")]
 lazy_static::lazy_static! {
     static ref SERIAL: Mutex<SerialPort> = {
         // The base address for COM1 is 0x3F8.
@@ -17,6 +19,34 @@ lazy_static::lazy_static! {
         serial_port.init();
         Mutex::new(serial_port)
     };
+}
+
+// ARM64 serial implementation (simplified for Mac M1)
+#[cfg(target_arch = "aarch64")]
+lazy_static::lazy_static! {
+    static ref SERIAL: Mutex<Arm64Serial> = {
+        Mutex::new(Arm64Serial::new())
+    };
+}
+
+#[cfg(target_arch = "aarch64")]
+struct Arm64Serial;
+
+#[cfg(target_arch = "aarch64")]
+impl Arm64Serial {
+    fn new() -> Self {
+        Arm64Serial
+    }
+    
+    fn send(&mut self, byte: u8) {
+        // For Mac M1, we can use hypervisor console or memory-mapped UART
+        // This is a simplified implementation
+        unsafe {
+            // Write to a debug register or memory location
+            // For now, just a no-op on real hardware
+            let _ = byte;
+        }
+    }
 }
 
 /// Initialise the serial port.  This function must be called before

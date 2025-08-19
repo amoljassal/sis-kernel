@@ -147,7 +147,7 @@ impl NeuralEngineDriver {
         
         // Create minimal dummy descriptor for pre-warming
         let dummy_desc = NEModelDescriptor {
-            magic: 0xNEABCDEF, // Neural Engine magic
+            magic: 0xAEABCDEF, // Neural Engine magic
             version: 1,
             input_desc: NETensorDescriptor {
                 dtype: 1, // FP16
@@ -324,7 +324,7 @@ impl NeuralEngineDriver {
 
     /// Validate model descriptor before execution
     fn validate_model_descriptor(&self, desc: &NEModelDescriptor) -> Result<(), &'static str> {
-        if desc.magic != 0xNEABCDEF {
+        if desc.magic != 0xAEABCDEF {
             return Err("Invalid model magic number");
         }
 
