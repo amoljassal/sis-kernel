@@ -31,6 +31,7 @@ pub mod task;
 pub mod task_table;
 pub mod validation;
 pub mod ai_syscalls;
+pub mod auth;  // Soulprint Protocol authentication
 pub mod memory;
 pub mod vdso_manager;
 pub mod types;
