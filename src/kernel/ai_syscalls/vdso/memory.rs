@@ -149,16 +149,20 @@ pub mod cache {
         let mut current = start;
         while current < end {
             // DC CVAC: Clean data cache by VA to PoC
-            core::arch::asm!(
-                "dc cvac, {}",
-                in(reg) current,
-                options(nostack, preserves_flags)
-            );
+            unsafe {
+                core::arch::asm!(
+                    "dc cvac, {}",
+                    in(reg) current,
+                    options(nostack, preserves_flags)
+                );
+            }
             current += CACHE_LINE_SIZE;
         }
         
         // Data synchronization barrier
-        core::arch::asm!("dsb ish", options(nostack, nomem, preserves_flags));
+        unsafe {
+            core::arch::asm!("dsb ish", options(nostack, nomem, preserves_flags));
+        }
     }
     
     /// Invalidate data cache by virtual address range
@@ -172,16 +176,20 @@ pub mod cache {
         let mut current = start;
         while current < end {
             // DC IVAC: Invalidate data cache by VA to PoC
-            core::arch::asm!(
-                "dc ivac, {}",
-                in(reg) current,
-                options(nostack, preserves_flags)
-            );
+            unsafe {
+                core::arch::asm!(
+                    "dc ivac, {}",
+                    in(reg) current,
+                    options(nostack, preserves_flags)
+                );
+            }
             current += CACHE_LINE_SIZE;
         }
         
         // Data synchronization barrier
-        core::arch::asm!("dsb ish", options(nostack, nomem, preserves_flags));
+        unsafe {
+            core::arch::asm!("dsb ish", options(nostack, nomem, preserves_flags));
+        }
     }
     
     /// Prefetch data into L1 cache
@@ -260,28 +268,36 @@ pub unsafe fn fast_copy(dst: *mut u8, src: *const u8, len: usize) {
     if len < 16 {
         // Small copy: byte-by-byte
         for i in 0..len {
-            *dst.add(i) = *src.add(i);
+            unsafe {
+                *dst.add(i) = *src.add(i);
+            }
         }
     } else if len < 64 {
         // Medium copy: 8-byte chunks
         let chunks = len / 8;
         for i in 0..chunks {
-            let src_ptr = src.add(i * 8) as *const u64;
-            let dst_ptr = dst.add(i * 8) as *mut u64;
-            *dst_ptr = *src_ptr;
+            unsafe {
+                let src_ptr = src.add(i * 8) as *const u64;
+                let dst_ptr = dst.add(i * 8) as *mut u64;
+                *dst_ptr = *src_ptr;
+            }
         }
         
         // Copy remainder
         let remainder = len % 8;
         let offset = chunks * 8;
         for i in 0..remainder {
-            *dst.add(offset + i) = *src.add(offset + i);
+            unsafe {
+                *dst.add(offset + i) = *src.add(offset + i);
+            }
         }
     } else {
         // Large copy: Use NEON if available
         #[cfg(target_feature = "neon")]
         {
-            neon_copy(dst, src, len);
+            unsafe {
+                neon_copy(dst, src, len);
+            }
         }
         
         #[cfg(not(target_feature = "neon"))]
@@ -301,30 +317,34 @@ unsafe fn neon_copy(dst: *mut u8, src: *const u8, len: usize) {
     // Copy 64-byte chunks using NEON
     let chunks = len / 64;
     for i in 0..chunks {
-        let src_ptr = src.add(i * 64);
-        let dst_ptr = dst.add(i * 64);
-        
-        // Load 4x16 bytes
-        let v0 = vld1q_u8(src_ptr);
-        let v1 = vld1q_u8(src_ptr.add(16));
-        let v2 = vld1q_u8(src_ptr.add(32));
-        let v3 = vld1q_u8(src_ptr.add(48));
-        
-        // Store 4x16 bytes
-        vst1q_u8(dst_ptr, v0);
-        vst1q_u8(dst_ptr.add(16), v1);
-        vst1q_u8(dst_ptr.add(32), v2);
-        vst1q_u8(dst_ptr.add(48), v3);
+        unsafe {
+            let src_ptr = src.add(i * 64);
+            let dst_ptr = dst.add(i * 64);
+            
+            // Load 4x16 bytes
+            let v0 = vld1q_u8(src_ptr);
+            let v1 = vld1q_u8(src_ptr.add(16));
+            let v2 = vld1q_u8(src_ptr.add(32));
+            let v3 = vld1q_u8(src_ptr.add(48));
+            
+            // Store 4x16 bytes
+            vst1q_u8(dst_ptr, v0);
+            vst1q_u8(dst_ptr.add(16), v1);
+            vst1q_u8(dst_ptr.add(32), v2);
+            vst1q_u8(dst_ptr.add(48), v3);
+        }
     }
     
     // Copy remainder
     let remainder = len % 64;
     if remainder > 0 {
-        let offset = chunks * 64;
-        core::ptr::copy_nonoverlapping(
-            src.add(offset),
-            dst.add(offset),
-            remainder
-        );
+        unsafe {
+            let offset = chunks * 64;
+            core::ptr::copy_nonoverlapping(
+                src.add(offset),
+                dst.add(offset),
+                remainder
+            );
+        }
     }
 }

@@ -59,25 +59,31 @@ pub struct PmuConfig {
 pub unsafe fn init_pmu() {
     // Enable user-mode access to PMU
     // Note: This requires kernel support via PMUSERENR_EL0
-    asm!(
-        "mov x0, #1",
-        "msr pmuserenr_el0, x0",       // Enable user access
-        options(nostack, nomem)
-    );
+    unsafe {
+        asm!(
+            "mov x0, #1",
+            "msr pmuserenr_el0, x0",       // Enable user access
+            options(nostack, nomem)
+        );
+    }
     
     // Reset and enable cycle counter
-    asm!(
-        "mov x0, #0x41",                // Enable + reset counters
-        "msr pmcr_el0, x0",
-        options(nostack, nomem)
-    );
+    unsafe {
+        asm!(
+            "mov x0, #0x41",                // Enable + reset counters
+            "msr pmcr_el0, x0",
+            options(nostack, nomem)
+        );
+    }
     
     // Enable cycle counter specifically
-    asm!(
-        "mov x0, #0x80000000",          // Cycle counter bit
-        "msr pmcntenset_el0, x0",
-        options(nostack, nomem)
-    );
+    unsafe {
+        asm!(
+            "mov x0, #0x80000000",          // Cycle counter bit
+            "msr pmcntenset_el0, x0",
+            options(nostack, nomem)
+        );
+    }
 }
 
 /// Configure a specific PMU counter
@@ -88,46 +94,48 @@ pub unsafe fn configure_counter(counter: u32, event: PmuEvent) {
     }
     
     match counter {
-        0 => asm!(
+        0 => unsafe { asm!(
             "msr pmevtyper0_el0, {}",
             in(reg) event as u64,
             options(nostack, nomem)
-        ),
-        1 => asm!(
+        ) },
+        1 => unsafe { asm!(
             "msr pmevtyper1_el0, {}",
             in(reg) event as u64,
             options(nostack, nomem)
-        ),
-        2 => asm!(
+        ) },
+        2 => unsafe { asm!(
             "msr pmevtyper2_el0, {}",
             in(reg) event as u64,
             options(nostack, nomem)
-        ),
-        3 => asm!(
+        ) },
+        3 => unsafe { asm!(
             "msr pmevtyper3_el0, {}",
             in(reg) event as u64,
             options(nostack, nomem)
-        ),
-        4 => asm!(
+        ) },
+        4 => unsafe { asm!(
             "msr pmevtyper4_el0, {}",
             in(reg) event as u64,
             options(nostack, nomem)
-        ),
-        5 => asm!(
+        ) },
+        5 => unsafe { asm!(
             "msr pmevtyper5_el0, {}",
             in(reg) event as u64,
             options(nostack, nomem)
-        ),
+        ) },
         _ => {},
     }
     
     // Enable the counter
     let enable_bit = 1u64 << counter;
-    asm!(
-        "msr pmcntenset_el0, {}",
-        in(reg) enable_bit,
-        options(nostack, nomem)
-    );
+    unsafe {
+        asm!(
+            "msr pmcntenset_el0, {}",
+            in(reg) enable_bit,
+            options(nostack, nomem)
+        );
+    }
 }
 
 /// Read cycle counter (PMCCNTR_EL0)
@@ -197,29 +205,35 @@ pub unsafe fn reset_counter(counter: u32) {
     
     // Disable counter
     let disable_bit = 1u64 << counter;
-    asm!(
-        "msr pmcntenclr_el0, {}",
-        in(reg) disable_bit,
-        options(nostack, nomem)
-    );
+    unsafe {
+        asm!(
+            "msr pmcntenclr_el0, {}",
+            in(reg) disable_bit,
+            options(nostack, nomem)
+        );
+    }
     
     // Clear counter value (write to counter register)
-    match counter {
-        0 => asm!("msr pmevcntr0_el0, xzr", options(nostack, nomem)),
-        1 => asm!("msr pmevcntr1_el0, xzr", options(nostack, nomem)),
-        2 => asm!("msr pmevcntr2_el0, xzr", options(nostack, nomem)),
-        3 => asm!("msr pmevcntr3_el0, xzr", options(nostack, nomem)),
-        4 => asm!("msr pmevcntr4_el0, xzr", options(nostack, nomem)),
-        5 => asm!("msr pmevcntr5_el0, xzr", options(nostack, nomem)),
-        _ => {},
+    unsafe {
+        match counter {
+            0 => asm!("msr pmevcntr0_el0, xzr", options(nostack, nomem)),
+            1 => asm!("msr pmevcntr1_el0, xzr", options(nostack, nomem)),
+            2 => asm!("msr pmevcntr2_el0, xzr", options(nostack, nomem)),
+            3 => asm!("msr pmevcntr3_el0, xzr", options(nostack, nomem)),
+            4 => asm!("msr pmevcntr4_el0, xzr", options(nostack, nomem)),
+            5 => asm!("msr pmevcntr5_el0, xzr", options(nostack, nomem)),
+            _ => {},
+        }
     }
     
     // Re-enable counter
-    asm!(
-        "msr pmcntenset_el0, {}",
-        in(reg) disable_bit,
-        options(nostack, nomem)
-    );
+    unsafe {
+        asm!(
+            "msr pmcntenset_el0, {}",
+            in(reg) disable_bit,
+            options(nostack, nomem)
+        );
+    }
 }
 
 /// Performance measurement scope guard

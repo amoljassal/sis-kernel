@@ -188,6 +188,9 @@ impl NeuralEngineDriver {
         // Validate model descriptor
         self.validate_model_descriptor(request.model_descriptor)?;
 
+        // Get buffer length before moving
+        let input_len = request.input_buffer.len();
+        
         // Map input buffer for device access
         let device_input = request.input_buffer.map_for_device();
         let input_addr = device_input.device_addr();
@@ -196,7 +199,7 @@ impl NeuralEngineDriver {
         let queue_addr = input_addr as u64;
         self.queue_base_lo.write(queue_addr as u32);
         self.queue_base_hi.write((queue_addr >> 32) as u32);
-        self.queue_len.write(request.input_buffer.len() as u32);
+        self.queue_len.write(input_len as u32);
 
         // Memory barrier before starting operation
         unsafe { dsb_sy(); }

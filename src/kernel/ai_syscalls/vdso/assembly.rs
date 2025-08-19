@@ -164,45 +164,47 @@ pub unsafe fn neon_matmul_4x4(
     b: *const f32,  // 4x4 matrix B
     c: *mut f32,    // 4x4 result C
 ) {
-    asm!(
-        // Load matrix A rows into NEON registers
-        "ld1 {{v0.4s}}, [{}], #16",   // A row 0
-        "ld1 {{v1.4s}}, [{}], #16",   // A row 1
-        "ld1 {{v2.4s}}, [{}], #16",   // A row 2
-        "ld1 {{v3.4s}}, [{}], #16",   // A row 3
-        
-        // Load matrix B columns (transposed for efficiency)
-        "ld1 {{v4.4s}}, [{}], #16",   // B col 0
-        "ld1 {{v5.4s}}, [{}], #16",   // B col 1
-        "ld1 {{v6.4s}}, [{}], #16",   // B col 2
-        "ld1 {{v7.4s}}, [{}], #16",   // B col 3
-        
-        // Initialize result to zero
-        "movi v16.4s, #0",
-        "movi v17.4s, #0",
-        "movi v18.4s, #0",
-        "movi v19.4s, #0",
-        
-        // Compute C[0,:] = A[0,:] * B
-        "fmla v16.4s, v0.4s, v4.s[0]",
-        "fmla v16.4s, v1.4s, v4.s[1]",
-        "fmla v16.4s, v2.4s, v4.s[2]",
-        "fmla v16.4s, v3.4s, v4.s[3]",
-        
-        // Store result row 0
-        "st1 {{v16.4s}}, [{}], #16",
-        
-        in(reg) a,
-        in(reg) a,
-        in(reg) a,
-        in(reg) a,
-        in(reg) b,
-        in(reg) b,
-        in(reg) b,
-        in(reg) b,
-        in(reg) c,
-        options(nostack, preserves_flags)
-    );
+    unsafe {
+        asm!(
+            // Load matrix A rows into NEON registers
+            "ld1 {{v0.4s}}, [{}], #16",   // A row 0
+            "ld1 {{v1.4s}}, [{}], #16",   // A row 1
+            "ld1 {{v2.4s}}, [{}], #16",   // A row 2
+            "ld1 {{v3.4s}}, [{}], #16",   // A row 3
+            
+            // Load matrix B columns (transposed for efficiency)
+            "ld1 {{v4.4s}}, [{}], #16",   // B col 0
+            "ld1 {{v5.4s}}, [{}], #16",   // B col 1
+            "ld1 {{v6.4s}}, [{}], #16",   // B col 2
+            "ld1 {{v7.4s}}, [{}], #16",   // B col 3
+            
+            // Initialize result to zero
+            "movi v16.4s, #0",
+            "movi v17.4s, #0",
+            "movi v18.4s, #0",
+            "movi v19.4s, #0",
+            
+            // Compute C[0,:] = A[0,:] * B
+            "fmla v16.4s, v0.4s, v4.s[0]",
+            "fmla v16.4s, v1.4s, v4.s[1]",
+            "fmla v16.4s, v2.4s, v4.s[2]",
+            "fmla v16.4s, v3.4s, v4.s[3]",
+            
+            // Store result row 0
+            "st1 {{v16.4s}}, [{}], #16",
+            
+            in(reg) a,
+            in(reg) a,
+            in(reg) a,
+            in(reg) a,
+            in(reg) b,
+            in(reg) b,
+            in(reg) b,
+            in(reg) b,
+            in(reg) c,
+            options(nostack, preserves_flags)
+        );
+    }
 }
 
 /// Branch-free ReLU activation using NEON
@@ -210,26 +212,28 @@ pub unsafe fn neon_matmul_4x4(
 /// Processes 16 values at once with max(0, x)
 #[inline(always)]
 pub unsafe fn neon_relu_16(data: *mut f32) {
-    asm!(
-        // Load 16 floats
-        "ld1 {{v0.4s, v1.4s, v2.4s, v3.4s}}, [{}]",
-        
-        // Create zero vector
-        "movi v4.4s, #0",
-        
-        // ReLU = max(0, x)
-        "fmax v0.4s, v0.4s, v4.4s",
-        "fmax v1.4s, v1.4s, v4.4s",
-        "fmax v2.4s, v2.4s, v4.4s",
-        "fmax v3.4s, v3.4s, v4.4s",
-        
-        // Store back
-        "st1 {{v0.4s, v1.4s, v2.4s, v3.4s}}, [{}]",
-        
-        in(reg) data,
-        in(reg) data,
-        options(nostack, preserves_flags)
-    );
+    unsafe {
+        asm!(
+            // Load 16 floats
+            "ld1 {{v0.4s, v1.4s, v2.4s, v3.4s}}, [{}]",
+            
+            // Create zero vector
+            "movi v4.4s, #0",
+            
+            // ReLU = max(0, x)
+            "fmax v0.4s, v0.4s, v4.4s",
+            "fmax v1.4s, v1.4s, v4.4s",
+            "fmax v2.4s, v2.4s, v4.4s",
+            "fmax v3.4s, v3.4s, v4.4s",
+            
+            // Store back
+            "st1 {{v0.4s, v1.4s, v2.4s, v3.4s}}, [{}]",
+            
+            in(reg) data,
+            in(reg) data,
+            options(nostack, preserves_flags)
+        );
+    }
 }
 
 /// FP32 to FP16 conversion with NEON
@@ -244,21 +248,23 @@ pub unsafe fn neon_fp32_to_fp16(
     let chunks = count / 8;  // Process 8 at a time
     
     for i in 0..chunks {
-        asm!(
-            // Load 8 FP32 values
-            "ld1 {{v0.4s, v1.4s}}, [{}], #32",
-            
-            // Convert to FP16
-            "fcvtn v2.4h, v0.4s",      // Convert first 4
-            "fcvtn2 v2.8h, v1.4s",     // Convert next 4
-            
-            // Store 8 FP16 values
-            "st1 {{v2.8h}}, [{}], #16",
-            
-            in(reg) input.add(i * 8),
-            in(reg) output.add(i * 8),
-            options(nostack, preserves_flags)
-        );
+        unsafe {
+            asm!(
+                // Load 8 FP32 values
+                "ld1 {{v0.4s, v1.4s}}, [{}], #32",
+                
+                // Convert to FP16
+                "fcvtn v2.4h, v0.4s",      // Convert first 4
+                "fcvtn2 v2.8h, v1.4s",     // Convert next 4
+                
+                // Store 8 FP16 values
+                "st1 {{v2.8h}}, [{}], #16",
+                
+                in(reg) input.add(i * 8),
+                in(reg) output.add(i * 8),
+                options(nostack, preserves_flags)
+            );
+        }
     }
     
     // Handle remainder with scalar ops
@@ -266,10 +272,12 @@ pub unsafe fn neon_fp32_to_fp16(
     if remainder > 0 {
         let offset = chunks * 8;
         for j in 0..remainder {
-            let fp32_val = *input.add(offset + j);
-            // Simple FP16 conversion (would use proper conversion in production)
-            let fp16_val = fp32_to_fp16_scalar(fp32_val);
-            *output.add(offset + j) = fp16_val;
+            unsafe {
+                let fp32_val = *input.add(offset + j);
+                // Simple FP16 conversion (would use proper conversion in production)
+                let fp16_val = fp32_to_fp16_scalar(fp32_val);
+                *output.add(offset + j) = fp16_val;
+            }
         }
     }
 }

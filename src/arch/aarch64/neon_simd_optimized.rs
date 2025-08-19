@@ -218,11 +218,13 @@ impl NeonVectorOps {
 
         while ptr < end_ptr {
             // Prefetch for read (PLDL1KEEP)
-            core::arch::asm!(
-                "prfm pldl1keep, [{}]",
-                in(reg) ptr,
-                options(nostack, preserves_flags)
-            );
+            unsafe {
+                core::arch::asm!(
+                    "prfm pldl1keep, [{}]",
+                    in(reg) ptr,
+                    options(nostack, preserves_flags)
+                );
+            }
             ptr = ptr.add(prefetch_distance);
         }
     }

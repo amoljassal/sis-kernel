@@ -104,8 +104,8 @@ impl<'a, T> Producer<'a, T> {
     #[inline(always)]
     pub unsafe fn slot_mut(&self, index: u32) -> &mut T {
         let slot_index = (index & self.ring.mask) as usize;
-        let buffer = &mut *self.ring.buffer.get();
-        buffer[slot_index].assume_init_mut()
+        let buffer = unsafe { &mut *self.ring.buffer.get() };
+        unsafe { buffer[slot_index].assume_init_mut() }
     }
     
     /// Write value to reserved slot
@@ -115,7 +115,7 @@ impl<'a, T> Producer<'a, T> {
     #[inline(always)]
     pub unsafe fn write(&self, index: u32, value: T) {
         let slot_index = (index & self.ring.mask) as usize;
-        let buffer = &mut *self.ring.buffer.get();
+        let buffer = unsafe { &mut *self.ring.buffer.get() };
         buffer[slot_index].write(value);
     }
     

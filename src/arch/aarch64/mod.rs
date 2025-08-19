@@ -208,6 +208,18 @@ impl ARM64AIContext {
                 // NEON is excellent for data processing
                 self.neon_data_processing(data_size_bytes)
             }
+            WorkloadType::Preprocessing => {
+                // Use NEON for data preprocessing
+                self.neon_data_processing(data_size_bytes)
+            }
+            WorkloadType::Serving => {
+                // Model serving similar to inference but may batch
+                if let Some(ref ne) = self.neural_engine {
+                    self.neural_engine_inference(ne, data_size_bytes)
+                } else {
+                    self.neon_inference(data_size_bytes)
+                }
+            }
         }
     }
 
@@ -486,7 +498,7 @@ impl Hal for Aarch64Hal {
 // Export required functions for arch module interface (init already defined above)
 
 pub fn cpu_idle() {
-    <Aarch64Hal as Hal>::idle();
+    AARCH64_HAL.idle();
 }
 
 pub fn halt() {

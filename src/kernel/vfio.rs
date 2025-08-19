@@ -835,22 +835,34 @@ pub fn syscall_msi_arm_new(h: VfioHandle) -> i32 {
             return -3;
         }
 
-        let cpu = 0usize; // Simplified for single CPU case
-        let vec = match irqvec::alloc_vector(cpu) {
-            Some(v) => v,
-            None => {
-                serial::write_str("[vfio] no free vectors\n");
-                return -4;
-            }
-        };
+        #[cfg(target_arch = "x86_64")]
+        {
+            let cpu = 0usize; // Simplified for single CPU case
+            let vec = match crate::arch::x86_64::irqvec::alloc_vector(cpu) {
+                Some(v) => v,
+                None => {
+                    serial::write_str("[vfio] no free vectors\n");
+                    return -4;
+                }
+            };
 
-        program_msi(s.bdf, s.msi_offset.unwrap(), vec);
-        idt::vfio_isr_vector_install(vec);
-        s.armed_epoch = NEXT_GEN.fetch_add(1, Ordering::Relaxed);
-        let packed = ((s.armed_epoch & 0xFFFF_FFFF) << 16) | (h.as_u16() as u64);
-        idt::vfio_map_vector(vec, packed);
-        s.vector = Some(vec);
-        s.t_arm_tsc.store(tsc(), Ordering::Relaxed);
+            program_msi(s.bdf, s.msi_offset.unwrap(), vec);
+            crate::arch::x86_64::idt::vfio_isr_vector_install(vec);
+            s.armed_epoch = NEXT_GEN.fetch_add(1, Ordering::Relaxed);
+            let packed = ((s.armed_epoch & 0xFFFF_FFFF) << 16) | (h.as_u16() as u64);
+            crate::arch::x86_64::idt::vfio_map_vector(vec, packed);
+            s.vector = Some(vec);
+            s.t_arm_tsc.store(tsc(), Ordering::Relaxed);
+        }
+        
+        #[cfg(target_arch = "aarch64")]
+        {
+            // ARM64 stub - VFIO MSI not yet implemented
+            serial::write_str("[vfio] ARM64 MSI stub - not implemented\n");
+            s.armed_epoch = NEXT_GEN.fetch_add(1, Ordering::Relaxed);
+            s.vector = None;
+            s.t_arm_tsc.store(tsc(), Ordering::Relaxed);
+        }
         0
     }
 }
@@ -869,8 +881,15 @@ pub fn syscall_msi_disarm_new(h: VfioHandle) -> i32 {
         }
 
         if let Some(vec) = s.vector.take() {
-            idt::vfio_unmap_vector(vec);
-            irqvec::free_vector(s.cpu as usize, vec);
+            #[cfg(target_arch = "x86_64")]
+            {
+                crate::arch::x86_64::idt::vfio_unmap_vector(vec);
+                crate::arch::x86_64::irqvec::free_vector(s.cpu as usize, vec);
+            }
+            #[cfg(target_arch = "aarch64")]
+            {
+                // ARM64 stub - nothing to free
+            }
         }
         0
     }
