@@ -127,3 +127,29 @@ pub unsafe fn read_msr(msr: u32) -> u64 {
     );
     ((high as u64) << 32) | (low as u64)
 }
+
+/// Enable interrupts by setting the interrupt flag.
+#[inline]
+pub fn enable_interrupts() {
+    unsafe {
+        asm!("sti", options(nomem, nostack, preserves_flags));
+    }
+}
+
+/// Disable interrupts by clearing the interrupt flag.
+#[inline] 
+pub fn disable_interrupts() {
+    unsafe {
+        asm!("cli", options(nomem, nostack, preserves_flags));
+    }
+}
+
+/// Check if interrupts are currently enabled by reading the flags register.
+#[inline]
+pub fn are_interrupts_enabled() -> bool {
+    let flags: u64;
+    unsafe {
+        asm!("pushfq; popq {}", out(reg) flags, options(nomem, nostack));
+    }
+    (flags & 0x200) != 0 // IF flag is bit 9
+}

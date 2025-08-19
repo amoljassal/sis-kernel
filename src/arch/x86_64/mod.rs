@@ -150,3 +150,10 @@ impl Hal for X86_64Hal {
         }
     }
 }
+
+/// Initialize x86_64 architecture
+/// 
+/// Entry point for x86_64-specific initialization
+pub fn init() -> Result<(), &'static str> {
+    X86_64_HAL.init()
+}

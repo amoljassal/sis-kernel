@@ -142,7 +142,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         serial::write_str("=== FIREWALL MODE - MINIMAL BOOT ===\n");
         loop {
             #[cfg(target_arch = "x86_64")]
-            arch_x86::cpu::halt();
+            crate::arch::cpu::halt();
             #[cfg(target_arch = "aarch64")]
             unsafe {
                 core::arch::asm!("wfe", options(nomem, nostack, preserves_flags));
@@ -593,7 +593,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
         loop {
             #[cfg(target_arch = "x86_64")]
-            arch_x86::cpu::halt();
+            crate::arch::cpu::halt();
             #[cfg(target_arch = "aarch64")]
             unsafe {
                 core::arch::asm!("wfe", options(nomem, nostack, preserves_flags));
@@ -607,7 +607,7 @@ fn panic(_info: &PanicInfo) -> ! {
     // Simple panic handler without alloc
     loop {
         #[cfg(target_arch = "x86_64")]
-        arch_x86::cpu::halt();
+        crate::arch::cpu::halt();
         #[cfg(target_arch = "aarch64")]
         unsafe {
             core::arch::asm!("wfe", options(nomem, nostack, preserves_flags));
@@ -677,7 +677,7 @@ pub extern "C" fn _start() -> ! {
 fn alloc_error(_layout: core::alloc::Layout) -> ! {
     loop {
         #[cfg(target_arch = "x86_64")]
-        arch_x86::cpu::halt();
+        crate::arch::cpu::halt();
         
         #[cfg(target_arch = "aarch64")]
         unsafe {
