@@ -20,6 +20,8 @@ pub mod hardware_accel;
 pub mod inference;
 pub mod memory_pool;
 pub mod primitives;
+pub mod neural_acceleration;
+pub mod scheduler;
 
 #[cfg(target_arch = "aarch64")]
 pub mod cognitive_scheduler_arm64;
@@ -61,6 +63,10 @@ pub fn init() -> Result<(), &'static str> {
         // Initialize hardware acceleration subsystem
         hardware_accel::init()?;
         serial::write_str("[ai] Hardware acceleration initialized\n");
+
+        // Initialize unified AI workload scheduler
+        scheduler::init_ai_scheduler()?;
+        serial::write_str("[ai] Unified AI scheduler initialized\n");
 
         // Initialize ARM64 AI acceleration if available
         #[cfg(target_arch = "aarch64")]

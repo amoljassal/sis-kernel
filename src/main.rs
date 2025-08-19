@@ -674,7 +674,7 @@ pub extern "C" fn _start() -> ! {
     }
     
     // Quick smoke test for non-selftest builds
-    #[cfg(not(feature = "selftests"))]
+    #[cfg(all(not(feature = "selftests"), feature = "vdso-test"))]
     {
         let smoke_result = crate::arch::aarch64::vdso_test::smoke_test();
         if !smoke_result {

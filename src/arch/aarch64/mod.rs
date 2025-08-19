@@ -22,6 +22,20 @@ pub use neon_simd_optimized as neon_simd;
 #[cfg(feature = "selftests")]
 pub mod vdso_test;
 
+// M1 Neural Engine optimization modules
+pub mod m1_neural_hal;
+pub mod neural_memory;
+pub mod neural_power;
+
+// Hardware safety and Multi-AI consultation improvements
+pub mod neural_hardware_probe;
+pub mod atomic_bitmap;
+pub mod mmio_barriers;
+pub mod predictive_power;
+
+#[cfg(feature = "selftests")]
+pub mod power_integration_test;
+
 /// ARM64 CPU core identification
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ARM64CoreType {
