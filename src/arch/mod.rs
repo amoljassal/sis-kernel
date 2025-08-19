@@ -13,6 +13,9 @@ pub mod aarch64;
 // HAL (Hardware Abstraction Layer) trait definitions
 pub mod hal;
 
+/// Unified AI acceleration interface across architectures
+pub mod ai;
+
 // Re-export architecture implementation based on target
 #[cfg(target_arch = "x86_64")]
 pub use x86_64 as arch_impl;

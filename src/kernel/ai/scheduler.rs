@@ -7,7 +7,7 @@
 //! - Lock-free SPSC queues and atomic operations for safety
 
 use crate::kernel::ai::{CognitivePriority, WorkloadType};
-use crate::arch::aarch64::{neural_power, m1_neural_hal, neural_memory, predictive_power};
+use crate::arch::ai::{ai_power, ne_hal, ai_mem, predictive_power};
 use crate::kernel::serial;
 use crate::kernel::sync::InitCell;
 use core::sync::atomic::{AtomicU64, AtomicU32, AtomicU8, Ordering};
@@ -654,9 +654,10 @@ impl UnifiedAiScheduler {
 
     /// Register performance fingerprint for model
     pub fn register_fingerprint(&mut self, fingerprint: PerformanceFingerprint) {
+        let model_id = fingerprint.model_id;
         self.fingerprints.insert(fingerprint.model_id, fingerprint);
         serial::write_str("[AI Scheduler] Registered performance fingerprint for model ");
-        serial::write_dec(fingerprint.model_id as u64);
+        serial::write_dec(model_id as u64);
         serial::write_str("\n");
     }
 

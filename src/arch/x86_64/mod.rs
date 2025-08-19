@@ -53,6 +53,13 @@ pub mod pf_matrix;
 #[cfg(feature = "scheduler")]
 pub mod scheduler_selftest;
 
+// AI acceleration fallback modules for x86_64
+pub mod simd_fallback;
+pub mod host_memory;
+pub mod thermal_control;
+pub mod mock_probe;
+pub mod predictive_power;
+
 // ============================================================================
 // HAL Implementation for x86_64
 // ============================================================================

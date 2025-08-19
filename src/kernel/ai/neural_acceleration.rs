@@ -8,7 +8,7 @@
 //!
 //! Target performance: <25μs inference latency, 15.8 TOPS peak throughput
 
-use crate::arch::aarch64::{m1_neural_hal, neural_memory, neural_power};
+use crate::arch::ai::{ne_hal, ai_mem, ai_power};
 use crate::kernel::ai::{CognitivePriority, WorkloadType};
 // use crate::kernel::auth::neural::NeuralAuthenticator; // TODO: Implement neural auth integration
 use crate::kernel::vdso_manager;
@@ -100,8 +100,8 @@ pub struct AIModel {
 #[derive(Clone)]
 pub struct TensorSpec {
     pub shape: [u32; 4],     // [N, C, H, W]
-    pub dtype: neural_memory::NEDataType,
-    pub layout: neural_memory::NELayout,
+    pub dtype: ai_mem::NEDataType,
+    pub layout: ai_mem::NELayout,
     pub size_bytes: usize,
 }
 
@@ -123,7 +123,7 @@ pub struct KernelAIAccelerator {
     /// Available models
     models: BTreeMap<u32, AIModel>,
     /// Neural Engine HAL reference
-    neural_hal: Option<&'static m1_neural_hal::M1NeuralHAL>,
+    neural_hal: Option<&'static ne_hal::M1NeuralHAL>,
     /// Performance statistics
     total_inferences: AtomicU64,
     successful_inferences: AtomicU64,
@@ -140,7 +140,7 @@ pub struct KernelAIAccelerator {
 impl KernelAIAccelerator {
     /// Initialize AI inference accelerator
     pub fn new() -> Result<Self, &'static str> {
-        let neural_hal = m1_neural_hal::get_neural_hal();
+        let neural_hal = ne_hal::get_neural_hal();
         
         if neural_hal.is_none() {
             return Err("Neural Engine HAL not initialized");
@@ -234,7 +234,7 @@ impl KernelAIAccelerator {
                 response.ne_utilization = 85; // Estimate based on workload
                 
                 // Get power management statistics for enhanced telemetry
-                if let Some(power_stats) = neural_power::get_ne_power_stats() {
+                if let Some(power_stats) = ai_power::get_ne_power_stats() {
                     response.metadata[0] = power_stats.current_frequency_mhz;
                     response.metadata[1] = (power_stats.current_temperature_c * 100.0) as u32;
                     response.metadata[2] = if power_stats.thermal_throttle_active { 1 } else { 0 };
@@ -295,7 +295,7 @@ impl KernelAIAccelerator {
         &self,
         request: &AIInferenceRequest,
         model: &AIModel,
-    ) -> Result<m1_neural_hal::NEInferenceResult, &'static str> {
+    ) -> Result<ne_hal::NEInferenceResult, &'static str> {
         let hal = self.neural_hal.ok_or("Neural Engine not available")?;
         
         // Prepare input data (simplified - would involve more tensor preparation)
@@ -325,13 +325,13 @@ impl KernelAIAccelerator {
     /// Read high-resolution timer
     #[inline]
     fn read_high_res_timer(&self) -> u64 {
-        crate::arch::aarch64::cpu::read_timer_counter()
+        crate::arch::ai::timer::read_counter()
     }
     
     /// Get timer frequency
     #[inline]
     fn timer_frequency(&self) -> u64 {
-        crate::arch::aarch64::cpu::get_timer_frequency()
+        crate::arch::ai::timer::frequency()
     }
     
     /// Get comprehensive AI acceleration statistics
@@ -410,11 +410,11 @@ pub fn init_ai_acceleration() -> Result<(), &'static str> {
     serial::write_str("[AI] Initializing kernel AI inference acceleration\n");
     
     // Initialize Neural Engine memory management
-    neural_memory::init_neural_memory()
+    ai_mem::init_neural_memory()
         .map_err(|_| "Failed to initialize Neural Engine memory")?;
     
     // Initialize Neural Engine HAL
-    m1_neural_hal::init_m1_neural_hal()
+    ne_hal::init_m1_neural_hal()
         .map_err(|_| "Failed to initialize Neural Engine HAL")?;
     
     // Create AI accelerator
@@ -441,14 +441,14 @@ fn register_builtin_models() -> Result<(), &'static str> {
         binary_data: &[0x4E, 0x45, 0x4D, 0x44], // Placeholder
         input_spec: TensorSpec {
             shape: [1, 64, 1, 1], // 64 behavioral features
-            dtype: neural_memory::NEDataType::FP16,
-            layout: neural_memory::NELayout::Linear,
+            dtype: ai_mem::NEDataType::FP16,
+            layout: ai_mem::NELayout::Linear,
             size_bytes: 128,
         },
         output_spec: TensorSpec {
             shape: [1, 1, 1, 1], // Authentication confidence
-            dtype: neural_memory::NEDataType::FP16,
-            layout: neural_memory::NELayout::Linear,
+            dtype: ai_mem::NEDataType::FP16,
+            layout: ai_mem::NELayout::Linear,
             size_bytes: 2,
         },
         perf_profile: ModelPerfProfile {

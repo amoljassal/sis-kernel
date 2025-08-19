@@ -303,7 +303,9 @@ pub unsafe fn fast_copy(dst: *mut u8, src: *const u8, len: usize) {
         #[cfg(not(target_feature = "neon"))]
         {
             // Fallback to memcpy
-            core::ptr::copy_nonoverlapping(src, dst, len);
+            unsafe {
+                core::ptr::copy_nonoverlapping(src, dst, len);
+            }
         }
     }
 }
