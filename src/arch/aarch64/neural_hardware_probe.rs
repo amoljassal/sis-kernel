@@ -5,6 +5,7 @@
 //! capabilities. Implements suggestions from Multi-AI consultation.
 
 use crate::kernel::serial;
+use crate::arch::ai::AiCapabilities;
 use core::ptr::{read_volatile, write_volatile};
 use core::sync::atomic::{AtomicBool, Ordering};
 
@@ -390,4 +391,31 @@ pub fn get_hardware_info() -> Option<NEHardwareInfo> {
 /// Check if Neural Engine hardware is available
 pub fn is_neural_engine_available() -> bool {
     matches!(probe_neural_engine(), ProbeResult::Found(_))
+}
+
+/// Detect AI acceleration capabilities (architecture-agnostic interface)
+pub fn detect_ai_capabilities() -> AiCapabilities {
+    match probe_neural_engine() {
+        ProbeResult::Found(info) => {
+            AiCapabilities {
+                has_npu: true,
+                peak_tops: (info.peak_tops_fp as f32) / 1000.0,
+                min_latency_us: 25, // M1 Neural Engine typical
+                memory_bandwidth_gbps: 100, // M1 unified memory bandwidth
+                has_dvfs: true,
+                supports_clustering: true,
+            }
+        }
+        _ => {
+            // Fallback capabilities for ARM64 without Neural Engine
+            AiCapabilities {
+                has_npu: false,
+                peak_tops: 0.2, // NEON SIMD rough estimate
+                min_latency_us: 100,
+                memory_bandwidth_gbps: 50,
+                has_dvfs: true,
+                supports_clustering: true,
+            }
+        }
+    }
 }

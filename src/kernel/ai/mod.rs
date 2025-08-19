@@ -22,6 +22,12 @@ pub mod memory_pool;
 pub mod primitives;
 pub mod neural_acceleration;
 pub mod scheduler;
+pub mod simulator;
+pub mod validation;
+pub mod property_tests;
+pub mod fault_injection;
+pub mod cfvs;
+pub mod chaos_engineering;
 
 #[cfg(target_arch = "aarch64")]
 pub mod cognitive_scheduler_arm64;
@@ -68,6 +74,30 @@ pub fn init() -> Result<(), &'static str> {
         scheduler::init_ai_scheduler()?;
         serial::write_str("[ai] Unified AI scheduler initialized\n");
 
+        // Initialize Neural Engine behavioral simulator
+        simulator::init_neural_simulator()?;
+        serial::write_str("[ai] Neural Engine simulator initialized\n");
+
+        // Initialize AI validation framework
+        validation::init_validation_framework()?;
+        serial::write_str("[ai] AI validation framework initialized\n");
+
+        // Initialize property-based testing framework
+        property_tests::init_property_testing()?;
+        serial::write_str("[ai] Property-based testing framework initialized\n");
+
+        // Initialize fault injection and recovery validation
+        fault_injection::init_fault_injection()?;
+        serial::write_str("[ai] Fault injection framework initialized\n");
+
+        // Initialize CFVS distributed testing orchestrator
+        cfvs::init_cfvs()?;
+        serial::write_str("[ai] CFVS distributed testing orchestrator initialized\n");
+
+        // Initialize chaos engineering framework
+        chaos_engineering::init_chaos_engineering()?;
+        serial::write_str("[ai] Chaos engineering framework initialized\n");
+
         // Initialize ARM64 AI acceleration if available
         #[cfg(target_arch = "aarch64")]
         {
@@ -103,8 +133,12 @@ pub enum CognitivePriority {
 /// AI workload type classification
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum WorkloadType {
-    /// Neural network inference
-    Inference,
+    /// Real-time neural network inference
+    RealTimeInference,
+    /// Interactive AI responses
+    Interactive,
+    /// Background model training/fine-tuning
+    Background,
     /// Model training/fine-tuning
     Training,
     /// Data preprocessing

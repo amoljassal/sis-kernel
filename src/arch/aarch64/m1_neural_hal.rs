@@ -373,22 +373,25 @@ impl M1NeuralHAL {
         let mut flags = 0u32;
         
         match priority {
-            CognitivePriority::Critical => {
+            CognitivePriority::RealTimeInference => {
                 flags |= ne_flags::HIGH_PRIORITY | ne_flags::LOW_LATENCY;
             }
-            CognitivePriority::High => {
+            CognitivePriority::Interactive => {
                 flags |= ne_flags::LOW_LATENCY;
-            }
-            CognitivePriority::Normal => {
-                // Balanced performance/power
             }
             CognitivePriority::Background => {
                 flags |= ne_flags::POWER_EFFICIENT;
             }
+            CognitivePriority::Maintenance => {
+                // Balanced performance/power
+            }
         }
         
         match workload_type {
-            WorkloadType::Inference => {
+            WorkloadType::RealTimeInference => {
+                flags |= ne_flags::LOW_LATENCY;
+            }
+            WorkloadType::Interactive => {
                 flags |= ne_flags::LOW_LATENCY;
             }
             WorkloadType::Training => {
@@ -397,7 +400,9 @@ impl M1NeuralHAL {
             WorkloadType::DataProcessing => {
                 flags |= ne_flags::CACHE_BYPASS; // Large data streams
             }
-            _ => {}
+            WorkloadType::Background | WorkloadType::Preprocessing | WorkloadType::Serving => {
+                // Standard processing flags
+            }
         }
         
         flags

@@ -11,7 +11,8 @@
 
 use core::sync::atomic::{AtomicU32, AtomicU16, AtomicU8, Ordering};
 use alloc::vec::Vec;
-use crate::kernel::ai::{CognitivePriority, WorkloadType, ComputeResource};
+use crate::kernel::ai::{CognitivePriority, WorkloadType};
+use crate::kernel::ai::scheduler::ComputeResource;
 
 /// Fixed-point math utilities for kernel (no floating point)
 pub struct Q15Math;
