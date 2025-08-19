@@ -68,6 +68,7 @@ pub fn get(tid: u64) -> TaskRef {
                 priority_boost: false,
                 #[cfg(feature = "affinity")]
                 cpu_affinity_mask: 0,
+                vdso: None,
             };
             let task_ref = Arc::new(Mutex::new(dummy_task));
             TASKS[idx] = Some(task_ref.clone());

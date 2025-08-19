@@ -386,38 +386,38 @@ pub struct Aarch64Hal;
 pub static AARCH64_HAL: Aarch64Hal = Aarch64Hal;
 
 impl Hal for Aarch64Hal {
-    fn init() -> Result<(), &'static str> {
+    fn init(&self) -> Result<(), &'static str> {
         // Initialize ARM64 architecture
-        super::init()
+        init()
     }
     
-    fn idle() {
+    fn idle(&self) {
         // ARM64 WFE (Wait For Event) - power efficient
         unsafe {
             core::arch::asm!("wfe", options(nomem, nostack, preserves_flags));
         }
     }
     
-    fn send_ipi(cpu_id: u32, vector: u8) {
+    fn send_ipi(&self, cpu_id: u32, vector: u8) {
         // Use GIC to send Software Generated Interrupt
         if let Ok(gic) = interrupts::GIC::init() {
             let _ = gic.send_ipi(cpu_id, vector as u32);
         }
     }
     
-    fn enable_interrupts() {
+    fn enable_interrupts(&self) {
         unsafe {
             core::arch::asm!("msr daifclr, #2", options(nomem, nostack));
         }
     }
     
-    fn disable_interrupts() {
+    fn disable_interrupts(&self) {
         unsafe {
             core::arch::asm!("msr daifset, #2", options(nomem, nostack));
         }
     }
     
-    fn has_capability(cap: HalCapability) -> bool {
+    fn has_capability(&self, cap: HalCapability) -> bool {
         match cap {
             HalCapability::NeuralEngine => {
                 // Check if Apple Neural Engine is available
@@ -442,11 +442,11 @@ impl Hal for Aarch64Hal {
         }
     }
     
-    fn cpu_count() -> u32 {
+    fn cpu_count(&self) -> u32 {
         capabilities().map(|c| c.performance_cores + c.efficiency_cores).unwrap_or(1)
     }
     
-    fn current_cpu() -> u32 {
+    fn current_cpu(&self) -> u32 {
         // Read MPIDR_EL1 for CPU ID
         let mpidr: u64;
         unsafe {
@@ -455,14 +455,14 @@ impl Hal for Aarch64Hal {
         (mpidr & 0xFF) as u32
     }
     
-    fn memory_barrier() {
+    fn memory_barrier(&self) {
         // ARM64 full memory barrier (based on Grok's optimization)
         unsafe {
             core::arch::asm!("dmb ish", options(nomem, nostack, preserves_flags));
         }
     }
     
-    fn timer_init(frequency_hz: u64) {
+    fn timer_init(&self, frequency_hz: u64) {
         // Set CNTFRQ_EL0 (Counter Frequency)
         unsafe {
             core::arch::asm!(
@@ -473,7 +473,7 @@ impl Hal for Aarch64Hal {
         }
     }
     
-    fn timer_ticks() -> u64 {
+    fn timer_ticks(&self) -> u64 {
         // Read CNTVCT_EL0 (Virtual Count)
         let ticks: u64;
         unsafe {

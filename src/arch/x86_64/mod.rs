@@ -52,3 +52,101 @@ pub mod ipc_selftest;
 pub mod pf_matrix;
 #[cfg(feature = "scheduler")]
 pub mod scheduler_selftest;
+
+// ============================================================================
+// HAL Implementation for x86_64
+// ============================================================================
+
+use crate::kernel::hal::{Hal, HalCapability};
+
+/// x86_64 HAL implementation
+pub struct X86_64Hal;
+
+/// Global HAL instance
+pub static X86_64_HAL: X86_64Hal = X86_64Hal;
+
+impl Hal for X86_64Hal {
+    fn init(&self) -> Result<(), &'static str> {
+        // x86_64 architecture initialization
+        Ok(())
+    }
+    
+    fn idle(&self) {
+        // x86_64 HLT instruction
+        cpu::halt();
+    }
+    
+    fn send_ipi(&self, cpu_id: u32, vector: u8) {
+        #[cfg(feature = "apic")]
+        {
+            // Use APIC to send IPI - placeholder for now
+            let _ = (cpu_id, vector);
+        }
+        #[cfg(not(feature = "apic"))]
+        {
+            // No APIC available - stub implementation
+            let _ = (cpu_id, vector);
+        }
+    }
+    
+    fn enable_interrupts(&self) {
+        cpu::enable_interrupts();
+    }
+    
+    fn disable_interrupts(&self) {
+        cpu::disable_interrupts();
+    }
+    
+    fn has_capability(&self, cap: HalCapability) -> bool {
+        match cap {
+            HalCapability::NeuralEngine => false, // x86_64 doesn't have Neural Engine
+            HalCapability::GpuCompute => true,    // Can have discrete GPU
+            HalCapability::SimdExtensions => true, // SSE/AVX available
+            HalCapability::HardwareRng => false,   // Conservative default
+            HalCapability::Virtualization => false, // Conservative default
+        }
+    }
+    
+    fn cpu_count(&self) -> u32 {
+        #[cfg(feature = "smp")]
+        {
+            // Placeholder - would use actual SMP detection
+            1
+        }
+        #[cfg(not(feature = "smp"))]
+        {
+            1
+        }
+    }
+    
+    fn current_cpu(&self) -> u32 {
+        #[cfg(feature = "smp")]
+        {
+            // Placeholder - would read APIC ID
+            0
+        }
+        #[cfg(not(feature = "smp"))]
+        {
+            0
+        }
+    }
+    
+    fn memory_barrier(&self) {
+        // x86_64 memory fence
+        unsafe {
+            core::arch::asm!("mfence", options(nomem, nostack, preserves_flags));
+        }
+    }
+    
+    fn timer_init(&self, frequency_hz: u64) {
+        // Initialize PIT or APIC timer - stub for now
+        let _ = frequency_hz;
+    }
+    
+    fn timer_ticks(&self) -> u64 {
+        // Use TSC for high-resolution timer
+        unsafe {
+            core::arch::x86_64::_rdtsc()
+        }
+    }
+}

@@ -24,37 +24,37 @@ pub enum HalCapability {
 /// Core HAL trait that all architectures must implement
 pub trait Hal {
     /// Initialize the architecture
-    fn init() -> Result<(), &'static str>;
+    fn init(&self) -> Result<(), &'static str>;
     
     /// CPU idle (power-efficient wait)
-    fn idle();
+    fn idle(&self);
     
     /// Send Inter-Processor Interrupt
-    fn send_ipi(cpu_id: u32, vector: u8);
+    fn send_ipi(&self, cpu_id: u32, vector: u8);
     
     /// Enable interrupts globally
-    fn enable_interrupts();
+    fn enable_interrupts(&self);
     
     /// Disable interrupts globally
-    fn disable_interrupts();
+    fn disable_interrupts(&self);
     
     /// Check if a capability is available
-    fn has_capability(cap: HalCapability) -> bool;
+    fn has_capability(&self, cap: HalCapability) -> bool;
     
     /// Get number of CPU cores
-    fn cpu_count() -> u32;
+    fn cpu_count(&self) -> u32;
     
     /// Get current CPU ID
-    fn current_cpu() -> u32;
+    fn current_cpu(&self) -> u32;
     
     /// Memory barrier (full fence)
-    fn memory_barrier();
+    fn memory_barrier(&self);
     
     /// Timer initialization
-    fn timer_init(frequency_hz: u64);
+    fn timer_init(&self, frequency_hz: u64);
     
     /// Get timer tick count
-    fn timer_ticks() -> u64;
+    fn timer_ticks(&self) -> u64;
 }
 
 /// Interrupt controller abstraction

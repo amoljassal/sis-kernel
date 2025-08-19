@@ -51,6 +51,7 @@ pub unsafe fn spawn_kernel_closure(entry_addr: usize) -> u64 {
         priority_boost: false,
         #[cfg(feature = "affinity")]
         cpu_affinity_mask: 0, // No affinity constraint initially
+        vdso: None, // No vDSO assigned initially
     };
 
     // Set up stack pointer
