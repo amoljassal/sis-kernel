@@ -214,6 +214,13 @@ impl<'a> MapGuard<'a> {
         self.released = true;
     }
     
+    /// Commit the mapping (consume guard, prevent auto-unmap)
+    #[inline(always)]
+    pub fn commit(mut self) {
+        self.released = true;
+        // Guard is consumed, Drop will not be called
+    }
+    
     /// Get virtual page
     pub fn virt_page(&self) -> VirtPage {
         self.virt_page
@@ -302,7 +309,7 @@ pub fn set_user_page_table(root_table: PhysFrame, asid: u16) {
 }
 
 /// Performance counters for page table operations
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct PageTableStats {
     pub maps_performed: u64,
     pub unmaps_performed: u64,

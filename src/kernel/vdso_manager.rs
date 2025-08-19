@@ -144,6 +144,15 @@ impl<'a> MapGuard<'a> {
     pub fn release(mut self) {
         self.mapped = false;
     }
+    
+    /// Commit the mapping (consume guard, prevent auto-unmap)
+    /// 
+    /// From Multi-AI synthesis: Zero-cost abstraction for successful mappings
+    #[inline(always)]
+    pub fn commit(mut self) {
+        self.mapped = false;
+        // Guard is consumed, Drop will not be called
+    }
 }
 
 impl Drop for MapGuard<'_> {
@@ -220,9 +229,13 @@ impl VdsoManager {
             update_fn(live_status);
         }
         
-        // Memory barrier to ensure updates are visible
+        // Memory barrier to ensure updates are visible (architecture-specific)
         unsafe {
+            #[cfg(target_arch = "aarch64")]
             core::arch::asm!("dmb ishst", options(nostack, nomem, preserves_flags));
+            
+            #[cfg(target_arch = "x86_64")]
+            core::arch::asm!("mfence", options(nostack, nomem, preserves_flags));
         }
     }
 }
@@ -314,9 +327,6 @@ pub fn install_for_task(
         .with_executable(true)
         .with_shared(true);
     
-    let _code_guard = pt.map_user(code_va, manager.vdso_code.frame(), code_flags)
-        .map_err(|_| VdsoError::Map)?;
-    
     // Map communication page (private, read-write, no execute)
     let comm_flags = PteFlags::new()
         .with_user(true)
@@ -324,11 +334,22 @@ pub fn install_for_task(
         .with_executable(false)
         .with_shared(false);
     
-    let _comm_guard = pt.map_user(comm_va, comm_frame, comm_flags)
-        .map_err(|_| {
-            let _ = pt.unmap_user(code_va);
-            VdsoError::Map
-        })?;
+    // Multi-AI Hybrid Solution: RAII + commit pattern with automatic rollback
+    // From ChatGPT: Exception-safe RAII pattern
+    // From Grok: Zero-cost abstractions with early borrow release
+    // From Gemini: Clean composition for future transaction patterns
+    
+    // Map code page with RAII guard
+    let code_guard = pt.map_user(code_va, manager.vdso_code.frame(), code_flags)
+        .map_err(|_| VdsoError::Map)?;
+    
+    // Map communication page with RAII guard
+    let comm_guard = pt.map_user(comm_va, comm_frame, comm_flags)
+        .map_err(|_| VdsoError::Map)?; // code_guard auto-unmaps on error
+    
+    // Success: commit both mappings (release borrows)
+    code_guard.commit();
+    comm_guard.commit();
     
     // Map communication page into kernel space for updates
     let comm_kva = mm.map_kernel(comm_frame).map_err(|_| VdsoError::Map)?;
@@ -366,17 +387,19 @@ pub fn install_for_task(
         };
     }
     
-    // Memory barrier to ensure initialization is visible
+    // Memory barrier to ensure initialization is visible (architecture-specific)
     unsafe {
+        #[cfg(target_arch = "aarch64")]
         core::arch::asm!("dmb ishst", options(nostack, nomem, preserves_flags));
+        
+        #[cfg(target_arch = "x86_64")]
+        core::arch::asm!("mfence", options(nostack, nomem, preserves_flags));
     }
     
     // Create task vDSO state
     let task_vdso = TaskVdso::new(code_va, comm_va, comm_kva, comm_frame, process_id);
     
-    // Transfer ownership from guards (they won't unmap on drop)
-    _code_guard.release();
-    _comm_guard.release();
+    // Guards have already been released - mappings are permanent for this process
     
     // Store in task
     task.vdso = Some(task_vdso);
@@ -453,20 +476,30 @@ pub struct VdsoStats {
     pub code_ref_count: u64,
 }
 
-/// Read ARM64 counter frequency
+/// Read counter frequency (architecture-specific)
 /// 
-/// From Grok: ARM64-specific timer frequency detection
+/// From Grok: Optimized timer frequency detection
 #[inline(always)]
 fn read_counter_frequency() -> u64 {
-    let freq: u64;
-    unsafe {
-        core::arch::asm!(
-            "mrs {}, cntfrq_el0",
-            out(reg) freq,
-            options(nostack, nomem, preserves_flags)
-        );
+    #[cfg(target_arch = "aarch64")]
+    {
+        let freq: u64;
+        unsafe {
+            core::arch::asm!(
+                "mrs {}, cntfrq_el0",
+                out(reg) freq,
+                options(nostack, nomem, preserves_flags)
+            );
+        }
+        freq
     }
-    freq
+    
+    #[cfg(target_arch = "x86_64")]
+    {
+        // TSC frequency detection for x86_64
+        // For now, return a reasonable default (2.4 GHz)
+        2_400_000_000
+    }
 }
 
 /// Update live status for all processes (called by kernel subsystems)
@@ -497,9 +530,13 @@ where
         };
         update_fn(live_status);
         
-        // Memory barrier
+        // Memory barrier (architecture-specific)
         unsafe {
+            #[cfg(target_arch = "aarch64")]
             core::arch::asm!("dmb ishst", options(nostack, nomem, preserves_flags));
+            
+            #[cfg(target_arch = "x86_64")]
+            core::arch::asm!("mfence", options(nostack, nomem, preserves_flags));
         }
         
         Ok(())

@@ -8,7 +8,7 @@
 
 #![no_std]
 #![deny(unsafe_op_in_unsafe_fn)]
-#![cfg(target_arch = "aarch64")]
+// Multi-architecture vDSO support for both x86_64 and aarch64
 
 pub mod memory;
 pub mod rings;

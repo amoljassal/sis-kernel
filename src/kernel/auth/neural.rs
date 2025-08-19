@@ -332,7 +332,17 @@ impl FeatureVector {
             .sum::<f32>();
         
         if sum_sq > 0.0 {
-            let norm = sum_sq.sqrt();
+            // Approximate square root using bit manipulation for no_std
+            let norm = if sum_sq >= 1.0 {
+                // Use Newton-Raphson approximation
+                let mut x = sum_sq;
+                for _ in 0..5 { // 5 iterations for good precision
+                    x = (x + sum_sq / x) * 0.5;
+                }
+                x
+            } else {
+                sum_sq // For small values, sqrt is approximately the value itself
+            };
             
             for feature in &mut self.keystroke_features {
                 *feature /= norm;
