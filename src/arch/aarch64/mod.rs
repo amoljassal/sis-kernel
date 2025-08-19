@@ -11,11 +11,16 @@ use crate::kernel::ai::{CognitivePriority, WorkloadType};
 use crate::kernel::sync::InitCell;
 use core::sync::atomic::{AtomicU64, Ordering};
 
+pub mod cpu;
+pub mod io; 
 pub mod dma;
 pub mod mmio;
 pub mod neural_engine;
 pub mod neon_simd_optimized;
 pub use neon_simd_optimized as neon_simd;
+
+#[cfg(feature = "selftests")]
+pub mod vdso_test;
 
 /// ARM64 CPU core identification
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -389,7 +394,7 @@ pub fn ai_context() -> Result<&'static ARM64AIContext, &'static str> {
 // HAL Implementation for ARM64
 // ============================================================================
 
-use crate::kernel::hal::{Hal, HalCapability, InterruptController, MemoryManagement, PageFlags};
+use crate::kernel::hal::{Hal, HalCapability};
 
 /// ARM64 HAL implementation
 pub struct Aarch64Hal;

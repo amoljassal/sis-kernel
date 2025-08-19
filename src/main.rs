@@ -661,6 +661,27 @@ pub extern "C" fn _start() -> ! {
         }
     }
 
+    // ARM64 vDSO Integration Testing
+    #[cfg(feature = "selftests")]
+    {
+        serial::write_str("[ARM64] Running vDSO integration tests...\n");
+        let test_result = crate::arch::aarch64::vdso_test::run_arm64_vdso_tests();
+        if test_result {
+            serial::write_str("[ARM64] All vDSO integration tests PASSED!\n");
+        } else {
+            serial::write_str("[ARM64] Some vDSO integration tests FAILED\n");
+        }
+    }
+    
+    // Quick smoke test for non-selftest builds
+    #[cfg(not(feature = "selftests"))]
+    {
+        let smoke_result = crate::arch::aarch64::vdso_test::smoke_test();
+        if !smoke_result {
+            serial::write_str("[ARM64] vDSO smoke test failed\n");
+        }
+    }
+
     serial::write_str("[ARM64] SIS Kernel initialization complete - ARM64 AI-native kernel ready!\n");
     serial::write_str("[ARM64] Entering main kernel loop...\n");
 
