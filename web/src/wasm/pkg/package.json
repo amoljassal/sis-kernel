@@ -1,0 +1,16 @@
+{
+  "name": "@sis/sis-kernel-wasm",
+  "version": "0.1.0",
+  "description": "SIS Kernel WebAssembly bindings",
+  "main": "sis_kernel_wasm.js",
+  "types": "sis_kernel_wasm.d.ts",
+  "files": [
+    "sis_kernel_wasm_bg.wasm",
+    "sis_kernel_wasm.js",
+    "sis_kernel_wasm.d.ts"
+  ],
+  "module": "sis_kernel_wasm.js",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

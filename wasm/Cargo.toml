@@ -1,0 +1,64 @@
+[package]
+name = "sis-kernel-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+wee_alloc = "0.4.5"
+console_error_panic_hook = "0.1.7"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+  "console",
+  "Document",
+  "Element",
+  "HtmlElement",
+  "Window",
+  "Performance",
+  "PerformanceTiming",
+  "WebGlRenderingContext",
+  "WebGl2RenderingContext",
+  "AudioContext",
+  "MediaDevices",
+  "Navigator",
+  "WorkerGlobalScope",
+]
+
+# SIS Kernel dependencies - path to parent crate
+[dependencies.sis_kernel]
+path = ".."
+default-features = false
+features = ["wasm-api"]
+
+# Serialization for data exchange
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde-wasm-bindgen = "0.6"
+
+# Optional: getrandom with WASM support
+[dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[features]
+default = ["console_error_panic_hook"]
+
+[profile.release]
+# Optimize for small code size
+opt-level = "s"
+debug = false
+lto = true
+panic = "abort"
+# Enable wee_alloc for smaller memory footprint
+strip = "symbols"
+
+[profile.dev]
+# Faster builds for development
+opt-level = 0
+debug = true
