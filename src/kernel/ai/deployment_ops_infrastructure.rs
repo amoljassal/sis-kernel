@@ -13,10 +13,10 @@
 //! - Blue/green and canary deployment strategies
 //! - SLA/SLO monitoring and enforcement
 
-use crate::kernel::ai::design_graph::{DesignGraph, DesignVersion};
+use crate::kernel::ai::design_graph::DesignVersion;
 use crate::kernel::ai::validation_framework::{ValidationFramework, ValidationResult};
-use crate::kernel::ai::enterprise_dev_integration::{EnterpriseDevIntegration, DevEnvironmentSession};
-use crate::kernel::ai::dcon::DCON;
+use crate::kernel::ai::enterprise_dev_integration::EnterpriseDevIntegration;
+use crate::kernel::ai::dcon::DesignContract;
 use crate::kernel::serial;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;

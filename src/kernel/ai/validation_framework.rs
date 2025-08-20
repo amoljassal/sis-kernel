@@ -12,10 +12,10 @@
 //! - Parallel execution pipeline with resource management
 
 use crate::kernel::ai::design_graph::{DesignGraph, NodeId, DesignVersion};
-use crate::kernel::ai::rtl_safety::{RTLSafetyValidator, SafetyValidationResult};
+use crate::kernel::ai::rtl_safety::{RTLSafetyValidator, SafetyValidationError};
 use crate::kernel::ai::hardware_synthesis::HardwareSynthesisEngine;
 use crate::kernel::ai::dcon::{DCON, HardwareContract, SoftwareContract};
-use crate::kernel::ai::cross_domain_sync::{CrossDomainSync, ValidationChange};
+use crate::kernel::ai::cross_domain_sync::CrossDomainSync;
 use crate::kernel::serial;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -368,7 +368,7 @@ impl ValidationFramework {
         &self,
         campaign: &ValidationCampaign,
         design_graph: &DesignGraph,
-        dcon: &DCON,
+        dcon: &DesignContract,
     ) -> Result<ValidationResult, ValidationError> {
         let campaign_start = self.get_timestamp_ms();
         let campaign_count = self.validation_count.fetch_add(1, Ordering::Relaxed);
@@ -444,7 +444,7 @@ impl ValidationFramework {
         level: ValidationLevel,
         campaign: &ValidationCampaign,
         design_graph: &DesignGraph,
-        dcon: &DCON,
+        dcon: &DesignContract,
         resources: &ResourceAllocation,
     ) -> Result<ValidationResult, ValidationError> {
         match level {
@@ -468,7 +468,7 @@ impl ValidationFramework {
         &self,
         campaign: &ValidationCampaign,
         design_graph: &DesignGraph,
-        dcon: &DCON,
+        dcon: &DesignContract,
     ) -> Option<ValidationResult> {
         // Generate cache key using content hash (Grok strategy)
         let cache_key = self.generate_cache_key(campaign, design_graph, dcon);
@@ -480,7 +480,7 @@ impl ValidationFramework {
         &self,
         campaign: &ValidationCampaign,
         design_graph: &DesignGraph,
-        dcon: &DCON,
+        dcon: &DesignContract,
     ) -> ValidationCacheKey {
         // In real implementation, would use Blake3 hash
         ValidationCacheKey {
@@ -563,7 +563,7 @@ impl ValidationFramework {
         &self,
         campaign: &ValidationCampaign,
         design_graph: &DesignGraph,
-        dcon: &DCON,
+        dcon: &DesignContract,
         result: &ValidationResult,
     ) {
         let cache_key = self.generate_cache_key(campaign, design_graph, dcon);
@@ -621,22 +621,22 @@ pub enum ValidationError {
 
 impl UnitValidationCoordinator {
     fn new() -> Self { Self { sw_unit_tester: SoftwareUnitTester::new(), rtl_unit_tester: RTLUnitTester::new(), property_verifier: PropertyVerifier::new(), coverage_analyzer: CoverageAnalyzer::new() } }
-    fn validate(&self, _campaign: &ValidationCampaign, _design_graph: &DesignGraph, _dcon: &DCON, _resources: &ResourceAllocation) -> Result<ValidationResult, ValidationError> { Ok(ValidationResult::default()) }
+    fn validate(&self, _campaign: &ValidationCampaign, _design_graph: &DesignGraph, _dcon: &DesignContract, _resources: &ResourceAllocation) -> Result<ValidationResult, ValidationError> { Ok(ValidationResult::default()) }
 }
 
 impl IntegrationValidationCoordinator {
     fn new() -> Self { Self { interface_tester: InterfaceTester::new(), coVerification_engine: CoVerificationEngine::new(), memory_model_checker: MemoryModelChecker::new(), timing_analyzer: TimingAnalyzer::new() } }
-    fn validate(&self, _campaign: &ValidationCampaign, _design_graph: &DesignGraph, _dcon: &DCON, _resources: &ResourceAllocation) -> Result<ValidationResult, ValidationError> { Ok(ValidationResult::default()) }
+    fn validate(&self, _campaign: &ValidationCampaign, _design_graph: &DesignGraph, _dcon: &DesignContract, _resources: &ResourceAllocation) -> Result<ValidationResult, ValidationError> { Ok(ValidationResult::default()) }
 }
 
 impl SystemValidationCoordinator {
     fn new() -> Self { Self { chaos_engine: ChaosTestingEngine::new(), end_to_end_tester: EndToEndTester::new(), real_time_validator: RealTimeValidator::new(), security_scanner: SecurityScanner::new() } }
-    fn validate(&self, _campaign: &ValidationCampaign, _design_graph: &DesignGraph, _dcon: &DCON, _resources: &ResourceAllocation) -> Result<ValidationResult, ValidationError> { Ok(ValidationResult::default()) }
+    fn validate(&self, _campaign: &ValidationCampaign, _design_graph: &DesignGraph, _dcon: &DesignContract, _resources: &ResourceAllocation) -> Result<ValidationResult, ValidationError> { Ok(ValidationResult::default()) }
 }
 
 impl AcceptanceValidationCoordinator {
     fn new() -> Self { Self { slo_validator: SLOValidator::new(), operational_tester: OperationalTester::new(), user_acceptance_tester: UserAcceptanceTester::new(), deployment_validator: DeploymentValidator::new() } }
-    fn validate(&self, _campaign: &ValidationCampaign, _design_graph: &DesignGraph, _dcon: &DCON, _resources: &ResourceAllocation) -> Result<ValidationResult, ValidationError> { Ok(ValidationResult::default()) }
+    fn validate(&self, _campaign: &ValidationCampaign, _design_graph: &DesignGraph, _dcon: &DesignContract, _resources: &ResourceAllocation) -> Result<ValidationResult, ValidationError> { Ok(ValidationResult::default()) }
 }
 
 impl ValidationCache {

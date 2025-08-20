@@ -14,8 +14,8 @@
 //! - Enterprise workflow integration per Gemini strategy
 
 use crate::kernel::ai::design_graph::{DesignGraph, NodeId, DesignVersion};
-use crate::kernel::ai::rtl_safety::{RTLSafetyValidator, SafetyValidationResult};
-use crate::kernel::ai::hardware_synthesis::{HardwareSynthesisEngine, SynthesisRequest};
+use crate::kernel::ai::rtl_safety::{RTLSafetyValidator, SafetyValidationError};
+use crate::kernel::ai::hardware_synthesis::HardwareSynthesisEngine;
 use crate::kernel::ai::dcon::{DCON, HardwareContract};
 use crate::kernel::ai::eda_orchestration::{EDAOrchestrator, ToolType, SynthesisInput, SynthesisOutput};
 use crate::kernel::serial;
@@ -412,7 +412,7 @@ impl HILFPGAPrototypingSystem {
         &self,
         request: &HILPrototypingRequest,
         design_graph: &DesignGraph,
-        dcon: &DCON,
+        dcon: &DesignContract,
     ) -> Result<HILPrototypingResult, PrototypingError> {
         let start_time = self.get_timestamp_ms();
         let synthesis_count = self.synthesis_count.fetch_add(1, Ordering::Relaxed);
@@ -521,7 +521,7 @@ impl HILFPGAPrototypingSystem {
     fn plan_full_synthesis(
         &self,
         design_graph: &DesignGraph,
-        dcon: &DCON,
+        dcon: &DesignContract,
     ) -> Result<SynthesisPlan, PrototypingError> {
         // Check template cache first
         if let Some(cached_plan) = self.template_cache_manager.check_cache(design_graph, dcon) {
@@ -726,7 +726,7 @@ impl HILFPGAPrototypingSystem {
     }
     
     /// Extract timing constraints from DCON
-    fn extract_constraints_from_dcon(&self, dcon: &DCON) -> TimingConstraints {
+    fn extract_constraints_from_dcon(&self, dcon: &DesignContract) -> TimingConstraints {
         TimingConstraints {
             clock_frequency_mhz: 200, // Default from DCON
             setup_margin_ps: 100,
@@ -861,12 +861,12 @@ impl FPGAFarmManager {
 
 impl IncrementalSynthesizer {
     fn new() -> Self { Self { synthesis_cache: SynthesisCache::new(), change_detector: IncrementalChangeDetector::new(), pr_manager: PartialReconfigurationManager::new(), tcl_script_generator: TCLScriptGenerator::new() } }
-    fn plan_incremental_synthesis(&self, _design_graph: &DesignGraph, _dcon: &DCON) -> Result<SynthesisPlan, PrototypingError> { Ok(SynthesisPlan::default()) }
+    fn plan_incremental_synthesis(&self, _design_graph: &DesignGraph, _dcon: &DesignContract) -> Result<SynthesisPlan, PrototypingError> { Ok(SynthesisPlan::default()) }
 }
 
 impl TemplateCacheManager {
     fn new() -> Self { Self { template_cache: BTreeMap::new(), access_stats: TemplateAccessStats::new(), warming_scheduler: CacheWarmingScheduler::new() } }
-    fn check_cache(&self, _design_graph: &DesignGraph, _dcon: &DCON) -> Option<SynthesisPlan> { None }
+    fn check_cache(&self, _design_graph: &DesignGraph, _dcon: &DesignContract) -> Option<SynthesisPlan> { None }
     fn update_cache(&self, _plan: &SynthesisPlan, _result: &SynthesisResult) {}
     fn get_hit_rate(&self) -> u32 { 80 }
 }

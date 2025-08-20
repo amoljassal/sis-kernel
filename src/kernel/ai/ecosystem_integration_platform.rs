@@ -12,11 +12,11 @@
 //! - Standards consortium participation
 //! - Plugin architecture for extensibility
 
-use crate::kernel::ai::design_graph::{DesignGraph, DesignVersion};
-use crate::kernel::ai::validation_framework::{ValidationFramework, ValidationResult};
-use crate::kernel::ai::enterprise_dev_integration::{EnterpriseDevIntegration, IntegrationResult};
-use crate::kernel::ai::deployment_ops_infrastructure::{DeploymentOpsInfrastructure, DeploymentResult};
-use crate::kernel::ai::dcon::DCON;
+use crate::kernel::ai::design_graph::DesignVersion;
+use crate::kernel::ai::validation_framework::ValidationFramework;
+use crate::kernel::ai::enterprise_dev_integration::EnterpriseDevIntegration;
+use crate::kernel::ai::deployment_ops_infrastructure::DeploymentOpsInfrastructure;
+use crate::kernel::ai::dcon::DesignContract;
 use crate::kernel::serial;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;

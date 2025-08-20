@@ -13,9 +13,9 @@
 //! - Git-aware metadata and artifact management
 
 use crate::kernel::ai::design_graph::{DesignGraph, NodeId, DesignVersion};
-use crate::kernel::ai::validation_framework::{ValidationFramework, ValidationResult};
-use crate::kernel::ai::hil_fpga_prototyping::{HILFPGAPrototypingSystem, HILPrototypingResult};
-use crate::kernel::ai::dcon::{DCON, HardwareContract, SoftwareContract};
+use crate::kernel::ai::validation_framework::ValidationFramework;
+use crate::kernel::ai::hil_fpga_prototyping::HILFPGAPrototypingSystem;
+use crate::kernel::ai::dcon::DesignContract;
 use crate::kernel::serial;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;

@@ -37,6 +37,12 @@ pub mod rtl_safety;
 pub mod hardware_synthesis;
 pub mod eda_orchestration;
 pub mod yosys_driver;
+// Phase 3 modules - comprehensive validation and ecosystem integration
+pub mod validation_framework;
+pub mod hil_fpga_prototyping;
+pub mod enterprise_dev_integration;
+pub mod deployment_ops_infrastructure;
+pub mod ecosystem_integration_platform;
 
 #[cfg(target_arch = "aarch64")]
 pub mod cognitive_scheduler_arm64;
