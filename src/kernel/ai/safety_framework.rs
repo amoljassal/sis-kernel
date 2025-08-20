@@ -568,6 +568,9 @@ pub enum RollbackError {
     RollbackFailed(String),
 }
 
+/// Preflight validator for safety checks
+pub struct PreflightValidator;
+
 // Component implementations
 
 impl PreflightValidator {

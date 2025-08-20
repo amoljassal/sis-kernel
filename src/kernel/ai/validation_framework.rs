@@ -14,7 +14,7 @@
 use crate::kernel::ai::design_graph::{DesignGraph, NodeId, DesignVersion};
 use crate::kernel::ai::rtl_safety::{RTLSafetyValidator, SafetyValidationError};
 use crate::kernel::ai::hardware_synthesis::HardwareSynthesisEngine;
-use crate::kernel::ai::dcon::{DCON, HardwareContract, SoftwareContract};
+use crate::kernel::ai::dcon::{DesignContract, HardwareContract};
 use crate::kernel::ai::cross_domain_sync::CrossDomainSync;
 use crate::kernel::serial;
 use alloc::string::{String, ToString};

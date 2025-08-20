@@ -5,6 +5,7 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::format;
 use core::fmt::Write;
 
 /// Convert a static string to an allocated String

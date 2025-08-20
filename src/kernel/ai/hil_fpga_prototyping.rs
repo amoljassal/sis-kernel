@@ -16,8 +16,9 @@
 use crate::kernel::ai::design_graph::{DesignGraph, NodeId, DesignVersion};
 use crate::kernel::ai::rtl_safety::{RTLSafetyValidator, SafetyValidationError};
 use crate::kernel::ai::hardware_synthesis::HardwareSynthesisEngine;
-use crate::kernel::ai::dcon::{DCON, HardwareContract};
-use crate::kernel::ai::eda_orchestration::{EDAOrchestrator, ToolType, SynthesisInput, SynthesisOutput};
+use crate::kernel::ai::dcon::{DesignContract, HardwareContract};
+use crate::kernel::ai::eda_orchestration::{EDAToolOrchestrator, ToolType, SynthesisInput, SynthesisOutput};
+use crate::kernel::ai::deployment_ops_infrastructure::CostOptimizer;
 use crate::kernel::serial;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -41,8 +42,8 @@ pub struct HILFPGAPrototypingSystem {
     
     /// Safety and monitoring
     safety_monitor: FPGASafetyMonitor,
-    thermal_manager: ThermalManager,
-    power_manager: PowerManager,
+    thermal_manager: ThermalMonitor,
+    power_manager: PowerMonitor,
     
     /// Remote access optimization
     remote_access_optimizer: RemoteAccessOptimizer,
@@ -78,6 +79,16 @@ pub struct IncrementalSynthesizer {
     pr_manager: PartialReconfigurationManager,
     /// Script generator
     tcl_script_generator: TCLScriptGenerator,
+}
+
+/// Template key for caching
+pub type TemplateKey = String;
+
+/// Cached template data
+#[derive(Debug, Clone)]
+pub struct CachedTemplate {
+    pub content: String,
+    pub access_count: u32,
 }
 
 /// Template cache manager for hot-path optimization
@@ -896,15 +907,21 @@ impl CostOptimizer {
     fn get_current_cost_per_hour(&self) -> f32 { 1.65 } // AWS F1 pricing
 }
 
-impl ThermalManager {
+impl ThermalMonitor {
     fn new() -> Self { Self }
     fn enable_monitoring(&self, _board_id: FPGABoardId) -> Result<(), PrototypingError> { Ok(()) }
 }
 
-impl PowerManager {
+impl PowerMonitor {
     fn new() -> Self { Self }
     fn enable_monitoring(&self, _board_id: FPGABoardId) -> Result<(), PrototypingError> { Ok(()) }
 }
+
+/// Compression engine for data optimization
+pub struct CompressionEngine;
+
+/// Latency optimizer for performance tuning
+pub struct LatencyOptimizer;
 
 impl CompressionEngine {
     fn new() -> Self { Self }

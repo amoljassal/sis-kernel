@@ -267,7 +267,7 @@ pub enum PricingModel {
     OneTime,
     Subscription,
     PayPerUse,
-    Revenue Share,
+    RevenueShare,
     Enterprise,
 }
 
@@ -424,7 +424,7 @@ pub struct PartnershipProposal {
 pub enum PartnershipType {
     Technology,
     Channel,
-    System Integrator,
+    SystemIntegrator,
     Academic,
     Strategic,
     Reseller,
@@ -816,6 +816,24 @@ pub struct PartnershipAgreement {
     pub certification_requirements: Vec<String>,
     pub integration_milestones: Vec<Milestone>,
     pub sla_commitments: SLARequirements,
+}
+
+/// Integration result from partner setup
+#[derive(Debug, Clone)]
+pub struct IntegrationResult {
+    pub endpoints: Vec<String>,
+    pub api_credentials: APICredentials,
+    pub webhook_endpoints: Vec<String>,
+    pub sdk_package: String,
+}
+
+/// Launch result from go-to-market activities  
+#[derive(Debug, Clone)]
+pub struct LaunchResult {
+    pub portal_url: String,
+    pub marketing_kit_url: String,
+    pub launch_date: u64,
+    pub success_metrics: Vec<String>,
 }
 
 /// Partnership result
