@@ -21,8 +21,8 @@ function App() {
     const initializeApp = async () => {
       try {
         // Load WASM module
-        const wasmModule = await import('./wasm/sis-kernel')
-        console.log('WASM module loaded:', wasmModule)
+        await import('./wasm/sis-kernel')
+        console.log('WASM module loaded')
         
         // Initialize WebGL context check
         const canvas = document.createElement('canvas')
@@ -39,10 +39,8 @@ function App() {
         }
         
         // Check for PWA installation
-        let deferredPrompt: any
         window.addEventListener('beforeinstallprompt', (e) => {
           e.preventDefault()
-          deferredPrompt = e
           // Show install button
           console.log('PWA installation available')
         })

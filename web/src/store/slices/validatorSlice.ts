@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import type { ValidationReport, CheckResult } from '../../types/design'
+import type { ValidationReport } from '../../types/design'
 
 export interface ValidatorState {
   currentReport: ValidationReport | null

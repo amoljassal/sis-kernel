@@ -4,12 +4,24 @@ export type SafetyMode = 'beginner' | 'advanced' | 'pro'
 
 export type NodeType = 
   | 'cpu'
+  | 'dsp'
+  | 'mcu'
   | 'memory'
+  | 'cache'
+  | 'rom'
   | 'io'
+  | 'uart'
+  | 'spi'
+  | 'i2c'
   | 'logic'
-  | 'custom'
+  | 'mux'
+  | 'alu'
   | 'ai_accelerator'
+  | 'tensor_core'
   | 'interface'
+  | 'pcie'
+  | 'usb'
+  | 'custom'
 
 export interface Position {
   x: number

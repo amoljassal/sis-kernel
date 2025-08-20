@@ -3,13 +3,21 @@ import type { CollaborationCursor, DesignComment, DesignVersion } from '../../ty
 
 export interface CollaborationState {
   // Real-time collaboration
-  isConnected: boolean
-  connectedUsers: {
+  isEnabled: boolean
+  currentUserId: string
+  collaborators: Record<string, {
     id: string
     name: string
     color: string
+    cursor: {
+      x: number
+      y: number
+      timestamp: number
+      visible: boolean
+    }
+    isActive: boolean
     lastSeen: number
-  }[]
+  }>
   cursors: CollaborationCursor[]
   
   // Comments
@@ -34,8 +42,9 @@ export interface CollaborationState {
 }
 
 const initialState: CollaborationState = {
-  isConnected: false,
-  connectedUsers: [],
+  isEnabled: false,
+  currentUserId: `user_${Math.random().toString(36).substr(2, 9)}`,
+  collaborators: {},
   cursors: [],
   
   comments: [],
@@ -53,10 +62,10 @@ const collaborationSlice = createSlice({
   name: 'collaboration',
   initialState,
   reducers: {
-    setConnectionStatus: (state, action: PayloadAction<boolean>) => {
-      state.isConnected = action.payload
+    setCollaborationEnabled: (state, action: PayloadAction<boolean>) => {
+      state.isEnabled = action.payload
       if (!action.payload) {
-        state.connectedUsers = []
+        state.collaborators = {}
         state.cursors = []
       }
     },
@@ -65,27 +74,43 @@ const collaborationSlice = createSlice({
       state.localPeerId = action.payload
     },
     
-    addConnectedUser: (state, action: PayloadAction<{
+    addCollaborator: (state, action: PayloadAction<{
       id: string
       name: string
       color: string
-    }>) => {
-      const { id, name, color } = action.payload
-      const existing = state.connectedUsers.find(user => user.id === id)
-      if (!existing) {
-        state.connectedUsers.push({
-          id,
-          name,
-          color,
-          lastSeen: Date.now(),
-        })
+      cursor: {
+        x: number
+        y: number
+        timestamp: number
+        visible: boolean
       }
+      isActive: boolean
+      lastSeen: number
+    }>) => {
+      const collaborator = action.payload
+      state.collaborators[collaborator.id] = collaborator
     },
     
-    removeConnectedUser: (state, action: PayloadAction<string>) => {
+    removeCollaborator: (state, action: PayloadAction<string>) => {
       const userId = action.payload
-      state.connectedUsers = state.connectedUsers.filter(user => user.id !== userId)
+      delete state.collaborators[userId]
       state.cursors = state.cursors.filter(cursor => cursor.userId !== userId)
+    },
+    
+    updateCursorPosition: (state, action: PayloadAction<{
+      userId: string
+      position: {
+        x: number
+        y: number
+        timestamp: number
+        visible: boolean
+      }
+    }>) => {
+      const { userId, position } = action.payload
+      if (state.collaborators[userId]) {
+        state.collaborators[userId].cursor = position
+        state.collaborators[userId].lastSeen = Date.now()
+      }
     },
     
     updateCursor: (state, action: PayloadAction<CollaborationCursor>) => {
@@ -108,4 +133,74 @@ const collaborationSlice = createSlice({
     },
     
     updateComment: (state, action: PayloadAction<{ id: string; updates: Partial<DesignComment> }>) => {
-      const { id, updates } = action.payload\n      const index = state.comments.findIndex(comment => comment.id === id)\n      if (index !== -1) {\n        state.comments[index] = { ...state.comments[index], ...updates }\n      }\n    },\n    \n    deleteComment: (state, action: PayloadAction<string>) => {\n      const commentId = action.payload\n      state.comments = state.comments.filter(comment => comment.id !== commentId)\n    },\n    \n    addVersion: (state, action: PayloadAction<DesignVersion>) => {\n      state.versions.unshift(action.payload)\n      state.currentVersion = action.payload.id\n    },\n    \n    setCurrentVersion: (state, action: PayloadAction<string>) => {\n      state.currentVersion = action.payload\n    },\n    \n    setPeerConnection: (state, action: PayloadAction<{ peerId: string; connection: RTCPeerConnection }>) => {\n      const { peerId, connection } = action.payload\n      // Note: This won't be serialized due to serializableCheck configuration\n      state.peerConnections.set(peerId, connection)\n    },\n    \n    removePeerConnection: (state, action: PayloadAction<string>) => {\n      const peerId = action.payload\n      state.peerConnections.delete(peerId)\n    },\n    \n    addConflict: (state, action: PayloadAction<{\n      id: string\n      type: 'node' | 'connection'\n      localChange: any\n      remoteChange: any\n    }>) => {\n      state.conflicts.push({\n        ...action.payload,\n        timestamp: Date.now(),\n      })\n    },\n    \n    resolveConflict: (state, action: PayloadAction<string>) => {\n      const conflictId = action.payload\n      state.conflicts = state.conflicts.filter(conflict => conflict.id !== conflictId)\n    },\n  },\n})\n\nexport const {\n  setConnectionStatus,\n  setLocalPeerId,\n  addConnectedUser,\n  removeConnectedUser,\n  updateCursor,\n  removeCursor,\n  addComment,\n  updateComment,\n  deleteComment,\n  addVersion,\n  setCurrentVersion,\n  setPeerConnection,\n  removePeerConnection,\n  addConflict,\n  resolveConflict,\n} = collaborationSlice.actions\n\nexport default collaborationSlice.reducer"
+      const { id, updates } = action.payload
+      const index = state.comments.findIndex(comment => comment.id === id)
+      if (index !== -1) {
+        state.comments[index] = { ...state.comments[index], ...updates }
+      }
+    },
+    
+    deleteComment: (state, action: PayloadAction<string>) => {
+      const commentId = action.payload
+      state.comments = state.comments.filter(comment => comment.id !== commentId)
+    },
+    
+    addVersion: (state, action: PayloadAction<DesignVersion>) => {
+      state.versions.unshift(action.payload)
+      state.currentVersion = action.payload.id
+    },
+    
+    setCurrentVersion: (state, action: PayloadAction<string>) => {
+      state.currentVersion = action.payload
+    },
+    
+    setPeerConnection: (state, action: PayloadAction<{ peerId: string; connection: RTCPeerConnection }>) => {
+      const { peerId, connection } = action.payload
+      // Note: This won't be serialized due to serializableCheck configuration
+      state.peerConnections.set(peerId, connection)
+    },
+    
+    removePeerConnection: (state, action: PayloadAction<string>) => {
+      const peerId = action.payload
+      state.peerConnections.delete(peerId)
+    },
+    
+    addConflict: (state, action: PayloadAction<{
+      id: string
+      type: 'node' | 'connection'
+      localChange: any
+      remoteChange: any
+    }>) => {
+      state.conflicts.push({
+        ...action.payload,
+        timestamp: Date.now(),
+      })
+    },
+    
+    resolveConflict: (state, action: PayloadAction<string>) => {
+      const conflictId = action.payload
+      state.conflicts = state.conflicts.filter(conflict => conflict.id !== conflictId)
+    },
+  },
+})
+
+export const {
+  setCollaborationEnabled,
+  setLocalPeerId,
+  addCollaborator,
+  removeCollaborator,
+  updateCursorPosition,
+  updateCursor,
+  removeCursor,
+  addComment,
+  updateComment,
+  deleteComment,
+  addVersion,
+  setCurrentVersion,
+  setPeerConnection,
+  removePeerConnection,
+  addConflict,
+  resolveConflict,
+} = collaborationSlice.actions
+
+export default collaborationSlice.reducer

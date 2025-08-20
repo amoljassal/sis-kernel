@@ -1,1 +1,130 @@
-import React, { ReactNode } from 'react'\nimport { Link, useLocation } from 'react-router-dom'\nimport { useSelector } from 'react-redux'\nimport type { RootState } from '../../store/store'\n\ninterface LayoutProps {\n  children: ReactNode\n}\n\nconst Layout: React.FC<LayoutProps> = ({ children }) => {\n  const location = useLocation()\n  const { safetyMode } = useSelector((state: RootState) => state.settings)\n  const { hazardScore } = useSelector((state: RootState) => state.designer)\n  const { isConnected, connectedUsers } = useSelector((state: RootState) => state.collaboration)\n  \n  const navItems = [\n    { path: '/', label: 'Dashboard', icon: '🏠' },\n    { path: '/design', label: 'Designer', icon: '⚡' },\n    { path: '/validate', label: 'Validator', icon: '✅' },\n    { path: '/hardware', label: 'Hardware', icon: '🔧' },\n    { path: '/marketplace', label: 'Marketplace', icon: '🛒' },\n    { path: '/settings', label: 'Settings', icon: '⚙️' },\n  ]\n  \n  const getSafetyColor = () => {\n    if (hazardScore <= 25) return 'text-green-400'\n    if (hazardScore <= 50) return 'text-yellow-400'\n    if (hazardScore <= 75) return 'text-orange-400'\n    return 'text-red-400'\n  }\n  \n  const getSafetyModeColor = () => {\n    switch (safetyMode) {\n      case 'beginner': return 'bg-green-600'\n      case 'advanced': return 'bg-yellow-600'\n      case 'pro': return 'bg-red-600'\n      default: return 'bg-sis-gray-600'\n    }\n  }\n\n  return (\n    <div className=\"h-screen flex flex-col bg-sis-gray-900\">\n      {/* Header */}\n      <header className=\"glass border-b border-sis-gray-700 px-6 py-4\">\n        <div className=\"flex items-center justify-between\">\n          {/* Logo */}\n          <div className=\"flex items-center space-x-3\">\n            <div className=\"w-8 h-8 bg-gradient-to-br from-sis-blue-500 to-purple-600 rounded-lg flex items-center justify-center\">\n              <span className=\"text-white font-bold text-sm\">S</span>\n            </div>\n            <h1 className=\"text-xl font-bold text-white\">\n              SIS AI-Lab\n            </h1>\n          </div>\n          \n          {/* Status indicators */}\n          <div className=\"flex items-center space-x-4\">\n            {/* Collaboration status */}\n            {isConnected && (\n              <div className=\"flex items-center space-x-2\">\n                <div className=\"w-2 h-2 bg-green-400 rounded-full animate-pulse\" />\n                <span className=\"text-sm text-sis-gray-300\">\n                  {connectedUsers.length} connected\n                </span>\n              </div>\n            )}\n            \n            {/* Safety status */}\n            <div className=\"flex items-center space-x-2\">\n              <div className={`px-2 py-1 rounded text-xs font-medium ${getSafetyModeColor()}`}>\n                {safetyMode.toUpperCase()}\n              </div>\n              <div className={`text-sm font-medium ${getSafetyColor()}`}>\n                Risk: {hazardScore}/100\n              </div>\n            </div>\n          </div>\n        </div>\n      </header>\n      \n      <div className=\"flex flex-1 overflow-hidden\">\n        {/* Sidebar */}\n        <nav className=\"w-64 glass border-r border-sis-gray-700 p-4\">\n          <ul className=\"space-y-2\">\n            {navItems.map((item) => {\n              const isActive = location.pathname === item.path\n              return (\n                <li key={item.path}>\n                  <Link\n                    to={item.path}\n                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${\n                      isActive\n                        ? 'bg-sis-blue-600 text-white'\n                        : 'text-sis-gray-300 hover:bg-sis-gray-700 hover:text-white'\n                    }`}\n                  >\n                    <span className=\"text-lg\">{item.icon}</span>\n                    <span className=\"font-medium\">{item.label}</span>\n                  </Link>\n                </li>\n              )\n            })}\n          </ul>\n          \n          {/* Quick actions */}\n          <div className=\"mt-8 pt-4 border-t border-sis-gray-700\">\n            <h3 className=\"text-xs font-semibold text-sis-gray-400 uppercase mb-3\">\n              Quick Actions\n            </h3>\n            <div className=\"space-y-2\">\n              <button className=\"w-full btn-primary text-sm py-2\">\n                New Design\n              </button>\n              <button className=\"w-full btn-secondary text-sm py-2\">\n                Import\n              </button>\n            </div>\n          </div>\n        </nav>\n        \n        {/* Main content */}\n        <main className=\"flex-1 overflow-auto\">\n          {children}\n        </main>\n      </div>\n    </div>\n  )\n}\n\nexport default Layout"
+import React, { ReactNode } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { useSelector } from 'react-redux'
+import type { RootState } from '../../store/store'
+
+interface LayoutProps {
+  children: ReactNode
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const location = useLocation()
+  const { safetyMode } = useSelector((state: RootState) => state.settings)
+  const { hazardScore } = useSelector((state: RootState) => state.designer)
+  const { collaborators, isEnabled } = useSelector((state: RootState) => state.collaboration)
+  
+  const navItems = [
+    { path: '/', label: 'Dashboard', icon: '🏠' },
+    { path: '/design', label: 'Designer', icon: '⚡' },
+    { path: '/validate', label: 'Validator', icon: '✅' },
+    { path: '/hardware', label: 'Hardware', icon: '🔧' },
+    { path: '/marketplace', label: 'Marketplace', icon: '🛒' },
+    { path: '/settings', label: 'Settings', icon: '⚙️' },
+  ]
+  
+  const getSafetyColor = () => {
+    if (hazardScore <= 25) return 'text-green-400'
+    if (hazardScore <= 50) return 'text-yellow-400'
+    if (hazardScore <= 75) return 'text-orange-400'
+    return 'text-red-400'
+  }
+  
+  const getSafetyModeColor = () => {
+    switch (safetyMode) {
+      case 'beginner': return 'bg-green-600'
+      case 'advanced': return 'bg-yellow-600'
+      case 'pro': return 'bg-red-600'
+      default: return 'bg-sis-gray-600'
+    }
+  }
+
+  return (
+    <div className="h-screen flex flex-col bg-sis-gray-900">
+      {/* Header */}
+      <header className="glass border-b border-sis-gray-700 px-6 py-4">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-sis-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">S</span>
+            </div>
+            <h1 className="text-xl font-bold text-white">
+              SIS AI-Lab
+            </h1>
+          </div>
+          
+          {/* Status indicators */}
+          <div className="flex items-center space-x-4">
+            {/* Collaboration status */}
+            {isEnabled && Object.keys(collaborators).length > 0 && (
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-sm text-sis-gray-300">
+                  {Object.keys(collaborators).length} connected
+                </span>
+              </div>
+            )}
+            
+            {/* Safety status */}
+            <div className="flex items-center space-x-2">
+              <div className={`px-2 py-1 rounded text-xs font-medium ${getSafetyModeColor()}`}>
+                {safetyMode.toUpperCase()}
+              </div>
+              <div className={`text-sm font-medium ${getSafetyColor()}`}>
+                Risk: {hazardScore}/100
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+      
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <nav className="w-64 glass border-r border-sis-gray-700 p-4">
+          <ul className="space-y-2">
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path
+              return (
+                <li key={item.path}>
+                  <Link
+                    to={item.path}
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-sis-blue-600 text-white'
+                        : 'text-sis-gray-300 hover:bg-sis-gray-700 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-lg">{item.icon}</span>
+                    <span className="font-medium">{item.label}</span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+          
+          {/* Quick actions */}
+          <div className="mt-8 pt-4 border-t border-sis-gray-700">
+            <h3 className="text-xs font-semibold text-sis-gray-400 uppercase mb-3">
+              Quick Actions
+            </h3>
+            <div className="space-y-2">
+              <button className="w-full btn-primary text-sm py-2">
+                New Design
+              </button>
+              <button className="w-full btn-secondary text-sm py-2">
+                Import
+              </button>
+            </div>
+          </div>
+        </nav>
+        
+        {/* Main content */}
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+    </div>
+  )
+}
+
+export default Layout

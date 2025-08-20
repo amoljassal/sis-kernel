@@ -27,7 +27,7 @@ class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({
       error,
-      errorInfo: errorInfo.componentStack
+      errorInfo: errorInfo.componentStack || ''
     })
     
     // Log error to monitoring service

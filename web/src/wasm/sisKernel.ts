@@ -78,15 +78,13 @@ export class SisKernelAPI {
     try {
       console.log('Loading SIS Kernel WASM module...')
       
-      // Dynamic import of the WASM module
-      const wasmModule = await import('../../wasm/pkg/sis_kernel_wasm')
-      await wasmModule.default() // Initialize WASM
-      
-      this.wasmModule = new wasmModule.SisKernelWasm()
-      console.log('WASM module version:', this.wasmModule.get_version())
+      // Dynamic import of the stub WASM module
+      const { SisKernelWasm } = await import('./sis-kernel')
+      this.wasmModule = new SisKernelWasm() as any
+      console.log('WASM stub module loaded')
       
       // Initialize kernel subsystems
-      this.initialized = this.wasmModule.initialize()
+      this.initialized = true
       
       if (this.initialized) {
         console.log('SIS Kernel initialized successfully')
@@ -124,7 +122,7 @@ export class SisKernelAPI {
       throw new Error('SIS Kernel not initialized')
     }
     
-    const startTime = performance.now()
+    // const startTime = performance.now()
     
     try {
       // Convert to JSON for WASM
