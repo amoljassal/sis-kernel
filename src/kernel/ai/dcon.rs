@@ -8,6 +8,7 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::vec;
 use core::fmt;
 
 /// Design Contract (DCON) - Unified specification for hardware and software generation
@@ -40,6 +41,9 @@ pub struct DesignContract {
     
     /// Cross-domain safety requirements
     pub safety: SafetyContract,
+    
+    /// Hardware synthesis contract (Phase 2 extension)
+    pub hardware: Option<HardwareContract>,
 }
 
 /// ISA contract defining instruction set and execution model
@@ -275,6 +279,8 @@ pub enum DconValidationError {
     NumericsConstraintViolation,
     SafetyRequirementViolation,
     CrossDomainInconsistency,
+    InvalidClockSpecification,
+    TimingConstraintViolation,
 }
 
 impl fmt::Display for DconValidationError {
@@ -290,6 +296,8 @@ impl fmt::Display for DconValidationError {
             Self::NumericsConstraintViolation => write!(f, "Numerics constraint violation"),
             Self::SafetyRequirementViolation => write!(f, "Safety requirement violation"),
             Self::CrossDomainInconsistency => write!(f, "Cross-domain inconsistency"),
+            Self::InvalidClockSpecification => write!(f, "Invalid clock specification"),
+            Self::TimingConstraintViolation => write!(f, "Timing constraint violation"),
         }
     }
 }
@@ -564,4 +572,254 @@ pub fn init() -> Result<(), &'static str> {
     }
     
     Ok(())
+}
+
+/// Hardware Contract - Phase 2 extension for RTL synthesis
+#[derive(Debug, Clone)]
+pub struct HardwareContract {
+    /// RTL generation parameters
+    pub rtl_params: RTLParameters,
+    /// Clock domain specifications
+    pub clock_domains: Vec<ClockDomain>,
+    /// Power domain definitions
+    pub power_domains: Vec<PowerDomain>,
+    /// Timing constraints for synthesis
+    pub timing_constraints: HardwareTimingConstraints,
+    /// Physical design constraints
+    pub physical_constraints: PhysicalConstraints,
+    /// Memory interfaces required
+    pub memory_interfaces: Vec<MemoryInterface>,
+    /// IO interface requirements
+    pub io_interfaces: Vec<IOInterface>,
+}
+
+/// RTL generation parameters
+#[derive(Debug, Clone)]
+pub struct RTLParameters {
+    pub target_language: String, // "SystemVerilog", "Verilog", "VHDL"
+    pub optimization_level: String, // "Debug", "Release", "Aggressive"
+    pub synthesis_tool: String, // "yosys", "vivado", "quartus"
+    pub target_technology: String, // "generic", "fpga", "asic"
+}
+
+/// Clock domain specification
+#[derive(Debug, Clone)]
+pub struct ClockDomain {
+    pub domain_name: String,
+    pub frequency_mhz: u32,
+    pub phase_offset_deg: f32,
+    pub reset_type: ResetType,
+    pub reset_polarity: ResetPolarity,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ResetType {
+    Synchronous,
+    Asynchronous,
+    AsyncAssertSyncDeassert,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ResetPolarity {
+    ActiveLow,
+    ActiveHigh,
+}
+
+/// Power domain specification
+#[derive(Debug, Clone)]
+pub struct PowerDomain {
+    pub domain_name: String,
+    pub voltage_min: f32,
+    pub voltage_max: f32,
+    pub current_limit_ma: u32,
+    pub power_gating_support: bool,
+}
+
+/// Hardware timing constraints
+#[derive(Debug, Clone)]
+pub struct HardwareTimingConstraints {
+    pub clock_period_ps: u32,
+    pub setup_time_ps: u32,
+    pub hold_time_ps: u32,
+    pub clock_to_output_ps: u32,
+    pub input_delay_ps: u32,
+    pub output_delay_ps: u32,
+}
+
+/// Physical design constraints
+#[derive(Debug, Clone)]
+pub struct PhysicalConstraints {
+    pub max_area_um2: u32,
+    pub max_aspect_ratio: f32,
+    pub placement_constraints: Vec<PlacementConstraint>,
+    pub routing_constraints: Vec<RoutingConstraint>,
+}
+
+/// Memory interface specification
+#[derive(Debug, Clone)]
+pub struct MemoryInterface {
+    pub interface_name: String,
+    pub interface_type: MemoryInterfaceType,
+    pub bandwidth_gbps: f32,
+    pub latency_cycles: u32,
+    pub address_width: u32,
+    pub data_width: u32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MemoryInterfaceType {
+    AXI4,
+    AXI4Lite,
+    AXI4Stream,
+    Avalon,
+    Wishbone,
+    Custom,
+}
+
+/// IO interface specification
+#[derive(Debug, Clone)]
+pub struct IOInterface {
+    pub interface_name: String,
+    pub protocol: IOProtocol,
+    pub signal_count: u32,
+    pub voltage_level: f32,
+    pub drive_strength: DriveStrength,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum IOProtocol {
+    GPIO,
+    SPI,
+    I2C,
+    UART,
+    PCIe,
+    Custom,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DriveStrength {
+    Low,
+    Medium,
+    High,
+    Maximum,
+}
+
+/// Placement constraint for physical design
+#[derive(Debug, Clone)]
+pub struct PlacementConstraint {
+    pub instance_name: String,
+    pub constraint_type: PlacementConstraintType,
+    pub region: PhysicalRegion,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PlacementConstraintType {
+    Fixed,
+    Preferred,
+    Excluded,
+}
+
+/// Physical region specification
+#[derive(Debug, Clone)]
+pub struct PhysicalRegion {
+    pub x_min: u32,
+    pub y_min: u32,
+    pub x_max: u32,
+    pub y_max: u32,
+}
+
+/// Routing constraint for physical design
+#[derive(Debug, Clone)]
+pub struct RoutingConstraint {
+    pub net_name: String,
+    pub max_length_um: u32,
+    pub layer_constraints: Vec<u32>,
+    pub via_constraints: ViaConstraints,
+}
+
+#[derive(Debug, Clone)]
+pub struct ViaConstraints {
+    pub max_vias: u32,
+    pub preferred_layers: Vec<u32>,
+}
+
+impl HardwareContract {
+    /// Create a basic hardware contract for development
+    pub fn new_basic() -> Self {
+        Self {
+            rtl_params: RTLParameters {
+                target_language: "SystemVerilog".to_string(),
+                optimization_level: "Release".to_string(),
+                synthesis_tool: "yosys".to_string(),
+                target_technology: "generic".to_string(),
+            },
+            clock_domains: vec![
+                ClockDomain {
+                    domain_name: "clk_main".to_string(),
+                    frequency_mhz: 100,
+                    phase_offset_deg: 0.0,
+                    reset_type: ResetType::AsyncAssertSyncDeassert,
+                    reset_polarity: ResetPolarity::ActiveLow,
+                }
+            ],
+            power_domains: vec![
+                PowerDomain {
+                    domain_name: "core".to_string(),
+                    voltage_min: 0.9,
+                    voltage_max: 1.1,
+                    current_limit_ma: 1000,
+                    power_gating_support: false,
+                }
+            ],
+            timing_constraints: HardwareTimingConstraints {
+                clock_period_ps: 10_000, // 100 MHz
+                setup_time_ps: 500,
+                hold_time_ps: 100,
+                clock_to_output_ps: 2000,
+                input_delay_ps: 1000,
+                output_delay_ps: 1000,
+            },
+            physical_constraints: PhysicalConstraints {
+                max_area_um2: 1_000_000, // 1 mm²
+                max_aspect_ratio: 2.0,
+                placement_constraints: vec![],
+                routing_constraints: vec![],
+            },
+            memory_interfaces: vec![],
+            io_interfaces: vec![],
+        }
+    }
+
+    /// Validate hardware contract consistency
+    pub fn validate(&self) -> Result<(), DconValidationError> {
+        // Validate clock domains
+        for clock_domain in &self.clock_domains {
+            if clock_domain.frequency_mhz == 0 {
+                return Err(DconValidationError::InvalidClockSpecification);
+            }
+        }
+
+        // Validate power domains
+        for power_domain in &self.power_domains {
+            if power_domain.voltage_min >= power_domain.voltage_max {
+                return Err(DconValidationError::PowerConstraintViolation);
+            }
+        }
+
+        // Validate timing constraints
+        if self.timing_constraints.setup_time_ps > self.timing_constraints.clock_period_ps / 2 {
+            return Err(DconValidationError::TimingConstraintViolation);
+        }
+
+        Ok(())
+    }
+}
+
+impl DesignContract {
+    /// Create design contract with hardware synthesis capabilities
+    pub fn new_with_hardware() -> Self {
+        let mut dcon = Self::new_development();
+        dcon.hardware = Some(HardwareContract::new_basic());
+        dcon
+    }
 }

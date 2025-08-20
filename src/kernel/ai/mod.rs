@@ -32,6 +32,11 @@ pub mod dcon;
 pub mod cross_domain_sync;
 pub mod software_synthesis;
 pub mod natural_language;
+pub mod design_graph;
+pub mod rtl_safety;
+pub mod hardware_synthesis;
+pub mod eda_orchestration;
+pub mod yosys_driver;
 
 #[cfg(target_arch = "aarch64")]
 pub mod cognitive_scheduler_arm64;
@@ -117,6 +122,27 @@ pub fn init() -> Result<(), &'static str> {
         // Initialize Natural Language Interface
         natural_language::init()?;
         serial::write_str("[ai] Natural Language Interface initialized\n");
+
+        // Initialize Design Graph Database (Phase 2)
+        design_graph::init()?;
+        serial::write_str("[ai] Design Graph Database initialized\n");
+
+        // Initialize RTL Safety Validation Pipeline (Phase 2)
+        rtl_safety::init()?;
+        serial::write_str("[ai] RTL Safety Validation Pipeline initialized\n");
+
+        // Initialize Hardware Synthesis Engine (Phase 2)
+        hardware_synthesis::init()?;
+        serial::write_str("[ai] Hardware Synthesis Engine initialized\n");
+
+        // Initialize EDA Tool Orchestration (Phase 2B)
+        eda_orchestration::init()?;
+        serial::write_str("[ai] EDA Tool Orchestration initialized\n");
+
+        // Register Yosys driver
+        if let Err(_) = yosys_driver::register_yosys_with_orchestrator() {
+            serial::write_str("[ai] Warning: Could not register Yosys driver\n");
+        }
 
         // Initialize ARM64 AI acceleration if available
         #[cfg(target_arch = "aarch64")]

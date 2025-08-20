@@ -73,6 +73,40 @@ pub enum HardwareChange {
         new_wcet_budget: u32,
         new_max_jitter: u16,
     },
+    /// RTL module generated or modified (Phase 2)
+    RTLModuleGenerated {
+        module_name: String,
+        interface_changes: Vec<String>,
+        timing_impact_ps: u32,
+        area_estimate: u32,
+    },
+    /// Clock domain modified (Phase 2)
+    ClockDomainModified {
+        domain_name: String,
+        old_frequency_mhz: u32,
+        new_frequency_mhz: u32,
+        software_impact: ClockImpactType,
+    },
+    /// Hardware synthesis completed (Phase 2)
+    HardwareSynthesisCompleted {
+        synthesis_id: u64,
+        generated_modules: Vec<String>,
+        validation_passed: bool,
+        cross_domain_notifications: u32,
+    },
+}
+
+/// Clock impact on software (Phase 2)
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ClockImpactType {
+    /// No software changes needed
+    None,
+    /// Software timing assumptions may be affected
+    TimingAssumptions,
+    /// Software must be recompiled for new frequency
+    RecompilationRequired,
+    /// Software algorithms need adjustment
+    AlgorithmAdjustment,
 }
 
 /// Software change notifications
