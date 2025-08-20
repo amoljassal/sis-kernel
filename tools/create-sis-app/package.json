@@ -1,0 +1,33 @@
+{
+  "name": "create-sis-app",
+  "version": "1.0.0",
+  "description": "Create new SIS ecosystem applications with standardized template",
+  "main": "index.js",
+  "bin": {
+    "create-sis-app": "./bin/create-sis-app.js"
+  },
+  "keywords": [
+    "sis",
+    "template",
+    "app",
+    "ecosystem",
+    "saas"
+  ],
+  "author": "SIS Core Team",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^9.4.1",
+    "inquirer": "^8.2.5",
+    "fs-extra": "^11.1.0",
+    "ora": "^5.4.1",
+    "validate-npm-package-name": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sis-ecosystem/create-sis-app"
+  }
+}
