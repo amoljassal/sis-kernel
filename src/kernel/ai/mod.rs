@@ -37,6 +37,8 @@ pub mod rtl_safety;
 pub mod hardware_synthesis;
 pub mod eda_orchestration;
 pub mod yosys_driver;
+pub mod utils; // Utility functions for no-std environment
+pub mod safety_framework; // Phase 4: Production safety framework
 // Phase 3 modules - comprehensive validation and ecosystem integration
 pub mod validation_framework;
 pub mod hil_fpga_prototyping;
