@@ -51,7 +51,7 @@ pub trait AiEngine {
 }
 
 /// Model identifier for loaded AI models
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ModelId(pub u32);
 
 /// Tensor view for input data (immutable)
@@ -240,6 +240,20 @@ impl NumericalValidator {
         }
     }
 
+    /// Simple sqrt implementation for no_std environment
+    fn sqrt_f32(x: f32) -> f32 {
+        if x <= 0.0 {
+            return 0.0;
+        }
+        
+        // Newton-Raphson method for square root
+        let mut guess = x / 2.0;
+        for _ in 0..10 {
+            guess = (guess + x / guess) / 2.0;
+        }
+        guess
+    }
+
     /// Calculate cosine similarity between two vectors
     fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
         if a.is_empty() || b.is_empty() || a.len() != b.len() {
@@ -247,8 +261,8 @@ impl NumericalValidator {
         }
 
         let dot_product: f32 = a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum();
-        let norm_a: f32 = a.iter().map(|&x| x * x).sum::<f32>().sqrt();
-        let norm_b: f32 = b.iter().map(|&x| x * x).sum::<f32>().sqrt();
+        let norm_a: f32 = Self::sqrt_f32(a.iter().map(|&x| x * x).sum::<f32>());
+        let norm_b: f32 = Self::sqrt_f32(b.iter().map(|&x| x * x).sum::<f32>());
 
         if norm_a == 0.0 || norm_b == 0.0 {
             return 0.0;

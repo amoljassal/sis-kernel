@@ -28,6 +28,10 @@ pub mod property_tests;
 pub mod fault_injection;
 pub mod cfvs;
 pub mod chaos_engineering;
+pub mod dcon;
+pub mod cross_domain_sync;
+pub mod software_synthesis;
+pub mod natural_language;
 
 #[cfg(target_arch = "aarch64")]
 pub mod cognitive_scheduler_arm64;
@@ -97,6 +101,22 @@ pub fn init() -> Result<(), &'static str> {
         // Initialize chaos engineering framework
         chaos_engineering::init_chaos_engineering()?;
         serial::write_str("[ai] Chaos engineering framework initialized\n");
+
+        // Initialize Design Contract (DCON) system
+        dcon::init()?;
+        serial::write_str("[ai] Design Contract (DCON) system initialized\n");
+
+        // Initialize Cross-Domain Synchronization Engine
+        cross_domain_sync::init()?;
+        serial::write_str("[ai] Cross-Domain Synchronization Engine initialized\n");
+
+        // Initialize Software Synthesis Engine
+        software_synthesis::init()?;
+        serial::write_str("[ai] Software Synthesis Engine initialized\n");
+
+        // Initialize Natural Language Interface
+        natural_language::init()?;
+        serial::write_str("[ai] Natural Language Interface initialized\n");
 
         // Initialize ARM64 AI acceleration if available
         #[cfg(target_arch = "aarch64")]

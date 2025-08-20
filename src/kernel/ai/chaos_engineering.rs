@@ -335,11 +335,10 @@ impl DeterministicEventSimulator {
 
     /// Utility methods for random sampling
     fn sample_normal_latency(&mut self, jitter_us: u32) -> u32 {
-        // Simplified normal distribution using Box-Muller transform
+        // Simplified uniform distribution (avoids complex math in no_std)
         let u1 = (self.rng.next_u32() as f32) / (u32::MAX as f32);
-        let u2 = (self.rng.next_u32() as f32) / (u32::MAX as f32);
-        let z = (-2.0 * u1.ln()).sqrt() * (2.0 * 3.14159 * u2).cos();
-        ((z * (jitter_us as f32 / 4.0)).abs() as u32).min(jitter_us)
+        let jitter = (u1 * jitter_us as f32) as u32;
+        jitter.min(jitter_us)
     }
 
     fn sample_heavy_tail_latency(&mut self, jitter_us: u32) -> u32 {
@@ -527,8 +526,9 @@ impl SlaMonitor {
 
     pub fn record_latency(&mut self, latency_us: u32) {
         let index = self.window_index.load(Ordering::Relaxed) as usize;
-        self.recent_latencies[index % self.recent_latencies.len()] = latency_us;
-        self.window_index.store(((index + 1) % self.recent_latencies.len()) as u8, Ordering::Release);
+        let array_len = self.recent_latencies.len();
+        self.recent_latencies[index % array_len] = latency_us;
+        self.window_index.store(((index + 1) % array_len) as u8, Ordering::Release);
 
         if latency_us > self.latency_threshold_us {
             self.violation_count.fetch_add(1, Ordering::Relaxed);

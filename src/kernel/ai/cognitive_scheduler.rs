@@ -216,7 +216,7 @@ impl CognitiveScheduler {
     fn determine_cpu_affinity(&self, workload_type: WorkloadType) -> Option<u32> {
         match workload_type {
             // Real-time inference prefers performance cores
-            WorkloadType::Inference => Some(0), // Pin to CPU 0 (usually performance core)
+            WorkloadType::RealTimeInference => Some(0), // Pin to CPU 0 (usually performance core)
             // Training can use any available core
             WorkloadType::Training => None,
             // Preprocessing prefers efficiency cores if available

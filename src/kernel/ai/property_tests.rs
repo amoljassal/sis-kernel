@@ -266,7 +266,11 @@ impl PropertyTestGenerator {
             // Simulate INT8 quantization
             let scale = 127.0;
             let quantized: Vec<i8> = input.iter()
-                .map(|&x| ((x * scale).round() as i8).max(-127).min(127))
+                .map(|&x| {
+                    let scaled = x * scale;
+                    let rounded = if scaled >= 0.0 { scaled + 0.5 } else { scaled - 0.5 };
+                    (rounded as i8).max(-127).min(127)
+                })
                 .collect();
             
             let dequantized: Vec<f32> = quantized.iter()
@@ -351,8 +355,22 @@ impl PropertyTestGenerator {
         // Find max for numerical stability
         let max_val = input.iter().fold(f32::NEG_INFINITY, |acc, &x| acc.max(x));
         
+        // Simple exp approximation for no_std (Taylor series, limited range)
+        let exp_approx = |x: f32| -> f32 {
+            if x > 10.0 { return 22026.0; } // e^10 approximation
+            if x < -10.0 { return 0.0; }
+            let mut result = 1.0;
+            let mut term = 1.0;
+            for i in 1..10 {
+                term *= x / (i as f32);
+                result += term;
+                if term.abs() < 1e-6 { break; }
+            }
+            result
+        };
+        
         // Compute exp(x - max) and sum
-        let exp_values: Vec<f32> = input.iter().map(|&x| (x - max_val).exp()).collect();
+        let exp_values: Vec<f32> = input.iter().map(|&x| exp_approx(x - max_val)).collect();
         let sum: f32 = exp_values.iter().sum();
         
         // Normalize
