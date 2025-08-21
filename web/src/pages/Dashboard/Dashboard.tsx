@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '../../store/store'
 import { AutoScalingDashboard } from '../../components/AutoScalingDashboard'
 import { MultiModalAIInterface } from '../../components/MultiModalAIInterface'
+import GlobalInfrastructureDashboard from '../../components/GlobalInfrastructureDashboard'
 import { infrastructureIntegration } from '../../services/infrastructure-integration'
 import type { InfrastructureStatus } from '../../services/infrastructure-integration'
 import {
@@ -19,7 +20,8 @@ import {
   CpuChipIcon,
   PlusIcon,
   FolderOpenIcon,
-  ShoppingCartIcon
+  ShoppingCartIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline'
 
 const Dashboard: React.FC = () => {
@@ -32,6 +34,9 @@ const Dashboard: React.FC = () => {
   
   // AI interface state
   const [showAIInterface, setShowAIInterface] = useState(false)
+  
+  // Global infrastructure state
+  const [showGlobalInfrastructure, setShowGlobalInfrastructure] = useState(false)
   
   // Load infrastructure status
   useEffect(() => {
@@ -279,6 +284,18 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </button>
+            <button 
+              onClick={() => setShowGlobalInfrastructure(true)}
+              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-4 py-3 rounded-lg transition-colors text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <GlobeAltIcon className="w-5 h-5" />
+                <div>
+                  <div className="font-medium">Global Infrastructure</div>
+                  <div className="text-sm opacity-90">Multi-region deployment & CDN</div>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
         
@@ -374,6 +391,12 @@ const Dashboard: React.FC = () => {
           // You can integrate this with your designer state
           // For now, just log the generated code
         }}
+      />
+      
+      {/* Global Infrastructure Modal */}
+      <GlobalInfrastructureDashboard
+        isOpen={showGlobalInfrastructure}
+        onClose={() => setShowGlobalInfrastructure(false)}
       />
     </div>
   )
