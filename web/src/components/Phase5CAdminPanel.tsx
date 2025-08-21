@@ -5,7 +5,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { databaseScalingService, ScalingMetrics } from '../services/database-scaling';
+import { multiLayerCache } from '../services/redis-caching';
 import ScalingMonitoringDashboard from './ScalingMonitoringDashboard';
+import CacheMonitoringPanel from './CacheMonitoringPanel';
 
 interface Phase5CAdminPanelProps {
   className?: string;
@@ -14,16 +16,20 @@ interface Phase5CAdminPanelProps {
 export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className = '' }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showScalingDashboard, setShowScalingDashboard] = useState(false);
+  const [showCacheMonitoring, setShowCacheMonitoring] = useState(false);
   const [metrics, setMetrics] = useState<ScalingMetrics | null>(null);
   const [scalingStatus, setScalingStatus] = useState(databaseScalingService.getScalingStatus());
+  const [, setCacheStatus] = useState(multiLayerCache.getCacheStatus());
 
   // Update metrics every 5 seconds
   useEffect(() => {
     const updateMetrics = async () => {
       const currentMetrics = await databaseScalingService.getCurrentMetrics();
       const status = databaseScalingService.getScalingStatus();
+      const cacheInfo = multiLayerCache.getCacheStatus();
       setMetrics(currentMetrics);
       setScalingStatus(status);
+      setCacheStatus(cacheInfo);
     };
 
     updateMetrics();
@@ -47,8 +53,8 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <div className="bg-white bg-opacity-20 rounded-full p-2">
-                🚀
+              <div className="bg-white bg-opacity-20 rounded-full p-2 w-10 h-10 flex items-center justify-center">
+                <div className="w-4 h-4 bg-white rounded-sm"></div>
               </div>
               <div>
                 <h2 className="text-xl font-bold">Phase 5C: India Market Dominance</h2>
@@ -85,7 +91,7 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
             </div>
             <div className="bg-white bg-opacity-10 rounded-lg p-3">
               <div className="text-2xl font-bold">
-                {metrics?.cacheHitRate || 87}%
+                {multiLayerCache.getCacheMetrics().overall.hitRate.toFixed(1)}%
               </div>
               <div className="text-blue-100 text-sm">Cache Hit Rate</div>
             </div>
@@ -120,7 +126,13 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
                 onClick={() => setShowScalingDashboard(true)}
                 className="bg-white bg-opacity-20 hover:bg-opacity-30 rounded px-3 py-1 text-sm transition-colors"
               >
-                📊 Dashboard
+                Database
+              </button>
+              <button
+                onClick={() => setShowCacheMonitoring(true)}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 rounded px-3 py-1 text-sm transition-colors"
+              >
+                Cache
               </button>
             </div>
           </div>
@@ -132,7 +144,7 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Quick Actions */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">🎯 Quick Scaling Actions</h3>
+                <h3 className="text-lg font-semibold mb-3">Quick Scaling Actions</h3>
                 <div className="space-y-2">
                   <button
                     onClick={() => handleQuickScale(20000)}
@@ -163,7 +175,7 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
 
               {/* Infrastructure Health */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">🏗️ Infrastructure Health</h3>
+                <h3 className="text-lg font-semibold mb-3">Infrastructure Health</h3>
                 <div className="space-y-3">
                   <div className="bg-white bg-opacity-10 rounded-lg p-3">
                     <div className="flex justify-between items-center mb-2">
@@ -213,10 +225,10 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
 
             {/* Phase 5C Milestones */}
             <div className="mt-6 p-4 bg-white bg-opacity-10 rounded-lg">
-              <h3 className="text-lg font-semibold mb-3">🎯 Phase 5C Milestones</h3>
+              <h3 className="text-lg font-semibold mb-3">Phase 5C Milestones</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div>
-                  <h4 className="font-medium mb-2">✅ Completed</h4>
+                  <h4 className="font-medium mb-2 text-green-300">Completed</h4>
                   <ul className="space-y-1 text-blue-100">
                     <li>• India infrastructure foundation</li>
                     <li>• IIT/NIT partnerships (15 institutions)</li>
@@ -225,7 +237,7 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
                   </ul>
                 </div>
                 <div>
-                  <h4 className="font-medium mb-2">🔄 In Progress</h4>
+                  <h4 className="font-medium mb-2 text-yellow-300">In Progress</h4>
                   <ul className="space-y-1 text-yellow-200">
                     <li>• Scaling to 25,000+ users</li>
                     <li>• Component marketplace (INR)</li>
@@ -234,9 +246,9 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
                   </ul>
                 </div>
                 <div>
-                  <h4 className="font-medium mb-2">📋 Pending</h4>
+                  <h4 className="font-medium mb-2 text-gray-400">Pending</h4>
                   <ul className="space-y-1 text-gray-300">
-                    <li>• ₹25 Cr ARR achievement</li>
+                    <li>• INR 25 Cr ARR achievement</li>
                     <li>• Government partnerships</li>
                     <li>• 200+ Indian developers</li>
                     <li>• Industry recognition</li>
@@ -252,6 +264,12 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
       <ScalingMonitoringDashboard
         isVisible={showScalingDashboard}
         onClose={() => setShowScalingDashboard(false)}
+      />
+      
+      {/* Cache Monitoring Modal */}
+      <CacheMonitoringPanel
+        isVisible={showCacheMonitoring}
+        onClose={() => setShowCacheMonitoring(false)}
       />
     </>
   );
