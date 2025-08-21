@@ -6,8 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import { databaseScalingService, ScalingMetrics } from '../services/database-scaling';
 import { multiLayerCache } from '../services/redis-caching';
+import { webSocketInfrastructure } from '../services/websocket-infrastructure';
 import ScalingMonitoringDashboard from './ScalingMonitoringDashboard';
 import CacheMonitoringPanel from './CacheMonitoringPanel';
+import WebSocketMonitoringDashboard from './WebSocketMonitoringDashboard';
 
 interface Phase5CAdminPanelProps {
   className?: string;
@@ -17,9 +19,11 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
   const [isExpanded, setIsExpanded] = useState(false);
   const [showScalingDashboard, setShowScalingDashboard] = useState(false);
   const [showCacheMonitoring, setShowCacheMonitoring] = useState(false);
+  const [showWebSocketDashboard, setShowWebSocketDashboard] = useState(false);
   const [metrics, setMetrics] = useState<ScalingMetrics | null>(null);
   const [scalingStatus, setScalingStatus] = useState(databaseScalingService.getScalingStatus());
   const [, setCacheStatus] = useState(multiLayerCache.getCacheStatus());
+  const [webSocketMetrics, setWebSocketMetrics] = useState(webSocketInfrastructure.getMetrics());
 
   // Update metrics every 5 seconds
   useEffect(() => {
@@ -27,9 +31,11 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
       const currentMetrics = await databaseScalingService.getCurrentMetrics();
       const status = databaseScalingService.getScalingStatus();
       const cacheInfo = multiLayerCache.getCacheStatus();
+      const wsMetrics = webSocketInfrastructure.getMetrics();
       setMetrics(currentMetrics);
       setScalingStatus(status);
       setCacheStatus(cacheInfo);
+      setWebSocketMetrics(wsMetrics);
     };
 
     updateMetrics();
@@ -91,9 +97,9 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
             </div>
             <div className="bg-white bg-opacity-10 rounded-lg p-3">
               <div className="text-2xl font-bold">
-                {multiLayerCache.getCacheMetrics().overall.hitRate.toFixed(1)}%
+                {webSocketMetrics.activeConnections.toLocaleString()}
               </div>
-              <div className="text-blue-100 text-sm">Cache Hit Rate</div>
+              <div className="text-blue-100 text-sm">Active Connections</div>
             </div>
           </div>
 
@@ -133,6 +139,12 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
                 className="bg-white bg-opacity-20 hover:bg-opacity-30 rounded px-3 py-1 text-sm transition-colors"
               >
                 Cache
+              </button>
+              <button
+                onClick={() => setShowWebSocketDashboard(true)}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 rounded px-3 py-1 text-sm transition-colors"
+              >
+                WebSocket
               </button>
             </div>
           </div>
@@ -270,6 +282,12 @@ export const Phase5CAdminPanel: React.FC<Phase5CAdminPanelProps> = ({ className 
       <CacheMonitoringPanel
         isVisible={showCacheMonitoring}
         onClose={() => setShowCacheMonitoring(false)}
+      />
+      
+      {/* WebSocket Monitoring Modal */}
+      <WebSocketMonitoringDashboard
+        isVisible={showWebSocketDashboard}
+        onClose={() => setShowWebSocketDashboard(false)}
       />
     </>
   );
