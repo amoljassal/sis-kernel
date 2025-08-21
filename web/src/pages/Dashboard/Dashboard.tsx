@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '../../store/store'
 import { AutoScalingDashboard } from '../../components/AutoScalingDashboard'
+import { MultiModalAIInterface } from '../../components/MultiModalAIInterface'
 import { infrastructureIntegration } from '../../services/infrastructure-integration'
 import type { InfrastructureStatus } from '../../services/infrastructure-integration'
 import {
@@ -28,6 +29,9 @@ const Dashboard: React.FC = () => {
   // Auto-scaling dashboard state
   const [showAutoScalingDashboard, setShowAutoScalingDashboard] = useState(false)
   const [infrastructureStatus, setInfrastructureStatus] = useState<InfrastructureStatus | null>(null)
+  
+  // AI interface state
+  const [showAIInterface, setShowAIInterface] = useState(false)
   
   // Load infrastructure status
   useEffect(() => {
@@ -263,6 +267,18 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </button>
+            <button 
+              onClick={() => setShowAIInterface(true)}
+              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-3 rounded-lg transition-colors text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <CpuChipIcon className="w-5 h-5" />
+                <div>
+                  <div className="font-medium">AI Assistant</div>
+                  <div className="text-sm opacity-90">Voice, sketch & natural language design</div>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
         
@@ -347,6 +363,17 @@ const Dashboard: React.FC = () => {
       <AutoScalingDashboard
         isVisible={showAutoScalingDashboard}
         onClose={() => setShowAutoScalingDashboard(false)}
+      />
+      
+      {/* AI Interface Modal */}
+      <MultiModalAIInterface
+        isVisible={showAIInterface}
+        onClose={() => setShowAIInterface(false)}
+        onCodeGenerated={(code, explanation) => {
+          console.log('AI generated code:', { code, explanation });
+          // You can integrate this with your designer state
+          // For now, just log the generated code
+        }}
       />
     </div>
   )
