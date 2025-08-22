@@ -1,0 +1,45 @@
+# SIS AI-Lab ML Services Requirements
+# Educational Platform Traffic Prediction and AIOps
+
+# Core ML Libraries
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+joblib>=1.3.0
+
+# Time series and statistics
+holidays>=0.34
+
+# Async and concurrency
+asyncio-throttle>=1.0.2
+
+# Data validation and serialization
+pydantic>=2.0.0
+python-dateutil>=2.8.0
+
+# Logging and monitoring
+structlog>=23.0.0
+
+# Optional: Advanced ML (if needed)
+# xgboost>=1.7.0
+# lightgbm>=4.0.0
+# catboost>=1.2.0
+
+# Optional: Deep Learning (for advanced features)
+# tensorflow>=2.13.0
+# torch>=2.0.0
+
+# Development and testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# API and web framework (if exposing ML services via API)
+# fastapi>=0.100.0
+# uvicorn>=0.23.0
+
+# Database connectivity (if needed)
+# psycopg2-binary>=2.9.0  # PostgreSQL
+# redis>=4.6.0            # Redis cache

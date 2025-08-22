@@ -4,6 +4,7 @@ import type { RootState } from '../../store/store'
 import { AutoScalingDashboard } from '../../components/AutoScalingDashboard'
 import { MultiModalAIInterface } from '../../components/MultiModalAIInterface'
 import GlobalInfrastructureDashboard from '../../components/GlobalInfrastructureDashboard'
+import AutonomousOperationsDashboard from '../../components/AutonomousOperationsDashboard'
 import { infrastructureIntegration } from '../../services/infrastructure-integration'
 import type { InfrastructureStatus } from '../../services/infrastructure-integration'
 import {
@@ -37,6 +38,9 @@ const Dashboard: React.FC = () => {
   
   // Global infrastructure state
   const [showGlobalInfrastructure, setShowGlobalInfrastructure] = useState(false)
+  
+  // Autonomous operations state
+  const [showAutonomousOps, setShowAutonomousOps] = useState(false)
   
   // Load infrastructure status
   useEffect(() => {
@@ -296,6 +300,18 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </button>
+            <button 
+              onClick={() => setShowAutonomousOps(true)}
+              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-4 py-3 rounded-lg transition-colors text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <CpuChipIcon className="w-5 h-5" />
+                <div>
+                  <div className="font-medium">Autonomous Operations</div>
+                  <div className="text-sm opacity-90">AI-driven auto-scaling & incident response</div>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
         
@@ -397,6 +413,12 @@ const Dashboard: React.FC = () => {
       <GlobalInfrastructureDashboard
         isOpen={showGlobalInfrastructure}
         onClose={() => setShowGlobalInfrastructure(false)}
+      />
+      
+      {/* Autonomous Operations Modal */}
+      <AutonomousOperationsDashboard
+        isVisible={showAutonomousOps}
+        onClose={() => setShowAutonomousOps(false)}
       />
     </div>
   )
