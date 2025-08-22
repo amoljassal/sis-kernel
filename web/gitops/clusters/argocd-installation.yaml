@@ -1,0 +1,245 @@
+# ArgoCD Installation for SIS AI-Lab Production
+# Multi-AI Consultation Synthesized GitOps Setup
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    name: argocd
+    sis.platform/component: gitops
+    sis.platform/ai-consultation: all-four
+---
+# ArgoCD Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Educational platform optimizations (All 4 AIs emphasized performance)
+  server.insecure: "false"
+  server.grpc.web: "true"
+  server.enable.proxy.extension: "true"
+  
+  # Enhanced security for educational data (All 4 AIs emphasized security)
+  server.rbac.log.enforce.enable: "true"
+  server.log.level: "info"
+  server.log.format: "json"
+  
+  # Performance optimizations for global deployment (Grok's scalability focus)
+  repo.server.parallelism.limit: "10"
+  controller.operation.processors: "20"
+  controller.status.processors: "30"
+  controller.repo.server.timeout.seconds: "180"
+  
+  # Educational-specific settings (Claude's domain focus)
+  controller.self.heal.timeout.seconds: "300"  # 5 min for educational workloads
+  controller.app.resync: "60"  # 1 min sync for critical educational apps
+---
+# ArgoCD Server Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-server-config
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-server-config
+    app.kubernetes.io/part-of: argocd
+data:
+  # Global configuration
+  application.instanceLabelKey: argocd.argoproj.io/instance
+  
+  # Educational platform URL configuration
+  url: https://gitops.sis-ai-lab.com
+  
+  # OIDC configuration for educational institutions
+  oidc.config: |
+    name: SIS Educational SSO
+    issuer: https://auth.sis-ai-lab.com
+    clientId: argocd-sis
+    clientSecret: $oidc.sis.clientSecret
+    requestedScopes: ["openid", "profile", "email", "groups"]
+    requestedIDTokenClaims: {"groups": {"essential": true}}
+    
+  # Policy configuration for educational roles
+  policy.default: role:readonly
+  policy.csv: |
+    # Educational roles (All 4 AIs emphasized role-based access)
+    p, role:admin, applications, *, */*, allow
+    p, role:admin, clusters, *, *, allow
+    p, role:admin, repositories, *, *, allow
+    
+    # SRE role for production operations (ChatGPT's operational focus)
+    p, role:sre, applications, get, */*, allow
+    p, role:sre, applications, sync, */production, allow
+    p, role:sre, applications, action/rollback, */production, allow
+    p, role:sre, clusters, get, *, allow
+    
+    # Developer role for non-production (Gemini's development workflow)
+    p, role:developer, applications, get, */*, allow
+    p, role:developer, applications, sync, */development, allow
+    p, role:developer, applications, sync, */staging, allow
+    p, role:developer, repositories, get, *, allow
+    
+    # Educational staff role (Grok's educational focus)
+    p, role:educator, applications, get, */*, allow
+    p, role:educator, applications, action/restart, */*, allow
+    
+    # Group mappings for educational institutions
+    g, sis-admins, role:admin
+    g, sis-sre, role:sre
+    g, sis-developers, role:developer
+    g, sis-educators, role:educator
+    
+  # Resource inclusions for educational monitoring
+  resource.inclusions: |
+    - apiGroups:
+      - "argoproj.io"
+      kinds:
+      - "Rollout"
+      clusters:
+      - "*"
+    - apiGroups:
+      - "sis.platform"
+      kinds:
+      - "*"
+      clusters:
+      - "*"
+      
+  # Resource health checks for educational components
+  resource.customizations.health.argoproj.io_Rollout: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.replicas ~= nil and obj.status.updatedReplicas ~= nil and obj.status.readyReplicas ~= nil and obj.status.availableReplicas ~= nil then
+        if obj.status.replicas == obj.status.updatedReplicas and obj.status.replicas == obj.status.readyReplicas and obj.status.replicas == obj.status.availableReplicas then
+          hs.status = "Healthy"
+          hs.message = "Rollout is healthy"
+          return hs
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for rollout to complete"
+    return hs
+---
+# ArgoCD Projects for SIS Platform
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: sis-platform
+  namespace: argocd
+  labels:
+    sis.platform/project: main
+    sis.platform/ai-consultation: all-four
+spec:
+  description: SIS AI-Lab Educational Platform - Multi-AI Optimized
+  
+  # Source repositories (GitOps + All 4 AIs emphasized security)
+  sourceRepos:
+  - 'https://github.com/sis-ai-lab/gitops'
+  - 'https://github.com/sis-ai-lab/helm-charts'
+  - 'https://ghcr.io/sis-ai-lab/*'  # Container registry
+  
+  # Destination clusters and namespaces
+  destinations:
+  - namespace: 'sis-*'
+    server: https://kubernetes.default.svc
+  - namespace: 'monitoring'
+    server: https://kubernetes.default.svc
+  - namespace: 'istio-system'
+    server: https://kubernetes.default.svc
+    
+  # Cluster resource allowlist (Security-focused)
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+  - group: 'rbac.authorization.k8s.io'
+    kind: ClusterRole
+  - group: 'rbac.authorization.k8s.io'
+    kind: ClusterRoleBinding
+  - group: 'networking.istio.io'
+    kind: Gateway
+  - group: 'security.istio.io'
+    kind: PeerAuthentication
+  - group: 'install.istio.io'
+    kind: IstioOperator
+    
+  # Namespace resource allowlist (Educational platform resources)
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+    
+  # Educational-specific policies (All 4 AIs emphasized data protection)
+  roles:
+  - name: educational-operator
+    description: Educational platform operations
+    policies:
+    - p, proj:sis-platform:educational-operator, applications, get, sis-platform/*, allow
+    - p, proj:sis-platform:educational-operator, applications, sync, sis-platform/*, allow
+    - p, proj:sis-platform:educational-operator, applications, action/rollback, sis-platform/production, allow
+    groups:
+    - sis-educators
+    - sis-sre
+    
+  # Sync windows for educational safety (Grok's academic schedule awareness)
+  syncWindows:
+  - kind: allow
+    schedule: '0 2-4 * * 1-5'  # 2-4 AM on weekdays (minimal student impact)
+    duration: 2h
+    applications:
+    - 'sis-platform-production'
+    manualSync: true
+    
+  - kind: deny
+    schedule: '0 8-18 * * 1-5'  # Block syncs during school hours
+    duration: 10h
+    applications:
+    - 'sis-platform-production'
+    manualSync: false
+    
+  # Signature keys for security (All 4 AIs emphasized security)
+  signatureKeys:
+  - keyID: 'sis-platform-gpg-key'
+---
+# ArgoCD Application of Applications (App-of-Apps pattern)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sis-platform-apps
+  namespace: argocd
+  labels:
+    sis.platform/app-of-apps: "true"
+    sis.platform/ai-consultation: all-four
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: sis-platform
+  
+  source:
+    repoURL: https://github.com/sis-ai-lab/gitops
+    targetRevision: HEAD
+    path: applications
+    
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+    
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    
+  # Ignore differences in managed fields
+  ignoreDifferences:
+  - group: argoproj.io
+    kind: Application
+    jsonPointers:
+    - /status
+    - /metadata/managedFields

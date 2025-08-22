@@ -1,0 +1,260 @@
+# Educational Health Check Analysis Template
+# Multi-AI Synthesized Health Validation for Educational Platform
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: educational-health-check
+  namespace: sis-production
+  labels:
+    sis.platform/analysis-type: educational-health
+    sis.platform/ai-consultation: all-four
+  annotations:
+    sis.platform/gemini: "Multi-level caching performance validation"
+    sis.platform/chatgpt: "Systematic health metrics and thresholds"
+    sis.platform/claude: "Educational impact assessment"
+    sis.platform/grok: "Academic-specific performance indicators"
+spec:
+  args:
+  - name: service-name
+    value: sis-api-preview
+  - name: duration
+    value: 5m
+  - name: student-impact-threshold
+    value: "0.01"
+    
+  metrics:
+  # Student success rate (All 4 AIs emphasized student impact)
+  - name: student-success-rate
+    successCondition: result[0] >= 0.995  # 99.5% success rate required
+    failureLimit: 2
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_student_requests_success_total{service="{{args.service-name}}"}[2m])) /
+          sum(rate(sis_student_requests_total{service="{{args.service-name}}"}[2m]))
+          
+  # AI response latency (Gemini's performance focus)
+  - name: ai-response-latency-p95
+    successCondition: result[0] <= 200  # Max 200ms P95 latency
+    failureLimit: 3
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          histogram_quantile(0.95, 
+            sum(rate(sis_ai_response_duration_seconds_bucket{service="{{args.service-name}}"}[2m])) by (le)
+          ) * 1000
+          
+  # AI response latency (Claude's intelligent thresholds)
+  - name: ai-response-latency-p99
+    successCondition: result[0] <= 500  # Max 500ms P99 latency
+    failureLimit: 2
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          histogram_quantile(0.99, 
+            sum(rate(sis_ai_response_duration_seconds_bucket{service="{{args.service-name}}"}[2m])) by (le)
+          ) * 1000
+          
+  # Collaboration sync health (All 4 AIs valued real-time collaboration)
+  - name: collaboration-sync-success
+    successCondition: result[0] >= 0.98  # 98% CRDT sync success
+    failureLimit: 2
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_crdt_sync_success_total{service="{{args.service-name}}"}[2m])) /
+          sum(rate(sis_crdt_sync_total{service="{{args.service-name}}"}[2m]))
+          
+  # Memory usage (ChatGPT's resource optimization)
+  - name: memory-usage
+    successCondition: result[0] <= 0.85  # Max 85% memory usage
+    failureLimit: 3
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          avg(container_memory_usage_bytes{pod=~"{{args.service-name}}-.*"}) /
+          avg(container_spec_memory_limit_bytes{pod=~"{{args.service-name}}-.*"})
+          
+  # CPU usage (All 4 AIs emphasized efficiency)
+  - name: cpu-usage
+    successCondition: result[0] <= 0.80  # Max 80% CPU usage
+    failureLimit: 3
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          avg(rate(container_cpu_usage_seconds_total{pod=~"{{args.service-name}}-.*"}[2m])) /
+          avg(container_spec_cpu_quota{pod=~"{{args.service-name}}-.*"} / container_spec_cpu_period{pod=~"{{args.service-name}}-.*"})
+          
+  # Error rate (All 4 AIs agreed on reliability)
+  - name: error-rate
+    successCondition: result[0] <= 0.005  # Max 0.5% error rate
+    failureLimit: 2
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_http_requests_total{service="{{args.service-name}}",status=~"5.."}[2m])) /
+          sum(rate(sis_http_requests_total{service="{{args.service-name}}"}[2m]))
+          
+  # Database connection health (ChatGPT's systematic checks)
+  - name: database-connection-success
+    successCondition: result[0] >= 0.99  # 99% DB connection success
+    failureLimit: 2
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_database_connections_success_total{service="{{args.service-name}}"}[2m])) /
+          sum(rate(sis_database_connections_total{service="{{args.service-name}}"}[2m]))
+          
+  # WebSocket connection stability (Grok's real-time focus)
+  - name: websocket-connection-stability
+    successCondition: result[0] >= 0.95  # 95% WebSocket stability
+    failureLimit: 3
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_websocket_connections_active{service="{{args.service-name}}"}[2m])) /
+          sum(rate(sis_websocket_connections_total{service="{{args.service-name}}"}[2m]))
+          
+  # Cache hit rate (Gemini's caching emphasis)
+  - name: cache-hit-rate
+    successCondition: result[0] >= 0.85  # 85% cache hit rate minimum
+    failureLimit: 3
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_cache_hits_total{service="{{args.service-name}}"}[2m])) /
+          sum(rate(sis_cache_requests_total{service="{{args.service-name}}"}[2m]))
+          
+  # Educational engagement score (Grok's academic metrics)
+  - name: student-engagement-score
+    successCondition: result[0] >= 0.80  # 80% engagement minimum
+    failureLimit: 3
+    interval: 60s  # Longer interval for engagement metrics
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          avg(sis_student_engagement_score{service="{{args.service-name}}"})
+          
+  # Concurrent student capacity (All 4 AIs emphasized scalability)
+  - name: concurrent-student-capacity
+    successCondition: result[0] >= 0.70  # 70% of max capacity available
+    failureLimit: 2
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          1 - (
+            sum(sis_concurrent_students{service="{{args.service-name}}"}) /
+            sum(sis_max_student_capacity{service="{{args.service-name}}"})
+          )
+          
+  # Data consistency check (Claude's reliability focus)
+  - name: data-consistency
+    successCondition: result[0] >= 0.999  # 99.9% data consistency
+    failureLimit: 1  # Zero tolerance for data issues
+    interval: 60s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_data_consistency_checks_success_total{service="{{args.service-name}}"}[2m])) /
+          sum(rate(sis_data_consistency_checks_total{service="{{args.service-name}}"}[2m]))
+---
+# Student Experience Validation Template
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: student-experience-validation
+  namespace: sis-production
+  labels:
+    sis.platform/analysis-type: student-experience
+    sis.platform/ai-consultation: all-four
+spec:
+  args:
+  - name: service-name
+    value: sis-api-active
+  - name: duration
+    value: 10m
+  - name: success-rate-threshold
+    value: "0.995"
+    
+  metrics:
+  # End-to-end user journey success (All 4 AIs emphasized UX)
+  - name: user-journey-success
+    successCondition: result[0] >= 0.995
+    failureLimit: 2
+    interval: 60s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_user_journey_success_total{service="{{args.service-name}}"}[5m])) /
+          sum(rate(sis_user_journey_total{service="{{args.service-name}}"}[5m]))
+          
+  # Learning session completion rate (Grok's educational focus)
+  - name: learning-session-completion
+    successCondition: result[0] >= 0.90
+    failureLimit: 3
+    interval: 60s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_learning_sessions_completed_total{service="{{args.service-name}}"}[5m])) /
+          sum(rate(sis_learning_sessions_started_total{service="{{args.service-name}}"}[5m]))
+          
+  # Collaboration feature usage (Claude's collaboration emphasis)
+  - name: collaboration-feature-success
+    successCondition: result[0] >= 0.95
+    failureLimit: 2
+    interval: 60s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_collaboration_actions_success_total{service="{{args.service-name}}"}[5m])) /
+          sum(rate(sis_collaboration_actions_total{service="{{args.service-name}}"}[5m]))
+          
+  # AI tutor interaction quality (All 4 AIs valued AI features)
+  - name: ai-tutor-satisfaction
+    successCondition: result[0] >= 4.0  # 4.0/5.0 satisfaction score
+    failureLimit: 3
+    interval: 120s  # Longer interval for satisfaction metrics
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          avg(sis_ai_tutor_satisfaction_score{service="{{args.service-name}}"})
+          
+  # No student data loss (Highest priority - All 4 AIs emphasized)
+  - name: data-loss-prevention
+    successCondition: result[0] == 0  # Zero data loss tolerance
+    failureLimit: 1
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(increase(sis_data_loss_incidents_total{service="{{args.service-name}}"}[2m]))

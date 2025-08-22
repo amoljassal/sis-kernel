@@ -1,0 +1,80 @@
+# AI Gateway Services for Blue-Green Deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: sis-ai-gateway-active
+  namespace: sis-production
+  labels:
+    app: sis-ai-gateway
+    sis.platform/service-type: active
+spec:
+  selector:
+    app: sis-ai-gateway
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  - name: metrics
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sis-ai-gateway-preview
+  namespace: sis-production
+  labels:
+    app: sis-ai-gateway
+    sis.platform/service-type: preview
+spec:
+  selector:
+    app: sis-ai-gateway
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  - name: metrics
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sis-ai-gateway
+  namespace: sis-production
+  labels:
+    app: sis-ai-gateway
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: sis-ai-gateway
+  namespace: sis-production
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: sis-ai-gateway
+  namespace: sis-production
+subjects:
+- kind: ServiceAccount
+  name: sis-ai-gateway
+  namespace: sis-production
+roleRef:
+  kind: Role
+  name: sis-ai-gateway
+  apiGroup: rbac.authorization.k8s.io

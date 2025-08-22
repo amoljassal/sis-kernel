@@ -1,0 +1,72 @@
+# ArgoCD Application - SIS AI-Lab Main Application
+# Implements multi-AI consultation recommendations
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sis-ai-lab
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: sis-ai-lab
+    app.kubernetes.io/part-of: sis-platform
+    sis.platform/consultant-synthesis: "gemini-chatgpt-claude-grok"
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+    sis.platform/deployment-strategy: "blue-green"
+    sis.platform/educational-critical: "true"
+spec:
+  project: sis-platform
+  
+  # Source configuration (GitOps)
+  source:
+    repoURL: https://github.com/sis-ai-lab/gitops
+    targetRevision: HEAD
+    path: environments/production
+    
+  # Destination cluster
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sis-production
+    
+  # Sync policy (Gemini + ChatGPT recommendation)
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - PruneLast=true
+    - RespectIgnoreDifferences=true
+    - ApplyOutOfSyncOnly=true
+    
+    # Educational safety measures (All 4 AIs emphasized)
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 10m
+        
+  # Health checks and validation
+  ignoreDifferences:
+  - group: apps
+    kind: Deployment
+    jsonPointers:
+    - /spec/replicas
+  - group: argoproj.io
+    kind: Rollout
+    jsonPointers:
+    - /spec/replicas
+    
+  # Educational platform specific configurations
+  revisionHistoryLimit: 10  # Keep history for rollbacks
+  
+  # Multi-cluster sync (Grok's global emphasis)
+  info:
+  - name: 'Multi-AI Consultation'
+    value: 'Synthesized from Gemini, ChatGPT, Claude, and Grok'
+  - name: 'Educational Focus'
+    value: 'Optimized for 25,000+ concurrent students'
+  - name: 'Deployment Strategy'
+    value: 'Blue-Green with educational safety checks'

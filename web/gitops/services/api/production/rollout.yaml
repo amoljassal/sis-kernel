@@ -1,0 +1,194 @@
+# Argo Rollout for SIS API - Blue-Green Deployment
+# Synthesized from all 4 AI consultants' recommendations
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: sis-api
+  namespace: sis-production
+  labels:
+    app: sis-api
+    version: v7.0.0
+    sis.platform/service: api
+    sis.platform/deployment-strategy: blue-green
+    sis.platform/ai-consultation: all-four
+  annotations:
+    sis.platform/gemini: "GitOps-driven Blue-Green deployment"
+    sis.platform/chatgpt: "Systematic health checks and validation"
+    sis.platform/claude: "Intelligent deployment orchestration"
+    sis.platform/grok: "Educational-specific safety measures"
+spec:
+  # Production scale (All 4 AIs agreed on high availability)
+  replicas: 10
+  
+  # Blue-Green strategy (Unanimous AI recommendation)
+  strategy:
+    blueGreen:
+      # Service configuration
+      activeService: sis-api-active
+      previewService: sis-api-preview
+      
+      # Educational safety (All 4 AIs emphasized student impact)
+      autoPromotionEnabled: false  # Manual approval for education-critical changes
+      scaleDownDelaySeconds: 300   # 5-minute buffer for emergency rollback
+      
+      # Pre-promotion analysis (Claude's intelligent validation)
+      prePromotionAnalysis:
+        templates:
+        - templateName: educational-health-check
+        args:
+        - name: service-name
+          value: sis-api-preview
+        - name: duration
+          value: 5m
+        - name: student-impact-threshold
+          value: "0.01"  # Max 1% student impact tolerated
+          
+      # Post-promotion analysis (Gemini's monitoring emphasis)
+      postPromotionAnalysis:
+        templates:
+        - templateName: student-experience-validation
+        args:
+        - name: service-name
+          value: sis-api-active
+        - name: duration
+          value: 10m
+        - name: success-rate-threshold
+          value: "0.995"  # 99.5% success rate required
+          
+      # Progressive traffic shifting (ChatGPT's systematic approach)
+      previewReplicaCount: 3    # Start with smaller preview
+      
+  # Pod template
+  selector:
+    matchLabels:
+      app: sis-api
+      
+  template:
+    metadata:
+      labels:
+        app: sis-api
+        version: v7.0.0
+        sis.platform/service: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Educational optimizations (Grok's domain expertise)
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - sis-api
+              topologyKey: kubernetes.io/hostname
+              
+      containers:
+      - name: api
+        image: sis-ai-lab/api:v7.0.0-production
+        
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        - name: metrics
+          containerPort: 8080
+          protocol: TCP
+          
+        # Environment variables for production
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: MAX_CONCURRENT_STUDENTS
+          value: "100000"
+        - name: AI_GATEWAY_ENABLED
+          value: "true"
+        - name: EDUCATIONAL_MODE
+          value: "true"
+        - name: MULTI_AI_FEATURES
+          value: "gemini,chatgpt,claude,grok"
+          
+        # Resource requirements (All 4 AIs emphasized performance)
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+            
+        # Educational-specific health checks (All 4 AIs contributed)
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+          
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+          
+        # Startup probe for educational workloads
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30  # Allow 5 minutes for startup
+          
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+            
+        # Volume mounts for educational data
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/cache
+          
+      # Volumes
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir:
+          sizeLimit: 1Gi
+          
+      # Service account for educational permissions
+      serviceAccountName: sis-api
+      
+      # Termination grace period (educational safety)
+      terminationGracePeriodSeconds: 60
+      
+  # Revision history for rollbacks
+  revisionHistoryLimit: 10
+  
+  # Progress deadline (ChatGPT's systematic approach)
+  progressDeadlineSeconds: 600  # 10 minutes max deployment time

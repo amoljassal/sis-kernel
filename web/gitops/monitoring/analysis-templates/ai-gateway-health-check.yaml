@@ -1,0 +1,136 @@
+# AI Gateway Health Check Analysis Template
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: ai-gateway-health-check
+  namespace: sis-production
+  labels:
+    sis.platform/analysis-type: ai-gateway-health
+spec:
+  args:
+  - name: service-name
+    value: sis-ai-gateway-preview
+  - name: duration
+    value: 5m
+    
+  metrics:
+  # AI Gateway response time
+  - name: ai-gateway-latency-p95
+    successCondition: result[0] <= 150
+    failureLimit: 3
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          histogram_quantile(0.95, 
+            sum(rate(sis_ai_gateway_request_duration_seconds_bucket{service="{{args.service-name}}"}[2m])) by (le)
+          ) * 1000
+          
+  # Circuit breaker health
+  - name: circuit-breaker-health
+    successCondition: result[0] <= 0.05
+    failureLimit: 2
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_ai_gateway_circuit_breaker_open_total{service="{{args.service-name}}"}[2m])) /
+          sum(rate(sis_ai_gateway_requests_total{service="{{args.service-name}}"}[2m]))
+          
+  # Model quantization performance
+  - name: quantization-speedup
+    successCondition: result[0] >= 1.3
+    failureLimit: 3
+    interval: 60s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          avg(sis_ai_gateway_quantization_speedup{service="{{args.service-name}}"})
+          
+  # Cache hit rate
+  - name: cache-hit-rate
+    successCondition: result[0] >= 0.85
+    failureLimit: 3
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_ai_gateway_cache_hits_total{service="{{args.service-name}}"}[2m])) /
+          sum(rate(sis_ai_gateway_cache_requests_total{service="{{args.service-name}}"}[2m]))
+          
+  # Error rate
+  - name: error-rate
+    successCondition: result[0] <= 0.01
+    failureLimit: 2
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          sum(rate(sis_ai_gateway_errors_total{service="{{args.service-name}}"}[2m])) /
+          sum(rate(sis_ai_gateway_requests_total{service="{{args.service-name}}"}[2m]))
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: ai-performance-validation
+  namespace: sis-production
+  labels:
+    sis.platform/analysis-type: ai-performance
+spec:
+  args:
+  - name: service-name
+    value: sis-ai-gateway-active
+  - name: duration
+    value: 10m
+    
+  metrics:
+  # AI model accuracy
+  - name: ai-model-accuracy
+    successCondition: result[0] >= 0.95
+    failureLimit: 2
+    interval: 60s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          avg(sis_ai_gateway_model_accuracy{service="{{args.service-name}}"})
+          
+  # Token cost efficiency
+  - name: token-cost-efficiency
+    successCondition: result[0] <= 100
+    failureLimit: 3
+    interval: 60s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          rate(sis_ai_gateway_token_cost_total{service="{{args.service-name}}"}[5m]) * 3600
+          
+  # Concurrent request handling
+  - name: concurrent-requests
+    successCondition: result[0] >= 0.90
+    failureLimit: 3
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          avg(sis_ai_gateway_concurrent_requests{service="{{args.service-name}}"}) /
+          avg(sis_ai_gateway_max_concurrent_requests{service="{{args.service-name}}"})
+          
+  # Memory usage efficiency
+  - name: memory-efficiency
+    successCondition: result[0] <= 0.80
+    failureLimit: 3
+    interval: 30s
+    provider:
+      prometheus:
+        address: http://prometheus:9090
+        query: |
+          avg(container_memory_usage_bytes{pod=~"{{args.service-name}}-.*"}) /
+          avg(container_spec_memory_limit_bytes{pod=~"{{args.service-name}}-.*"})

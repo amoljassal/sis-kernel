@@ -1,0 +1,106 @@
+# AI Gateway Blue-Green Rollout Configuration
+# Production-grade deployment for educational platform
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: sis-ai-gateway
+  namespace: sis-production
+  labels:
+    app: sis-ai-gateway
+    version: v7.0.0
+    sis.platform/service: ai-gateway
+    sis.platform/deployment-strategy: blue-green
+spec:
+  replicas: 8
+  strategy:
+    blueGreen:
+      activeService: sis-ai-gateway-active
+      previewService: sis-ai-gateway-preview
+      autoPromotionEnabled: false
+      scaleDownDelaySeconds: 300
+      prePromotionAnalysis:
+        templates:
+        - templateName: ai-gateway-health-check
+        args:
+        - name: service-name
+          value: sis-ai-gateway-preview
+        - name: duration
+          value: 5m
+      postPromotionAnalysis:
+        templates:
+        - templateName: ai-performance-validation
+        args:
+        - name: service-name
+          value: sis-ai-gateway-active
+        - name: duration
+          value: 10m
+  selector:
+    matchLabels:
+      app: sis-ai-gateway
+  template:
+    metadata:
+      labels:
+        app: sis-ai-gateway
+        version: v7.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - sis-ai-gateway
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: ai-gateway
+        image: sis-ai-lab/ai-gateway:v7.0.0-production
+        ports:
+        - name: http
+          containerPort: 8000
+        - name: metrics
+          containerPort: 8080
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: AI_MODELS_ENABLED
+          value: "gemini,chatgpt,claude,grok"
+        - name: QUANTIZATION_ENABLED
+          value: "true"
+        - name: CIRCUIT_BREAKER_ENABLED
+          value: "true"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+      serviceAccountName: sis-ai-gateway
+      terminationGracePeriodSeconds: 60
+  revisionHistoryLimit: 10
