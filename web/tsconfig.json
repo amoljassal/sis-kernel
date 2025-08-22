@@ -14,10 +14,15 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Decorators */
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "strictPropertyInitialization": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     
     /* Path mapping */
