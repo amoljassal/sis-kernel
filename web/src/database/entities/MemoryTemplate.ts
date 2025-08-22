@@ -29,10 +29,10 @@ export class MemoryTemplate {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     userId: number;
 
-    @Column({ length: 200 })
+    @Column({ type: 'varchar', length: 200 })
     name: string;
 
     @Column({
@@ -53,7 +53,7 @@ export class MemoryTemplate {
     @Column({ type: 'text', nullable: true })
     defaultContent?: string;
 
-    @Column({ default: true })
+    @Column({ type: 'boolean', default: true })
     isActive: boolean;
 
     @CreateDateColumn()

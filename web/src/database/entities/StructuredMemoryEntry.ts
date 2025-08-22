@@ -23,14 +23,14 @@ export class StructuredMemoryEntry {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     @Index()
     userId: number;
 
-    @Column()
+    @Column({ type: 'int' })
     templateId: number;
 
-    @Column({ length: 500 })
+    @Column({ type: 'varchar', length: 500 })
     title: string;
 
     @Column({ type: 'json', default: () => "'{}'" })
@@ -42,7 +42,7 @@ export class StructuredMemoryEntry {
     @Column({ type: 'json', default: () => "'[]'" })
     extractedConcepts: string[];
 
-    @Column({ nullable: true })
+    @Column({ type: 'int', nullable: true })
     sourceDocumentId?: number;
 
     @CreateDateColumn()

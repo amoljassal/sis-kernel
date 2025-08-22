@@ -16,21 +16,21 @@ export class PersonalKnowledgeGraph {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({ unique: true })
+    @Column({ type: 'int', unique: true })
     @Index()
     userId: number;
 
     // Graph statistics
-    @Column({ default: 0 })
+    @Column({ type: 'int', default: 0 })
     totalDocuments: number;
 
-    @Column({ default: 0 })
+    @Column({ type: 'int', default: 0 })
     totalChunks: number;
 
-    @Column({ default: 0 })
+    @Column({ type: 'int', default: 0 })
     totalConcepts: number;
 
-    @Column({ default: 0 })
+    @Column({ type: 'int', default: 0 })
     totalRelationships: number;
 
     // Learning metrics
@@ -44,10 +44,10 @@ export class PersonalKnowledgeGraph {
     graphDensity: number;
 
     // Processing status
-    @Column({ nullable: true })
+    @Column({ type: 'datetime', nullable: true })
     lastFullReindex?: Date;
 
-    @Column({ length: 100, nullable: true })
+    @Column({ type: 'varchar', length: 100, nullable: true })
     embeddingModelVersion?: string;
 
     @UpdateDateColumn()

@@ -33,10 +33,10 @@ export class ConceptRelationship {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     fromConceptId: number;
 
-    @Column()
+    @Column({ type: 'int' })
     toConceptId: number;
 
     @Column({

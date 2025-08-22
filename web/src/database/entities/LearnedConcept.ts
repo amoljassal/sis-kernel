@@ -27,11 +27,11 @@ export class LearnedConcept {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     @Index()
     userId: number;
 
-    @Column({ length: 300 })
+    @Column({ type: 'varchar', length: 300 })
     name: string;
 
     @Column({ type: 'text' })
@@ -55,7 +55,7 @@ export class LearnedConcept {
     @UpdateDateColumn()
     lastReinforced: Date;
 
-    @Column({ default: 1 })
+    @Column({ type: 'int', default: 1 })
     encounterCount: number;
 
     // Relationships

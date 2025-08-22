@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import { Home, Zap, CheckCircle, Cpu, ShoppingCart, Settings, Brain, Beaker } from 'lucide-react'
 import type { RootState } from '../../store/store'
 
 interface LayoutProps {
@@ -14,12 +15,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { collaborators, isEnabled } = useSelector((state: RootState) => state.collaboration)
   
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: '🏠' },
-    { path: '/design', label: 'Designer', icon: '⚡' },
-    { path: '/validate', label: 'Validator', icon: '✅' },
-    { path: '/hardware', label: 'Hardware', icon: '🔧' },
-    { path: '/marketplace', label: 'Marketplace', icon: '🛒' },
-    { path: '/settings', label: 'Settings', icon: '⚙️' },
+    { path: '/', label: 'Dashboard', icon: Home },
+    { path: '/design', label: 'Designer', icon: Zap },
+    { path: '/validate', label: 'Validator', icon: CheckCircle },
+    { path: '/hardware', label: 'Hardware', icon: Cpu },
+    { path: '/marketplace', label: 'Marketplace', icon: ShoppingCart },
+    { path: '/settings', label: 'Settings', icon: Settings },
+    { path: '/training', label: 'Training Lab', icon: Beaker },
   ]
   
   const getSafetyColor = () => {
@@ -84,6 +86,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <ul className="space-y-2">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path
+              const IconComponent = item.icon
               return (
                 <li key={item.path}>
                   <Link
@@ -94,7 +97,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         : 'text-sis-gray-300 hover:bg-sis-gray-700 hover:text-white'
                     }`}
                   >
-                    <span className="text-lg">{item.icon}</span>
+                    <IconComponent className="h-5 w-5" />
                     <span className="font-medium">{item.label}</span>
                   </Link>
                 </li>

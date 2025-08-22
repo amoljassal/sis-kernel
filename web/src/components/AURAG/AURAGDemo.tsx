@@ -4,10 +4,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { AURAG, UnifiedRAGService, RAGResponse, DocumentProcessingResult } from '../../services/aurag';
+import { AURAG } from '../../services/aurag';
+import type { BrowserRAGService, RAGResponse, DocumentProcessingResult } from '../../services/aurag';
 
-export const AURAGDemo: React.FC = () => {
-    const [ragService, setRagService] = useState<UnifiedRAGService | null>(null);
+const AURAGDemo: React.FC = () => {
+    const [ragService, setRagService] = useState<BrowserRAGService | null>(null);
     const [initialized, setInitialized] = useState(false);
     const [loading, setLoading] = useState(false);
     
@@ -25,20 +26,25 @@ export const AURAGDemo: React.FC = () => {
     const initializeRAG = async () => {
         try {
             setLoading(true);
+            console.log('Starting AURAG initialization...');
             
-            // Create RAG service with development config
+            // Check if AURAG is available
+            if (!AURAG || !AURAG.createService) {
+                throw new Error('AURAG service factory not available');
+            }
+            
+            console.log('Creating AURAG service...');
             const service = AURAG.createService(AURAG.configs.development);
             
-            // Initialize the service
-            const success = await service.initialize();
-            
-            if (success) {
-                setRagService(service);
-                setInitialized(true);
-                console.log('AURAG service initialized successfully');
-            } else {
-                console.error('Failed to initialize AURAG service');
+            if (!service) {
+                throw new Error('Failed to create AURAG service');
             }
+            
+            // For now, skip database initialization in browser
+            // TODO: Implement browser-compatible storage
+            console.log('AURAG service created (using mock mode for browser)');
+            setRagService(service);
+            setInitialized(true);
             
         } catch (error) {
             console.error('Error initializing AURAG:', error);
@@ -56,10 +62,7 @@ export const AURAGDemo: React.FC = () => {
             const result = await ragService.processDocument(
                 1, // userId - in real app this would come from auth
                 documentTitle,
-                documentContent,
-                'text',
-                'User',
-                { tags: ['demo'] }
+                documentContent
             );
 
             setProcessingResult(result);
@@ -86,8 +89,7 @@ export const AURAGDemo: React.FC = () => {
             const result = await ragService.processRAGQuery(
                 1, // userId
                 query,
-                'analytical', // philosophical lens
-                8 // max context items
+                'analytical' // philosophical lens
             );
 
             setResponse(result);
@@ -312,3 +314,5 @@ export const AURAGDemo: React.FC = () => {
         </div>
     );
 };
+
+export default AURAGDemo;

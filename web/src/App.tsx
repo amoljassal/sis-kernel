@@ -13,6 +13,9 @@ const Hardware = React.lazy(() => import('./pages/Hardware/Hardware'))
 const Marketplace = React.lazy(() => import('./pages/Marketplace/Marketplace'))
 const Settings = React.lazy(() => import('./pages/Settings/Settings'))
 
+// AURAG and MLX components - Emergency fix: Remove AURAG route temporarily
+const TrainingInterface = React.lazy(() => import('./components/MLX/TrainingInterface'))
+
 function App() {
   const dispatch = useDispatch()
   
@@ -65,6 +68,7 @@ function App() {
               <Route path="/hardware" element={<Hardware />} />
               <Route path="/marketplace" element={<Marketplace />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/training" element={<TrainingInterface />} />
             </Routes>
           </Suspense>
         </Layout>

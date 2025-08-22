@@ -38,26 +38,26 @@ export class DocumentChunk {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     @Index()
     documentId: number;
 
-    @Column()
+    @Column({ type: 'int' })
     chunkIndex: number;
 
     @Column({ type: 'text' })
     content: string;
 
-    @Column({ length: 64, unique: true })
+    @Column({ type: 'varchar', length: 64, unique: true })
     contentHash: string;
 
-    @Column()
+    @Column({ type: 'int' })
     tokenCount: number;
 
-    @Column()
+    @Column({ type: 'int' })
     startChar: number;
 
-    @Column()
+    @Column({ type: 'int' })
     endChar: number;
 
     @Column({
@@ -74,13 +74,13 @@ export class DocumentChunk {
     })
     complexity: ComplexityLevel;
 
-    @Column({ length: 300, nullable: true })
+    @Column({ type: 'varchar', length: 300, nullable: true })
     sectionTitle?: string;
 
     @Column({ type: 'json', nullable: true })
     embedding?: number[];
 
-    @Column({ length: 100, nullable: true })
+    @Column({ type: 'varchar', length: 100, nullable: true })
     embeddingModel?: string;
 
     @CreateDateColumn()

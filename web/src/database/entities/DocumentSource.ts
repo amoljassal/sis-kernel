@@ -39,11 +39,11 @@ export class DocumentSource {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     @Index()
     userId: number;
 
-    @Column({ length: 500 })
+    @Column({ type: 'varchar', length: 500 })
     title: string;
 
     @Column({
@@ -53,19 +53,19 @@ export class DocumentSource {
     })
     sourceType: SourceType;
 
-    @Column({ length: 300, nullable: true })
+    @Column({ type: 'varchar', length: 300, nullable: true })
     author?: string;
 
     @Column({ type: 'text', nullable: true })
     originalPath?: string;
 
-    @Column({ nullable: true })
+    @Column({ type: 'text', nullable: true })
     url?: string;
 
     @Column({ type: 'text' })
     content: string;
 
-    @Column({ length: 64, unique: true })
+    @Column({ type: 'varchar', length: 64, unique: true })
     contentHash: string;
 
     @Column({ type: 'json', default: () => "'[]'" })
@@ -77,16 +77,16 @@ export class DocumentSource {
     @Column({ type: 'text', nullable: true })
     notes?: string;
 
-    @Column({ default: false })
+    @Column({ type: 'boolean', default: false })
     processed: boolean;
 
-    @Column({ default: 0 })
+    @Column({ type: 'int', default: 0 })
     chunkCount: number;
 
-    @Column({ default: 0 })
+    @Column({ type: 'int', default: 0 })
     conceptCount: number;
 
-    @Column({ default: 0 })
+    @Column({ type: 'int', default: 0 })
     wordCount: number;
 
     @CreateDateColumn()

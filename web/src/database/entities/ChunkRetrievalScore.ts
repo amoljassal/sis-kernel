@@ -18,19 +18,19 @@ export class ChunkRetrievalScore {
     @PrimaryGeneratedColumn()
     id!: number;
 
-    @Column()
+    @Column({ type: 'int' })
     queryId!: number;
 
-    @Column()
+    @Column({ type: 'int' })
     chunkId!: number;
 
     @Column({ type: 'float' })
     relevanceScore!: number;
 
-    @Column()
+    @Column({ type: 'int' })
     rankPosition!: number;
 
-    @Column({ default: false })
+    @Column({ type: 'boolean', default: false })
     usedInResponse!: boolean;
 
     // Relationships

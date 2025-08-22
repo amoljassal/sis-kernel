@@ -5,6 +5,7 @@
 
 // Core service exports
 export { UnifiedRAGService, createRAGService } from './unified-rag-service';
+export { BrowserRAGService, createBrowserRAGService } from './browser-rag-service';
 export { ScoringAlgorithms } from './scoring-algorithms';
 export { ConfidenceScorer } from './confidence-scorer';
 export { DocumentProcessor } from './document-processor';
@@ -14,12 +15,12 @@ export { ContextBuilder } from './context-builder';
 export * from './types';
 
 // Import for factory function
-import { createRAGService } from './unified-rag-service';
+import { createBrowserRAGService } from './browser-rag-service';
 
 // Example usage and factory functions
 export const AURAG = {
-    // Create a new RAG service instance
-    createService: (config?: any) => createRAGService(config),
+    // Create a new RAG service instance (browser-compatible)
+    createService: (config?: any) => createBrowserRAGService(config),
     
     // Default configurations
     configs: {

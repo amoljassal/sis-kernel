@@ -24,10 +24,10 @@ export class ConceptDocumentLink {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     conceptId: number;
 
-    @Column()
+    @Column({ type: 'int' })
     documentId: number;
 
     @Column({ type: 'float', default: 0.5 })

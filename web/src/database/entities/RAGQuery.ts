@@ -21,14 +21,14 @@ export class RAGQuery {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     @Index()
     userId: number;
 
     @Column({ type: 'text' })
     queryText: string;
 
-    @Column({ length: 50, nullable: true })
+    @Column({ type: 'varchar', length: 50, nullable: true })
     philosophicalLens?: string;
 
     @Column({ type: 'text' })
@@ -37,7 +37,7 @@ export class RAGQuery {
     @Column({ type: 'float', default: 0.5 })
     confidenceScore: number;
 
-    @Column()
+    @Column({ type: 'int' })
     processingTimeMs: number;
 
     @Column({ type: 'int', nullable: true })
