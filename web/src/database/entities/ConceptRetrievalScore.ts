@@ -7,6 +7,7 @@ import {
     Entity,
     PrimaryGeneratedColumn,
     Column,
+    CreateDateColumn,
     ManyToOne,
     JoinColumn
 } from 'typeorm';
@@ -32,6 +33,12 @@ export class ConceptRetrievalScore {
 
     @Column({ type: 'boolean', default: false })
     usedInResponse: boolean;
+
+    @Column({ type: 'json', default: () => "'{}'" })
+    metadata: Record<string, any>;
+
+    @CreateDateColumn()
+    createdAt: Date;
 
     // Relationships
     @ManyToOne(() => RAGQuery, query => query.conceptRetrievalScores, {

@@ -83,6 +83,15 @@ export class DocumentChunk {
     @Column({ type: 'varchar', length: 100, nullable: true })
     embeddingModel?: string;
 
+    @Column({ type: 'int', nullable: true })
+    startPosition?: number;
+
+    @Column({ type: 'int', nullable: true })
+    endPosition?: number;
+
+    @Column({ type: 'json', default: () => "'{}'" })
+    metadata: Record<string, any>;
+
     @CreateDateColumn()
     createdAt: Date;
 

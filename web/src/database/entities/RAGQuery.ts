@@ -46,6 +46,9 @@ export class RAGQuery {
     @Column({ type: 'text', nullable: true })
     userFeedback?: string;
 
+    @Column({ type: 'json', default: () => "'{}'" })
+    metadata: Record<string, any>;
+
     @CreateDateColumn()
     createdAt: Date;
 

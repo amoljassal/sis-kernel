@@ -58,6 +58,21 @@ export class LearnedConcept {
     @Column({ type: 'int', default: 1 })
     encounterCount: number;
 
+    @Column({ type: 'varchar', length: 100, default: 'general' })
+    category: string;
+
+    @Column({ type: 'json', nullable: true })
+    embedding?: number[];
+
+    @Column({ type: 'json', default: () => "'{}'" })
+    metadata: Record<string, any>;
+
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+
     // Relationships
     @OneToMany(() => ConceptDocumentLink, link => link.concept)
     documentLinks: ConceptDocumentLink[];

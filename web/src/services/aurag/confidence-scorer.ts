@@ -58,6 +58,43 @@ export class ConfidenceScorer {
     }
 
     /**
+     * Simple confidence calculation for basic use
+     * 
+     * @param context Context items used
+     * @param query Original query
+     * @param response Generated response
+     * @returns Confidence score (0.0 to 1.0)
+     */
+    calculateConfidence(context: ContextItem[], query: string, response: string): number {
+        if (!context || context.length === 0) return 0.1;
+        
+        // Calculate average context score
+        const avgContextScore = context.reduce((sum, item) => sum + item.score, 0) / context.length;
+        
+        // Check response quality indicators
+        let responseQuality = 0.5;
+        
+        // Lower confidence for short responses
+        if (response.length < 50) responseQuality -= 0.2;
+        
+        // Lower confidence for hedging terms
+        const lowerResponse = response.toLowerCase();
+        let hedgeCount = 0;
+        for (const hedge of HEDGE_TERMS) {
+            if (lowerResponse.includes(hedge)) hedgeCount++;
+        }
+        responseQuality -= Math.min(0.3, hedgeCount * 0.1);
+        
+        // Higher confidence for longer, detailed responses
+        if (response.length > 200) responseQuality += 0.1;
+        
+        // Combine scores
+        const combinedScore = (avgContextScore * 0.6) + (responseQuality * 0.4);
+        
+        return Math.max(0.0, Math.min(1.0, combinedScore));
+    }
+
+    /**
      * Calculate comprehensive confidence score for AI response
      * 
      * @param context List of context items used for generation
@@ -69,7 +106,7 @@ export class ConfidenceScorer {
      * @param tokenBudget Token budget for context window
      * @returns Confidence result with overall score and detailed factors
      */
-    async calculateConfidence(
+    async calculateConfidenceDetailed(
         context: ContextItem[],
         answer: string,
         mode: string = "analytical",

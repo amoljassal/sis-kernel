@@ -138,6 +138,17 @@ export class ScoringAlgorithms {
     }
 
     /**
+     * Calculate text relevance score between query and text
+     * 
+     * @param query User's search query
+     * @param text Text to score against
+     * @returns Relevance score (0.0 to 1.0)
+     */
+    calculateTextRelevance(query: string, text: string): number {
+        return this.keywordRelevanceScore(query, text);
+    }
+
+    /**
      * Calculate keyword-based relevance score (fallback when no embeddings)
      * 
      * @param query User's search query

@@ -5,10 +5,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { AURAG } from '../../services/aurag';
-import type { BrowserRAGService, RAGResponse, DocumentProcessingResult } from '../../services/aurag';
+import type { RAGResponse, DocumentProcessingResult } from '../../services/aurag';
 
 const AURAGDemo: React.FC = () => {
-    const [ragService, setRagService] = useState<BrowserRAGService | null>(null);
+    const [ragService, setRagService] = useState<any>(null);
     const [initialized, setInitialized] = useState(false);
     const [loading, setLoading] = useState(false);
     

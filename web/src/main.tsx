@@ -6,6 +6,8 @@ import { BrowserRouter } from 'react-router-dom'
 import { store } from './store/store'
 import App from './App'
 import './index.css'
+// Database initialization removed for browser compatibility
+// Note: Database operations will be handled by backend server
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {

@@ -22,6 +22,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/marketplace', label: 'Marketplace', icon: ShoppingCart },
     { path: '/settings', label: 'Settings', icon: Settings },
     { path: '/training', label: 'Training Lab', icon: Beaker },
+    { path: '/aurag', label: 'AURAG', icon: Brain },
   ]
   
   const getSafetyColor = () => {

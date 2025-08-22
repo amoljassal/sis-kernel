@@ -33,6 +33,12 @@ export class ConceptDocumentLink {
     @Column({ type: 'float', default: 0.5 })
     relevanceScore: number;
 
+    @Column({ type: 'text', nullable: true })
+    contextSnippet?: string;
+
+    @Column({ type: 'json', default: () => "'{}'" })
+    metadata: Record<string, any>;
+
     @CreateDateColumn()
     createdAt: Date;
 

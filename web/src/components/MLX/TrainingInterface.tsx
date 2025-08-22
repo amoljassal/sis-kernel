@@ -5,9 +5,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Upload, FileText, Settings, TrendingUp, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { createBrowserMLXTrainingPipeline } from '../../services/mlx/browser-training-interface';
+import { MLX, TrainingProgress, TrainingResult } from '../../services/mlx';
 import { createNaturalLanguageInterface, ParsedTrainingRequest } from '../../services/mlx/natural-language-interface';
-import type { TrainingProgress, TrainingResult } from '../../services/mlx/browser-training-interface';
 
 interface TrainingSession {
   id: string;
@@ -26,7 +25,7 @@ export const TrainingInterface: React.FC = () => {
   const [isTraining, setIsTraining] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const mlxPipeline = useRef(createBrowserMLXTrainingPipeline());
+  const mlxPipeline = useRef(MLX.createTrainingPipeline());
   const nlInterface = useRef(createNaturalLanguageInterface(mlxPipeline.current));
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
