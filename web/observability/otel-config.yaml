@@ -1,0 +1,215 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: sis-observability
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'sis-ai-lab'
+              static_configs:
+                - targets: ['localhost:8080']
+            
+            - job_name: 'sis-ml-services'
+              static_configs:
+                - targets: ['localhost:8000']
+            
+            - job_name: 'sis-autonomous-ops'
+              static_configs:
+                - targets: ['localhost:8001']
+      
+      jaeger:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:14250
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+          thrift_compact:
+            endpoint: 0.0.0.0:6831
+    
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+      
+      memory_limiter:
+        limit_mib: 512
+      
+      resource:
+        attributes:
+          - key: service.namespace
+            value: "sis-ai-lab"
+            action: upsert
+          - key: deployment.environment
+            value: "production"
+            action: upsert
+          - key: educational.platform
+            value: "global"
+            action: upsert
+      
+      attributes/educational:
+        actions:
+          - key: educational.region
+            action: insert
+            from_attribute: region
+          - key: educational.institution_type
+            action: insert
+            from_attribute: institution_type
+          - key: educational.academic_level
+            action: insert
+            from_attribute: academic_level
+    
+    exporters:
+      prometheus:
+        endpoint: "0.0.0.0:8889"
+        namespace: sis_ai_lab
+        const_labels:
+          platform: "sis-ai-lab"
+          version: "v1.0.0"
+      
+      jaeger:
+        endpoint: jaeger-collector:14250
+        tls:
+          insecure: true
+      
+      otlp/tempo:
+        endpoint: http://tempo:4317
+        tls:
+          insecure: true
+      
+      logging:
+        loglevel: info
+      
+      elasticsearch:
+        endpoints: ["http://elasticsearch:9200"]
+        index: "sis-ai-lab-logs"
+        mapping:
+          mode: "bodymap"
+    
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+      
+      pprof:
+        endpoint: 0.0.0.0:1777
+      
+      zpages:
+        endpoint: 0.0.0.0:55679
+    
+    service:
+      extensions: [health_check, pprof, zpages]
+      pipelines:
+        traces:
+          receivers: [otlp, jaeger]
+          processors: [memory_limiter, resource, attributes/educational, batch]
+          exporters: [jaeger, otlp/tempo, logging]
+        
+        metrics:
+          receivers: [otlp, prometheus]
+          processors: [memory_limiter, resource, attributes/educational, batch]
+          exporters: [prometheus, logging]
+        
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, attributes/educational, batch]
+          exporters: [elasticsearch, logging]
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: sis-observability
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:0.91.0
+        command:
+          - "/otelcol-contrib"
+          - "--config=/conf/config.yaml"
+        volumeMounts:
+        - name: config
+          mountPath: /conf
+        ports:
+        - containerPort: 4317   # OTLP gRPC
+        - containerPort: 4318   # OTLP HTTP
+        - containerPort: 8889   # Prometheus metrics
+        - containerPort: 13133  # Health check
+        - containerPort: 14250  # Jaeger gRPC
+        - containerPort: 14268  # Jaeger HTTP
+        - containerPort: 6831   # Jaeger compact
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        env:
+        - name: GOGC
+          value: "80"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 13133
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 13133
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: otel-collector-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: sis-observability
+spec:
+  selector:
+    app: otel-collector
+  ports:
+  - name: otlp-grpc
+    port: 4317
+    targetPort: 4317
+  - name: otlp-http
+    port: 4318
+    targetPort: 4318
+  - name: prometheus
+    port: 8889
+    targetPort: 8889
+  - name: jaeger-grpc
+    port: 14250
+    targetPort: 14250
+  - name: jaeger-http
+    port: 14268
+    targetPort: 14268
+  - name: jaeger-compact
+    port: 6831
+    targetPort: 6831
+    protocol: UDP

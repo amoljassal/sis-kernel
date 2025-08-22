@@ -1,0 +1,605 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "SIS AI-Lab Educational Platform Observability",
+    "tags": ["sis-ai-lab", "educational", "autonomous-operations"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Student Experience Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "avg(sis_student_satisfaction_score)",
+            "legendFormat": "Average Satisfaction",
+            "refId": "A"
+          },
+          {
+            "expr": "avg(sis_student_page_load_time_seconds)",
+            "legendFormat": "Avg Page Load Time",
+            "refId": "B"
+          },
+          {
+            "expr": "avg(sis_collaboration_latency_seconds)",
+            "legendFormat": "Collaboration Latency",
+            "refId": "C"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "displayMode": "list",
+              "orientation": "horizontal"
+            },
+            "mappings": [],
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 6},
+                {"color": "green", "value": 8}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Active Students by Institution Type",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum(sis_active_students_total) by (institution_type)",
+            "legendFormat": "{{institution_type}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "pieType": "pie",
+          "tooltip": {"mode": "single"}
+        }
+      },
+      {
+        "id": 3,
+        "title": "Student Page Load Times by Region",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(sis_student_page_load_time_seconds_bucket[5m])) by (region)",
+            "legendFormat": "{{region}} - 95th percentile",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(sis_student_page_load_time_seconds_bucket[5m])) by (region)",
+            "legendFormat": "{{region}} - Median",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "lineWidth": 1,
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "spanNulls": false,
+              "insertNulls": false,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {"mode": "none", "group": "A"},
+              "axisPlacement": "auto",
+              "axisLabel": "",
+              "scaleDistribution": {"type": "linear"},
+              "hideFrom": {"legend": false, "tooltip": false, "vis": false},
+              "thresholdsStyle": {"mode": "off"}
+            },
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 2},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Academic Calendar Phase Distribution",
+        "type": "barchart",
+        "targets": [
+          {
+            "expr": "sum(sis_academic_calendar_phase) by (phase, region)",
+            "legendFormat": "{{phase}} - {{region}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "options": {
+          "orientation": "horizontal",
+          "barWidth": 0.97,
+          "groupWidth": 0.70,
+          "legend": {"displayMode": "visible", "placement": "bottom"}
+        }
+      },
+      {
+        "id": 5,
+        "title": "ML Model Predictions Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(sis_ml_predictions_total[5m]) by (model_name, prediction_type)",
+            "legendFormat": "{{model_name}} - {{prediction_type}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "lineWidth": 1,
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "spanNulls": false,
+              "insertNulls": false,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {"mode": "none", "group": "A"},
+              "axisPlacement": "auto",
+              "axisLabel": "",
+              "scaleDistribution": {"type": "linear"},
+              "hideFrom": {"legend": false, "tooltip": false, "vis": false},
+              "thresholdsStyle": {"mode": "off"}
+            },
+            "unit": "reqps",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 10},
+                {"color": "red", "value": 50}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "AIOps Incidents by Severity",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "increase(sis_aiops_incidents_total[1h]) by (severity, resolved)",
+            "legendFormat": "{{severity}} - {{resolved}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "bars",
+              "lineInterpolation": "linear",
+              "barAlignment": 0,
+              "lineWidth": 1,
+              "fillOpacity": 80,
+              "gradientMode": "none",
+              "spanNulls": false,
+              "insertNulls": false,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {"mode": "normal", "group": "A"},
+              "axisPlacement": "auto",
+              "axisLabel": "",
+              "scaleDistribution": {"type": "linear"},
+              "hideFrom": {"legend": false, "tooltip": false, "vis": false},
+              "thresholdsStyle": {"mode": "off"}
+            },
+            "unit": "short",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 5},
+                {"color": "red", "value": 20}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Auto-Scaling Events",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "increase(sis_auto_scaling_events_total[30m]) by (component, direction, reason)",
+            "legendFormat": "{{component}} - {{direction}} ({{reason}})",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "stepAfter",
+              "barAlignment": 0,
+              "lineWidth": 2,
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "spanNulls": false,
+              "insertNulls": false,
+              "showPoints": "always",
+              "pointSize": 8,
+              "stacking": {"mode": "none", "group": "A"},
+              "axisPlacement": "auto",
+              "axisLabel": "",
+              "scaleDistribution": {"type": "linear"},
+              "hideFrom": {"legend": false, "tooltip": false, "vis": false},
+              "thresholdsStyle": {"mode": "off"}
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Resource Utilization by Institution Type",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "sis_resource_utilization_ratio by (institution_type, region)",
+            "legendFormat": "{{institution_type}} - {{region}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32},
+        "options": {
+          "calculate": false,
+          "calculation": {},
+          "cellGap": 2,
+          "cellValues": {},
+          "color": {
+            "exponent": 0.5,
+            "fill": "dark-orange",
+            "mode": "spectrum",
+            "reverse": false,
+            "scale": "exponential",
+            "scheme": "Spectral",
+            "steps": 64
+          },
+          "exemplars": {"color": "rgba(255,0,255,0.7)"},
+          "filterValues": {"le": 1e-9},
+          "legend": {"show": false},
+          "rowsFrame": {"layout": "auto"},
+          "tooltip": {"show": true, "yHistogram": false},
+          "yAxis": {
+            "axisPlacement": "left",
+            "reverse": false,
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Cost Per Student Trends",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "sis_cost_per_student_usd by (institution_type, region)",
+            "legendFormat": "{{institution_type}} - {{region}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "barAlignment": 0,
+              "lineWidth": 2,
+              "fillOpacity": 20,
+              "gradientMode": "hue",
+              "spanNulls": false,
+              "insertNulls": false,
+              "showPoints": "never",
+              "pointSize": 5,
+              "stacking": {"mode": "none", "group": "A"},
+              "axisPlacement": "auto",
+              "axisLabel": "",
+              "scaleDistribution": {"type": "linear"},
+              "hideFrom": {"legend": false, "tooltip": false, "vis": false},
+              "thresholdsStyle": {"mode": "line"}
+            },
+            "unit": "currencyUSD",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 75},
+                {"color": "red", "value": 150}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Collaboration Effectiveness Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "avg(sis_collaboration_effectiveness_score) by (institution_type)",
+            "legendFormat": "{{institution_type}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 40},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "continuous-GrYlRd"},
+            "custom": {
+              "orientation": "auto",
+              "showThresholdLabels": false,
+              "showThresholdMarkers": true
+            },
+            "max": 10,
+            "min": 0,
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 5},
+                {"color": "green", "value": 7.5}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true,
+          "text": {}
+        }
+      },
+      {
+        "id": 11,
+        "title": "Help Desk Tickets by Category",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "increase(sis_help_desk_tickets_total[24h]) by (ticket_category)",
+            "legendFormat": "{{ticket_category}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 40},
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "pieType": "donut",
+          "tooltip": {"mode": "single"}
+        }
+      },
+      {
+        "id": 12,
+        "title": "Feature Adoption Rate",
+        "type": "bargauge",
+        "targets": [
+          {
+            "expr": "avg(sis_feature_adoption_rate) by (feature_name, institution_type)",
+            "legendFormat": "{{feature_name}} ({{institution_type}})",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 40},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "continuous-GrYlRd"},
+            "custom": {
+              "displayMode": "basic",
+              "orientation": "horizontal"
+            },
+            "max": 1,
+            "min": 0,
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 0.5},
+                {"color": "green", "value": 0.8}
+              ]
+            },
+            "unit": "percentunit"
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"],
+            "fields": ""
+          },
+          "text": {}
+        }
+      }
+    ],
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": [
+        {
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "definition": "label_values(sis_active_students_total, institution_type)",
+          "hide": 0,
+          "includeAll": true,
+          "label": "Institution Type",
+          "multi": true,
+          "name": "institution_type",
+          "options": [],
+          "query": {
+            "query": "label_values(sis_active_students_total, institution_type)",
+            "refId": "StandardVariableQuery"
+          },
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        },
+        {
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "definition": "label_values(sis_active_students_total, region)",
+          "hide": 0,
+          "includeAll": true,
+          "label": "Region",
+          "multi": true,
+          "name": "region",
+          "options": [],
+          "query": {
+            "query": "label_values(sis_active_students_total, region)",
+            "refId": "StandardVariableQuery"
+          },
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        },
+        {
+          "current": {
+            "selected": false,
+            "text": "All",
+            "value": "$__all"
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "definition": "label_values(sis_academic_calendar_phase, phase)",
+          "hide": 0,
+          "includeAll": true,
+          "label": "Academic Phase",
+          "multi": true,
+          "name": "academic_phase",
+          "options": [],
+          "query": {
+            "query": "label_values(sis_academic_calendar_phase, phase)",
+            "refId": "StandardVariableQuery"
+          },
+          "refresh": 1,
+          "regex": "",
+          "skipUrlSync": false,
+          "sort": 0,
+          "type": "query"
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "target": {
+            "limit": 100,
+            "matchAny": false,
+            "tags": [],
+            "type": "dashboard"
+          },
+          "type": "dashboard"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "enable": true,
+          "expr": "changes(sis_academic_calendar_phase[1h]) > 0",
+          "iconColor": "blue",
+          "name": "Academic Calendar Changes",
+          "titleFormat": "Academic Phase Change"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "enable": true,
+          "expr": "increase(sis_auto_scaling_events_total[5m]) > 0",
+          "iconColor": "green",
+          "name": "Auto-Scaling Events",
+          "titleFormat": "Auto-scaling: {{component}} {{direction}}"
+        }
+      ]
+    },
+    "refresh": "30s",
+    "schemaVersion": 37,
+    "style": "dark",
+    "tags": ["sis-ai-lab", "educational", "autonomous-operations"],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "SIS AI-Lab Educational Platform Observability",
+    "uid": "sis-ai-lab-edu",
+    "version": 1,
+    "weekStart": ""
+  }
+}
