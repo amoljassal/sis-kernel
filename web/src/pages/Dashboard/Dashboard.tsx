@@ -7,6 +7,7 @@ import GlobalInfrastructureDashboard from '../../components/GlobalInfrastructure
 import AutonomousOperationsDashboard from '../../components/AutonomousOperationsDashboard'
 import { infrastructureIntegration } from '../../services/infrastructure-integration'
 import type { InfrastructureStatus } from '../../services/infrastructure-integration'
+import TrainingOperationsCenter from '../../components/AILab/Dashboard/TrainingOperationsCenter'
 import {
   ClipboardDocumentListIcon,
   WrenchIcon,
@@ -25,9 +26,14 @@ import {
   GlobeAltIcon
 } from '@heroicons/react/24/outline'
 
+type DashboardMode = 'infrastructure' | 'ai-training'
+
 const Dashboard: React.FC = () => {
   const { designName, nodes, connections } = useSelector((state: RootState) => state.designer)
   const { safetyMode } = useSelector((state: RootState) => state.settings)
+  
+  // Dashboard mode
+  const [mode, setMode] = useState<DashboardMode>('ai-training')
   
   // Auto-scaling dashboard state
   const [showAutoScalingDashboard, setShowAutoScalingDashboard] = useState(false)
@@ -105,8 +111,40 @@ const Dashboard: React.FC = () => {
     },
   ]
   
+  // Render AI Training mode if selected
+  if (mode === 'ai-training') {
+    return <TrainingOperationsCenter />
+  }
+
+  // Original infrastructure dashboard
   return (
     <div className="p-6 space-y-6">
+      {/* Mode Toggle */}
+      <div className="flex justify-center mb-6">
+        <div className="bg-sis-gray-800 rounded-lg p-1 flex">
+          <button
+            onClick={() => setMode('ai-training')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === 'ai-training'
+                ? 'bg-sis-blue-600 text-white'
+                : 'text-sis-gray-400 hover:text-white'
+            }`}
+          >
+            AI Training Lab
+          </button>
+          <button
+            onClick={() => setMode('infrastructure')}
+            className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === 'infrastructure'
+                ? 'bg-sis-blue-600 text-white'
+                : 'text-sis-gray-400 hover:text-white'
+            }`}
+          >
+            Infrastructure
+          </button>
+        </div>
+      </div>
+
       {/* Welcome header */}
       <div className="text-center py-12">
         <h1 className="text-4xl font-bold text-gradient mb-4">
