@@ -5,25 +5,72 @@ import SafetyPanel from '../../components/Designer/Safety/SafetyPanel'
 import ChipVisualization from '../../components/Designer/Visualization/ChipVisualization'
 import DesignBrowser from '../../components/Designer/Browser/DesignBrowser'
 
+// AI Training Laboratory Components
+import AIArchitectureCanvas from '../../components/AILab/Designer/AIArchitectureCanvas'
+import AIComponentPalette from '../../components/AILab/Designer/AIComponentPalette'
+import AIEthicsPanel from '../../components/AILab/Designer/AIEthicsPanel'
+import NeuralNetworkVisualization from '../../components/AILab/Designer/NeuralNetworkVisualization'
+import ModelBrowser from '../../components/AILab/Designer/ModelBrowser'
+
 type RightPanelTab = 'browser' | 'safety' | '3d'
+type DesignerMode = 'hardware' | 'ai'
 
 const Designer: React.FC = () => {
   const [activeTab, setActiveTab] = useState<RightPanelTab>('browser')
+  const [mode, setMode] = useState<DesignerMode>('ai') // Default to AI mode for training lab
 
-  const tabs = [
-    { id: 'browser' as const, name: 'Browser', icon: '🌳' },
-    { id: 'safety' as const, name: 'Safety', icon: '🛡️' },
-    { id: '3d' as const, name: '3D View', icon: '🔷' },
+  const tabs = mode === 'ai' ? [
+    { id: 'browser' as const, name: 'Models', icon: 'M' },
+    { id: 'safety' as const, name: 'Ethics', icon: 'E' },
+    { id: '3d' as const, name: 'Neural Viz', icon: 'N' },
+  ] : [
+    { id: 'browser' as const, name: 'Browser', icon: 'B' },
+    { id: 'safety' as const, name: 'Safety', icon: 'S' },
+    { id: '3d' as const, name: '3D View', icon: '3' },
   ]
 
   return (
     <div className="h-full flex">
+      {/* Mode Toggle */}
+      <div className="absolute top-4 right-4 z-50">
+        <div className="bg-sis-gray-800 rounded-lg p-1 flex">
+          <button
+            onClick={() => setMode('ai')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === 'ai'
+                ? 'bg-sis-blue-600 text-white'
+                : 'text-sis-gray-400 hover:text-white'
+            }`}
+          >
+            AI Lab
+          </button>
+          <button
+            onClick={() => setMode('hardware')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              mode === 'hardware'
+                ? 'bg-sis-blue-600 text-white'
+                : 'text-sis-gray-400 hover:text-white'
+            }`}
+          >
+            Hardware
+          </button>
+        </div>
+      </div>
+
       {/* Component Palette - Left Side */}
-      <ComponentPalette className="w-80 flex-shrink-0" />
+      {mode === 'ai' ? (
+        <AIComponentPalette className="w-80 flex-shrink-0" />
+      ) : (
+        <ComponentPalette className="w-80 flex-shrink-0" />
+      )}
       
       {/* Design Canvas - Main Area */}
       <div className="flex-1 relative">
-        <DesignCanvas className="w-full h-full" />
+        {mode === 'ai' ? (
+          <AIArchitectureCanvas className="w-full h-full" />
+        ) : (
+          <DesignCanvas className="w-full h-full" />
+        )}
       </div>
       
       {/* Right Panel - Tabbed Interface */}
@@ -50,22 +97,46 @@ const Designer: React.FC = () => {
 
         {/* Tab Content */}
         <div className="flex-1 overflow-hidden">
-          {activeTab === 'browser' && (
-            <div className="h-full p-4">
-              <DesignBrowser className="h-full" />
-            </div>
-          )}
-          
-          {activeTab === 'safety' && (
-            <div className="h-full p-4">
-              <SafetyPanel className="h-full" />
-            </div>
-          )}
-          
-          {activeTab === '3d' && (
-            <div className="h-full p-4">
-              <ChipVisualization className="h-full" height={600} />
-            </div>
+          {mode === 'ai' ? (
+            <>
+              {activeTab === 'browser' && (
+                <div className="h-full p-4">
+                  <ModelBrowser className="h-full" />
+                </div>
+              )}
+              
+              {activeTab === 'safety' && (
+                <div className="h-full p-4">
+                  <AIEthicsPanel className="h-full" />
+                </div>
+              )}
+              
+              {activeTab === '3d' && (
+                <div className="h-full p-4">
+                  <NeuralNetworkVisualization className="h-full" height={600} />
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {activeTab === 'browser' && (
+                <div className="h-full p-4">
+                  <DesignBrowser className="h-full" />
+                </div>
+              )}
+              
+              {activeTab === 'safety' && (
+                <div className="h-full p-4">
+                  <SafetyPanel className="h-full" />
+                </div>
+              )}
+              
+              {activeTab === '3d' && (
+                <div className="h-full p-4">
+                  <ChipVisualization className="h-full" height={600} />
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
