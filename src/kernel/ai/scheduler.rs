@@ -742,3 +742,18 @@ pub fn register_model_fingerprint(fingerprint: PerformanceFingerprint) -> Result
         None => Err("AI scheduler not initialized"),
     }
 }
+
+/// Initialize AI scheduler for boot (Multi-AI boot framework)
+pub fn init_scheduler() -> Result<(), &'static str> {
+    // Initialize cognitive scheduler during HYPERCUBE layer
+    
+    // Check if already initialized
+    if AI_SCHEDULER.get().is_some() {
+        return Ok(());
+    }
+    
+    // Initialize with hardware capabilities
+    init_ai_scheduler().map_err(|_| "AI scheduler initialization failed")?;
+    
+    Ok(())
+}

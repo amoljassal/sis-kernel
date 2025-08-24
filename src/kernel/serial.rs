@@ -204,6 +204,33 @@ pub fn print(args: core::fmt::Arguments<'_>) -> Result<(), core::fmt::Error> {
     write_fmt(args)
 }
 
+/// Write single byte (Multi-AI boot framework)
+pub fn write_byte(byte: u8) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        SERIAL.lock().send(byte);
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        // ARM64 UART - for now just use the write_str path
+        // This will be enhanced with actual UART byte writing
+        crate::arch::aarch64::uart::write_byte(byte);
+    }
+}
+
+/// Flush serial output (Multi-AI boot framework)
+pub fn flush() {
+    #[cfg(target_arch = "x86_64")]
+    {
+        // 16550 UART doesn't need explicit flushing
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        // ARM64 UART flush
+        crate::arch::aarch64::uart::flush();
+    }
+}
+
 #[macro_export]
 macro_rules! kprint {
     ($($arg:tt)*) => {

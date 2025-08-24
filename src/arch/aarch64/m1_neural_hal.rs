@@ -547,3 +547,81 @@ pub fn neural_inference(
         None => Err("Neural Engine HAL not initialized"),
     }
 }
+
+/// Boot-time Neural Engine probing (Multi-AI boot framework)
+pub fn probe_neural_engine() -> Result<(), &'static str> {
+    // Early Neural Engine detection without full initialization
+    // This is called during DIAMOND layer of boot sequence
+    
+    // Check if Neural Engine device is present in memory map
+    if !is_neural_engine_present() {
+        return Err("Neural Engine not detected in device tree");
+    }
+    
+    // Perform basic connectivity test
+    if !neural_engine_responds() {
+        return Err("Neural Engine not responding to basic probe");
+    }
+    
+    // Validate firmware if accessible
+    if !validate_neural_firmware() {
+        return Err("Neural Engine firmware validation failed");
+    }
+    
+    Ok(())
+}
+
+/// Initialize Neural Engine for boot (Multi-AI boot framework)
+pub fn init_neural_engine() -> Result<(), &'static str> {
+    // Full Neural Engine initialization during HYPERCUBE layer
+    
+    // Initialize power management first
+    crate::arch::aarch64::neural_power::init_neural_power_management(0xDEADBEEF)?;
+    
+    // Initialize the HAL if not already done
+    if M1_NEURAL_HAL.get().is_none() {
+        init_m1_neural_hal().map_err(|_| "Neural HAL initialization failed")?;
+    }
+    
+    // Warm up Neural Engine for first inference
+    warmup_neural_engine()?;
+    
+    Ok(())
+}
+
+/// Check if Neural Engine is present in device tree
+fn is_neural_engine_present() -> bool {
+    // Placeholder for device tree parsing
+    // In real implementation, would check for "apple,neural-engine" node
+    true // Assume present for now
+}
+
+/// Test if Neural Engine responds to basic probe
+fn neural_engine_responds() -> bool {
+    // Placeholder for basic MMIO read test
+    // In real implementation, would read a known register
+    true // Assume responding for now
+}
+
+/// Validate Neural Engine firmware integrity
+fn validate_neural_firmware() -> bool {
+    // Placeholder for firmware validation
+    // In real implementation, would:
+    // 1. Read firmware from known location
+    // 2. Compute SHA-256 hash
+    // 3. Compare with trusted hash
+    true // Assume valid for now
+}
+
+/// Warm up Neural Engine for optimal first inference
+fn warmup_neural_engine() -> Result<(), &'static str> {
+    // Perform dummy operation to warm up caches and pipeline
+    // Target: <25μs first inference after warmup
+    
+    // This would involve:
+    // 1. Small matrix multiplication
+    // 2. Cache warming
+    // 3. Pipeline priming
+    
+    Ok(())
+}

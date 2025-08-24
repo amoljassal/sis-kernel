@@ -28,6 +28,8 @@ pub mod neural_memory;
 pub mod neural_power;
 
 // Hardware safety and Multi-AI consultation improvements
+pub mod boot;
+pub mod uart;
 pub mod neural_hardware_probe;
 pub mod atomic_bitmap;
 pub mod mmio_barriers;

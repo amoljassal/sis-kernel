@@ -64,3 +64,29 @@ pub mod no_std_shims;
 pub use pci::read_id;
 pub use pci::{cfg_read32, cfg_write32, find_first_e1000, PciId};
 pub use types::Bdf;
+
+/// Initialize kernel subsystems during boot (Multi-AI boot framework)
+pub fn init_subsystems() -> Result<(), &'static str> {
+    // Initialize vDSO manager for AI inference interface
+    vdso_manager::init_vdso_manager()?;
+    
+    // Initialize memory management subsystems
+    memory::init_memory_subsystems()?;
+    
+    // Initialize synchronization primitives
+    sync::init_sync_primitives()?;
+    
+    Ok(())
+}
+
+/// Initialize memory subsystems for boot
+pub mod boot_memory {
+    use super::*;
+    
+    pub fn init_boot_memory() -> Result<(), &'static str> {
+        // Initialize early memory allocation
+        // This will integrate with existing memory management
+        memory::init_early_memory()?;
+        Ok(())
+    }
+}

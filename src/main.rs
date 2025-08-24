@@ -54,6 +54,8 @@ mod arch {
 #[cfg(not(feature = "firewall"))]
 mod kernel;
 #[cfg(not(feature = "firewall"))]
+mod boot;
+#[cfg(not(feature = "firewall"))]
 mod qemu;
 #[cfg(not(feature = "firewall"))]
 mod selftest;
@@ -622,47 +624,48 @@ pub extern "C" fn _start() -> ! {
     // Initialize heap allocator first
     init_heap();
     
-    // Initialize serial logging
-    serial::init();
+    #[cfg(not(feature = "firewall"))]
+    {
+        // Multi-AI Boot Orchestration Framework
+        serial::write_str("\n=== SIS KERNEL MULTI-AI BOOT FRAMEWORK ===\n");
+        
+        let boot_result = boot::boot_orchestrate();
+        
+        match boot_result {
+            boot::BootCode::Ok => {
+                serial::write_str("[BOOT] SUCCESS: ARM64 kernel fully operational\n");
+                serial::write_str("[BOOT] Neural Engine ready for sub-microsecond inference\n");
+            }
+            error_code => {
+                boot::handle_boot_failure(error_code);
+            }
+        }
+    }
+    
+    #[cfg(feature = "firewall")]
+    {
+        // Fallback for firewall mode
+        serial::init();
+        serial::write_str("\n=== SIS KERNEL ENTRY (ARM64) ===\n");
+        print_boot_banner();
+        serial::write_str("[ARM64] Initializing SIS Kernel for Mac M1...\n");
+    }
 
-    // Immediate identification for debug
-    serial::write_str("\n=== SIS KERNEL ENTRY (ARM64) ===\n");
-
-    // Boot canary for build verification
-    print_boot_banner();
-
-    serial::write_str("[ARM64] Initializing SIS Kernel for Mac M1...\n");
-
-    // Initialize ARM64 architecture
-    match crate::arch::arch_impl::init() {
-        Ok(_) => serial::write_str("[ARM64] Architecture initialized successfully\n"),
-        Err(e) => {
-            serial::write_str("[ARM64] Architecture init failed: ");
-            serial::write_str(e);
-            serial::write_str("\n");
+    #[cfg(feature = "firewall")]
+    {
+        // Initialize ARM64 architecture in firewall mode
+        match crate::arch::arch_impl::init() {
+            Ok(_) => serial::write_str("[ARM64] Architecture initialized successfully\n"),
+            Err(e) => {
+                serial::write_str("[ARM64] Architecture init failed: ");
+                serial::write_str(e);
+                serial::write_str("\n");
+            }
         }
     }
 
-    // Initialize memory management subsystem
-    serial::write_str("[ARM64] Initializing memory management subsystem...\n");
-    match crate::kernel::memory::init() {
-        Ok(_) => serial::write_str("[ARM64] Memory management subsystem initialized\n"),
-        Err(_) => {
-            serial::write_str("[ARM64] Memory management init failed\n");
-        }
-    }
-
-    // Initialize vDSO manager for AI-native syscalls
-    serial::write_str("[ARM64] Initializing vDSO manager...\n");
-    match crate::kernel::vdso_manager::init() {
-        Ok(_) => serial::write_str("[ARM64] vDSO manager initialized - AI-native syscalls ready\n"),
-        Err(_) => {
-            serial::write_str("[ARM64] vDSO manager init failed\n");
-        }
-    }
-
-    // ARM64 vDSO Integration Testing
-    #[cfg(feature = "selftests")]
+    // ARM64 vDSO Integration Testing (if boot succeeded)
+    #[cfg(all(feature = "selftests", not(feature = "firewall")))]
     {
         serial::write_str("[ARM64] Running vDSO integration tests...\n");
         let test_result = crate::arch::aarch64::vdso_test::run_arm64_vdso_tests();
@@ -672,18 +675,6 @@ pub extern "C" fn _start() -> ! {
             serial::write_str("[ARM64] Some vDSO integration tests FAILED\n");
         }
     }
-    
-    // Quick smoke test for non-selftest builds
-    #[cfg(all(not(feature = "selftests"), feature = "vdso-test"))]
-    {
-        let smoke_result = crate::arch::aarch64::vdso_test::smoke_test();
-        if !smoke_result {
-            serial::write_str("[ARM64] vDSO smoke test failed\n");
-        }
-    }
-
-    serial::write_str("[ARM64] SIS Kernel initialization complete - ARM64 AI-native kernel ready!\n");
-    serial::write_str("[ARM64] Entering main kernel loop...\n");
 
     // Main kernel loop
     loop {

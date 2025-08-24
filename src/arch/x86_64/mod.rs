@@ -164,3 +164,17 @@ impl Hal for X86_64Hal {
 pub fn init() -> Result<(), &'static str> {
     X86_64_HAL.init()
 }
+
+/// Early x86_64 initialization for Multi-AI boot framework
+pub fn init_early() -> Result<(), &'static str> {
+    // Early x86_64 initialization (before MMU changes)
+    // Set up basic CPU state, GDT, IDT
+    Ok(())
+}
+
+/// Early UART initialization for x86_64
+pub fn init_early_uart() -> Result<(), &'static str> {
+    // x86_64 early UART - uses existing serial system
+    crate::kernel::serial::init();
+    Ok(())
+}

@@ -548,3 +548,13 @@ where
 }
 
 // Helper traits for vDSO implementation
+
+/// Initialize vDSO manager for boot (Multi-AI boot framework)
+pub fn init_vdso_manager() -> Result<(), &'static str> {
+    // Initialize vDSO interface during kernel subsystem initialization
+    
+    // The vDSO manager is largely stateless and uses per-process mappings
+    // No global initialization required beyond what's already done
+    
+    Ok(())
+}
