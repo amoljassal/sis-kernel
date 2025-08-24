@@ -202,7 +202,7 @@ impl ARM64AIContext {
         data_size_bytes: usize,
     ) -> Result<u64, &'static str> {
         match workload_type {
-            WorkloadType::Inference => {
+            WorkloadType::RealTimeInference => {
                 if let Some(ref ne) = self.neural_engine {
                     // Use Neural Engine for inference
                     self.neural_engine_inference(ne, data_size_bytes)

@@ -51,10 +51,11 @@ pub trait AiEngine {
 }
 
 /// Model identifier for loaded AI models
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ModelId(pub u32);
 
 /// Tensor view for input data (immutable)
+#[derive(Clone, Copy)]
 pub struct TensorView<'a> {
     pub data: &'a [f32],
     pub shape: TensorShape,

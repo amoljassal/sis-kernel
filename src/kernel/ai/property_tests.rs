@@ -105,11 +105,12 @@ impl PropertyTestGenerator {
             }
         }
 
+        let success = violations.is_empty();
         PropertyTestResult {
             property_name: "ReLU Monotonicity".to_string(),
             iterations_tested: iterations,
             violations,
-            success: violations.is_empty(),
+            success,
         }
     }
 
@@ -146,11 +147,12 @@ impl PropertyTestGenerator {
             }
         }
 
+        let success = violations.is_empty();
         PropertyTestResult {
             property_name: "Softmax Normalization".to_string(),
             iterations_tested: iterations,
             violations,
-            success: violations.is_empty(),
+            success,
         }
     }
 
@@ -190,11 +192,12 @@ impl PropertyTestGenerator {
             }
         }
 
+        let success = violations.is_empty();
         PropertyTestResult {
             property_name: "Softmax Shift Invariance".to_string(),
             iterations_tested: iterations,
             violations,
-            success: violations.is_empty(),
+            success,
         }
     }
 

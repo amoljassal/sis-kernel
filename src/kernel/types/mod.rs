@@ -6,6 +6,9 @@
 use core::cmp::Ordering;
 use core::fmt;
 
+// Re-export legacy types for compatibility
+pub use crate::kernel::types_old::{Tid, Handle, PciBus, PciDev, PciFn, Bdf, as_u64};
+
 /// EdgeId - Geometric identifier for graph edges in AI workloads
 /// Uses Newtype pattern to provide Ord implementation for BTreeMap keys
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

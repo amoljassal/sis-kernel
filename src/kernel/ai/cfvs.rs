@@ -351,7 +351,7 @@ impl CfvsOrchestrator {
         
         // Simulate Byzantine failures in up to 1/3 of nodes
         let byzantine_count = (self.nodes.len() / 3).max(1);
-        let mut byzantine_results = Vec::new();
+        let mut byzantine_results: Vec<TestResult> = Vec::new();
         
         // Test consensus with Byzantine nodes
         let consensus_maintained = self.test_consensus_with_byzantine_nodes(byzantine_count)?;

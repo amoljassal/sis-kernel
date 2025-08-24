@@ -34,6 +34,7 @@ pub mod ai_syscalls;
 pub mod auth;  // Soulprint Protocol authentication
 pub mod memory;
 pub mod vdso_manager;
+pub mod types_old;
 pub mod types;
 pub mod vfio;
 pub mod vfio_stubs;

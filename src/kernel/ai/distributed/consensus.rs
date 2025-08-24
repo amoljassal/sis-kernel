@@ -288,7 +288,7 @@ impl RaftConsensus {
 
         // Hardware acceleration bonus
         match workload.workload_type {
-            WorkloadType::Inference if node_caps.has_npu => score += 30,
+            WorkloadType::RealTimeInference if node_caps.has_npu => score += 30,
             WorkloadType::Training if node_caps.has_gpu => score += 25,
             _ => {}
         }
