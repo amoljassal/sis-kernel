@@ -347,7 +347,7 @@ impl DeterministicEventSimulator {
         let u = (self.rng.next_u32() as f32) / (u32::MAX as f32);
         let alpha = 1.3; // Heavy tail parameter
         let scale = jitter_us as f32 / 10.0;
-        (scale * u.powf(-1.0 / alpha)) as u32
+        (scale * crate::kernel::no_std_shims::math::powf_fast(u, -1.0 / alpha)) as u32
     }
 
     fn can_preserve_correctness(&self, _event: &ChaosEvent) -> bool {

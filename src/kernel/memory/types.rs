@@ -165,6 +165,8 @@ pub enum MemoryError {
     AlreadyMapped = -17,
     NotMapped = -2,
     InvalidAlignment = -22,
+    InitializationFailed = -23,
+    NotInitialized = -24,
 }
 
 impl fmt::Display for MemoryError {
@@ -177,6 +179,8 @@ impl fmt::Display for MemoryError {
             MemoryError::AlreadyMapped => write!(f, "Already mapped"),
             MemoryError::NotMapped => write!(f, "Not mapped"),
             MemoryError::InvalidAlignment => write!(f, "Invalid alignment"),
+            MemoryError::InitializationFailed => write!(f, "Initialization failed"),
+            MemoryError::NotInitialized => write!(f, "Not initialized"),
         }
     }
 }

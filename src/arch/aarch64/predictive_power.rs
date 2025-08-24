@@ -673,7 +673,7 @@ impl RaceToSleep {
     ) -> bool {
         match (workload, priority, battery) {
             // Real-time inference always races
-            (WorkloadType::Inference, CognitivePriority::RealTimeInference, _) => true,
+            (WorkloadType::RealTimeInference, CognitivePriority::RealTimeInference, _) => true,
             // Interactive tasks race when battery is good and queue is light
             (_, CognitivePriority::Interactive, BatteryClass::Full | BatteryClass::Plugged) 
                 if queue_depth < 4 => true,

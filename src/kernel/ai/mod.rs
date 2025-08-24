@@ -32,6 +32,9 @@ pub mod chaos_engineering;
 #[cfg(target_arch = "aarch64")]
 pub mod cognitive_scheduler_arm64;
 
+// Multi-AI synthesis: High-performance lock-free scheduler
+pub mod lockfree_scheduler;
+
 use crate::kernel::serial;
 use crate::kernel::types::Tid;
 

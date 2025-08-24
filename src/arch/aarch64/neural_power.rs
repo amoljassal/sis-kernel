@@ -479,7 +479,7 @@ pub struct NEPowerStats {
 impl From<WorkloadType> for WorkloadProfile {
     fn from(workload_type: WorkloadType) -> Self {
         match workload_type {
-            WorkloadType::Inference => WorkloadProfile {
+            WorkloadType::RealTimeInference => WorkloadProfile {
                 compute_intensity: 0.8,
                 memory_bandwidth: 0.6,
                 thermal_sensitivity: 0.7,

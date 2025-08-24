@@ -509,7 +509,7 @@ pub struct NEPerformanceStats {
 }
 
 /// Neural Engine power states
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NEPowerState {
     HighPerformance,
     Balanced,

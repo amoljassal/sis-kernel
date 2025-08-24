@@ -56,6 +56,9 @@ pub mod initfs;
 // AI-Native Kernel Subsystem
 pub mod ai;
 
+// Multi-AI synthesis modules for ARM64 compilation fixes
+pub mod no_std_shims;
+
 // Provide stable re-exports for callers
 pub use pci::read_id;
 pub use pci::{cfg_read32, cfg_write32, find_first_e1000, PciId};

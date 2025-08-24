@@ -141,11 +141,12 @@ impl NEMemoryAllocator {
     pub fn new() -> Result<Self, MemoryError> {
         let mm = get_memory_manager()?;
         
-        // Allocate contiguous memory pool for Neural Engine
+        // Allocate first frame as base for Neural Engine pool
+        // Note: In production, we'd need contiguous physical memory
         let pool_pages = NE_MEMORY_SIZE / NE_PAGE_SIZE;
-        let pool_base = mm.alloc_contiguous_frames(pool_pages)
-            .ok_or(MemoryError::OutOfMemory)?
-            .addr();
+        let first_frame = mm.alloc_frame()
+            .ok_or(MemoryError::OutOfMemory)?;
+        let pool_base = first_frame.addr();
         
         // Initialize allocation bitmap (1 bit per 4KB page)
         let bitmap_size = (pool_pages + 63) / 64; // Round up to u64 boundary
