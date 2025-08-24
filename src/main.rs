@@ -56,6 +56,8 @@ mod kernel;
 #[cfg(not(feature = "firewall"))]
 mod boot;
 #[cfg(not(feature = "firewall"))]
+mod testing;
+#[cfg(not(feature = "firewall"))]
 mod qemu;
 #[cfg(not(feature = "firewall"))]
 mod selftest;

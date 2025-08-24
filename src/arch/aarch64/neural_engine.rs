@@ -320,7 +320,7 @@ impl NeuralEngineDriver {
         
         // Program model base address (simplified)
         self.queue_base_lo.write(descriptor_addr as u32);
-        self.queue_base_hi.write((descriptor_addr >> 64) as u32);
+        self.queue_base_hi.write((descriptor_addr >> 32) as u32);
 
         Ok(())
     }

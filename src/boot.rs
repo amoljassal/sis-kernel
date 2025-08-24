@@ -49,8 +49,12 @@ pub enum BootCode {
     HwDetectFailed            = 0x0004,
     NeuralFirmwareInvalid     = 0x0005,
     NeuralInitFailed          = 0x0006,
+    NeuralEngineTimeout       = 0x0009,
+    NeuralEngineNotFound      = 0x000A,
     KernelInitFailed          = 0x0007,
     SchedulerInitFailed       = 0x0008,
+    UnrecoverableError        = 0x00FE,
+    RecoveryFailed            = 0x00FD,
     SystemTimeout             = 0x00FF,
 }
 
