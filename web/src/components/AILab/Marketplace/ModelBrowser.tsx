@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { marketplaceApi, MarketplaceModel } from '../../../services/api/marketplaceApi';
 import {
   Brain,
   Database,
@@ -205,41 +206,53 @@ const SAMPLE_DATASETS: Dataset[] = [
 ];
 
 export const ModelBrowser: React.FC = () => {
-  const [models] = useState<ModelInfo[]>(SAMPLE_MODELS);
-  const [datasets] = useState<Dataset[]>(SAMPLE_DATASETS);
+  const [models, setModels] = useState<MarketplaceModel[]>([]);
+  const [datasets, setDatasets] = useState<MarketplaceModel[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'models' | 'datasets'>('models');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedLicense, setSelectedLicense] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'popular' | 'rating' | 'recent' | 'size'>('popular');
+  const [sortBy, setSortBy] = useState<'popular' | 'rating' | 'recent'>('popular');
   const [showFilters, setShowFilters] = useState(false);
 
-  const filteredModels = models.filter(model => {
-    const matchesSearch = model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         model.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         model.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCategory = selectedCategory === 'all' || model.category === selectedCategory;
-    const matchesLicense = selectedLicense === 'all' || model.license === selectedLicense;
-    return matchesSearch && matchesCategory && matchesLicense;
-  }).sort((a, b) => {
-    switch (sortBy) {
-      case 'rating': return b.rating - a.rating;
-      case 'recent': return b.lastUpdated.getTime() - a.lastUpdated.getTime();
-      case 'size': return a.size - b.size;
-      default: return b.downloads - a.downloads;
+  // Load marketplace data
+  useEffect(() => {
+    loadMarketplaceData();
+  }, [activeTab, selectedCategory, selectedLicense, sortBy, searchQuery]);
+
+  const loadMarketplaceData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const filters = {
+        type: activeTab === 'models' ? 'model' as const : 'dataset' as const,
+        category: selectedCategory !== 'all' ? selectedCategory : undefined,
+        search: searchQuery || undefined,
+        sort: sortBy,
+      };
+
+      const data = await marketplaceApi.getMarketplaceModels(filters);
+      
+      if (activeTab === 'models') {
+        setModels(data.filter(item => item.type === 'model'));
+      } else {
+        setDatasets(data.filter(item => item.type === 'dataset'));
+      }
+    } catch (err) {
+      setError('Failed to load marketplace data');
+      console.error('Error loading marketplace data:', err);
+    } finally {
+      setLoading(false);
     }
-  });
+  };
 
-  const filteredDatasets = datasets.filter(dataset => {
-    const matchesSearch = dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         dataset.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         dataset.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCategory = selectedCategory === 'all' || dataset.category === selectedCategory;
-    const matchesLicense = selectedLicense === 'all' || dataset.license === selectedLicense;
-    return matchesSearch && matchesCategory && matchesLicense;
-  });
+  // Data is now filtered and sorted on the API side
+  const filteredModels = models;
+  const filteredDatasets = datasets;
 
-  const ModelCard: React.FC<{ model: ModelInfo }> = ({ model }) => (
+  const ModelCard: React.FC<{ model: MarketplaceModel }> = ({ model }) => (
     <div className="card p-6 hover:border-sis-blue-500 transition-all">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
@@ -251,7 +264,7 @@ export const ModelBrowser: React.FC = () => {
           <p className="text-sm text-sis-gray-400 mb-3 line-clamp-2">{model.description}</p>
           
           <div className="flex items-center space-x-4 text-xs text-sis-gray-500 mb-3">
-            <span>by {model.author}</span>
+            <span>by {model.author.name}</span>
             <span>v{model.version}</span>
             <span>{model.parameters} params</span>
             <span>{model.size}GB</span>
@@ -287,16 +300,16 @@ export const ModelBrowser: React.FC = () => {
         <div className="flex items-center space-x-4 text-sm">
           <div className="flex items-center space-x-1">
             <Star className="w-4 h-4 text-yellow-400 fill-current" />
-            <span className="text-white">{model.rating}</span>
-            <span className="text-sis-gray-400">({model.reviewCount})</span>
+            <span className="text-white">{model.metrics.rating}</span>
+            <span className="text-sis-gray-400">({model.metrics.reviews})</span>
           </div>
           <div className="flex items-center space-x-1">
             <Download className="w-4 h-4 text-sis-gray-400" />
-            <span className="text-white">{model.downloads.toLocaleString()}</span>
+            <span className="text-white">{model.metrics.downloads.toLocaleString()}</span>
           </div>
           <div className="flex items-center space-x-1">
             <Clock className="w-4 h-4 text-sis-gray-400" />
-            <span className="text-sis-gray-400">{model.lastUpdated.toLocaleDateString()}</span>
+            <span className="text-sis-gray-400">{new Date(model.updatedAt).toLocaleDateString()}</span>
           </div>
         </div>
         

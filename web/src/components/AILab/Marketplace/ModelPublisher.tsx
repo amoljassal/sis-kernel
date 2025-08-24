@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { marketplaceApi, PublishingForm } from '../../../services/api/marketplaceApi';
 import {
   Upload,
   FileText,
@@ -23,27 +24,7 @@ import {
   Video
 } from 'lucide-react';
 
-interface PublishingForm {
-  name: string;
-  description: string;
-  type: 'model' | 'dataset';
-  category: string;
-  version: string;
-  license: 'open' | 'commercial' | 'research';
-  pricing: {
-    type: 'free' | 'paid' | 'usage-based';
-    cost: number;
-    unit: string;
-  };
-  capabilities: string[];
-  tags: string[];
-  documentation: string;
-  requirements: string[];
-  modelFile?: File;
-  configFile?: File;
-  sampleData?: File;
-  readme?: File;
-}
+// PublishingForm now imported from API service
 
 const initialForm: PublishingForm = {
   name: '',
@@ -176,12 +157,13 @@ export const ModelPublisher: React.FC = () => {
     
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      alert('Model/Dataset submitted successfully! It will be reviewed before publication.');
+      const publishedModel = await marketplaceApi.publishModel(form);
+      alert(`${form.type === 'model' ? 'Model' : 'Dataset'} "${publishedModel.name}" submitted successfully! It will be reviewed before publication.`);
       setForm(initialForm);
       setCurrentStep(1);
+      setValidationErrors([]);
     } catch (error) {
+      console.error('Error publishing model:', error);
       alert('Failed to submit. Please try again.');
     } finally {
       setIsSubmitting(false);

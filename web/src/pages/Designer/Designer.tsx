@@ -11,8 +11,9 @@ import AIComponentPalette from '../../components/AILab/Designer/AIComponentPalet
 import AIEthicsPanel from '../../components/AILab/Designer/AIEthicsPanel'
 import NeuralNetworkVisualization from '../../components/AILab/Designer/NeuralNetworkVisualization'
 import ModelBrowser from '../../components/AILab/Designer/ModelBrowser'
+import InteractiveTrainingController from '../../components/AILab/Canvas/InteractiveTrainingController'
 
-type RightPanelTab = 'browser' | 'safety' | '3d'
+type RightPanelTab = 'browser' | 'safety' | '3d' | 'training'
 type DesignerMode = 'hardware' | 'ai'
 
 const Designer: React.FC = () => {
@@ -21,6 +22,7 @@ const Designer: React.FC = () => {
 
   const tabs = mode === 'ai' ? [
     { id: 'browser' as const, name: 'Models', icon: 'M' },
+    { id: 'training' as const, name: 'Training', icon: 'T' },
     { id: 'safety' as const, name: 'Ethics', icon: 'E' },
     { id: '3d' as const, name: 'Neural Viz', icon: 'N' },
   ] : [
@@ -102,6 +104,12 @@ const Designer: React.FC = () => {
               {activeTab === 'browser' && (
                 <div className="h-full p-4">
                   <ModelBrowser className="h-full" />
+                </div>
+              )}
+              
+              {activeTab === 'training' && (
+                <div className="h-full p-4">
+                  <InteractiveTrainingController />
                 </div>
               )}
               

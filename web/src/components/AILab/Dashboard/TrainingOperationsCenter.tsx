@@ -3,9 +3,9 @@
  * Main command center for AI model training operations
  */
 
-import React, { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '../../../store/store';
+import React, { useState } from 'react';
+import { useTrainingOperations } from '../../../hooks/useTrainingOperations';
+import type { TrainingParameters, TrainingSession } from '../../../services/api/trainingApi';
 import QuickTrainingActions from './QuickTrainingActions';
 import { 
   Brain, 
@@ -24,188 +24,36 @@ import {
   Download,
   Upload,
   Settings,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 
-interface TrainingSession {
-  id: string;
-  modelName: string;
-  type: 'training' | 'fine-tuning' | 'evaluation';
-  status: 'queued' | 'running' | 'completed' | 'failed' | 'paused';
-  progress: number;
-  startTime: string;
-  estimatedCompletion?: string;
-  metrics: {
-    loss: number;
-    accuracy: number;
-    epoch: number;
-    totalEpochs: number;
-    learningRate: number;
-  };
-  resources: {
-    gpu: number;
-    memory: number;
-    neuralEngine: number;
-  };
-}
+// Types are now imported from the API service
 
-interface ModelStats {
-  totalModels: number;
-  activeTraining: number;
-  completedToday: number;
-  failedToday: number;
-  averageAccuracy: number;
-  totalTrainingHours: number;
-}
-
-interface ComputeResource {
-  type: 'gpu' | 'cpu' | 'neural-engine';
-  name: string;
-  usage: number;
-  temperature: number;
-  memory: number;
-  power: number;
-}
-
-const SAMPLE_SESSIONS: TrainingSession[] = [
-  {
-    id: 'session-1',
-    modelName: 'Legal Document Analyzer v2',
-    type: 'fine-tuning',
-    status: 'running',
-    progress: 67,
-    startTime: new Date(Date.now() - 3600000).toISOString(),
-    estimatedCompletion: new Date(Date.now() + 1800000).toISOString(),
-    metrics: {
-      loss: 0.342,
-      accuracy: 0.923,
-      epoch: 67,
-      totalEpochs: 100,
-      learningRate: 0.0001
-    },
-    resources: {
-      gpu: 78,
-      memory: 65,
-      neuralEngine: 82
-    }
-  },
-  {
-    id: 'session-2',
-    modelName: 'Medical Knowledge Assistant',
-    type: 'training',
-    status: 'queued',
-    progress: 0,
-    startTime: new Date(Date.now() + 1800000).toISOString(),
-    metrics: {
-      loss: 0,
-      accuracy: 0,
-      epoch: 0,
-      totalEpochs: 50,
-      learningRate: 0.001
-    },
-    resources: {
-      gpu: 0,
-      memory: 0,
-      neuralEngine: 0
-    }
-  },
-  {
-    id: 'session-3',
-    modelName: 'Code Generation Model',
-    type: 'evaluation',
-    status: 'completed',
-    progress: 100,
-    startTime: new Date(Date.now() - 7200000).toISOString(),
-    metrics: {
-      loss: 0.156,
-      accuracy: 0.957,
-      epoch: 50,
-      totalEpochs: 50,
-      learningRate: 0.00005
-    },
-    resources: {
-      gpu: 0,
-      memory: 0,
-      neuralEngine: 0
-    }
-  }
-];
-
-const COMPUTE_RESOURCES: ComputeResource[] = [
-  {
-    type: 'neural-engine',
-    name: 'Apple Neural Engine',
-    usage: 82,
-    temperature: 72,
-    memory: 65,
-    power: 45
-  },
-  {
-    type: 'gpu',
-    name: 'M3 Max GPU',
-    usage: 78,
-    temperature: 68,
-    memory: 71,
-    power: 62
-  },
-  {
-    type: 'cpu',
-    name: 'M3 Max CPU',
-    usage: 34,
-    temperature: 58,
-    memory: 42,
-    power: 28
-  }
-];
+// Sample data moved to API service - using real API integration
 
 export const TrainingOperationsCenter: React.FC = () => {
-  const [trainingSessions, setTrainingSessions] = useState<TrainingSession[]>(SAMPLE_SESSIONS);
+  const {
+    sessions: trainingSessions,
+    modelStats,
+    computeResources,
+    activityEvents,
+    loading,
+    error,
+    refreshData,
+    startTraining,
+    pauseTraining,
+    stopTraining,
+    resumeTraining,
+    exportMetrics
+  } = useTrainingOperations();
+  
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
-  const [modelStats, setModelStats] = useState<ModelStats>({
-    totalModels: 42,
-    activeTraining: 1,
-    completedToday: 7,
-    failedToday: 1,
-    averageAccuracy: 0.934,
-    totalTrainingHours: 156
-  });
-  const [computeResources, setComputeResources] = useState<ComputeResource[]>(COMPUTE_RESOURCES);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
+  const [showNewTrainingForm, setShowNewTrainingForm] = useState(false);
 
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTrainingSessions(prev => prev.map(session => {
-        if (session.status === 'running') {
-          const newProgress = Math.min(100, session.progress + Math.random() * 2);
-          return {
-            ...session,
-            progress: newProgress,
-            metrics: {
-              ...session.metrics,
-              epoch: Math.floor((newProgress / 100) * session.metrics.totalEpochs),
-              loss: Math.max(0.1, session.metrics.loss - Math.random() * 0.01),
-              accuracy: Math.min(0.99, session.metrics.accuracy + Math.random() * 0.001)
-            },
-            resources: {
-              gpu: 70 + Math.random() * 20,
-              memory: 60 + Math.random() * 20,
-              neuralEngine: 75 + Math.random() * 20
-            }
-          };
-        }
-        return session;
-      }));
-
-      setComputeResources(prev => prev.map(resource => ({
-        ...resource,
-        usage: Math.max(0, Math.min(100, resource.usage + (Math.random() - 0.5) * 10)),
-        temperature: Math.max(40, Math.min(90, resource.temperature + (Math.random() - 0.5) * 5))
-      })));
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
+  // Real-time updates are now handled by the useTrainingOperations hook
 
   const getStatusColor = (status: TrainingSession['status']) => {
     switch (status) {
@@ -225,112 +73,181 @@ export const TrainingOperationsCenter: React.FC = () => {
   };
 
   const handleStartTraining = () => {
-    console.log('Starting new training session...');
+    setShowNewTrainingForm(true);
   };
 
-  const handleQuickAction = (templateId: string) => {
-    console.log('Selected training template:', templateId);
-    // Handle different template actions
-    switch (templateId) {
-      case 'quick-train':
-        // Open natural language training interface
-        break;
-      case 'aurag-builder':
-        // Navigate to AURAG builder
-        break;
-      case 'clone-modify':
-        // Open model cloning interface
-        break;
-      default:
-        console.log('Unknown template:', templateId);
+  const handleQuickStart = async (templateId: string) => {
+    // Quick start training with predefined parameters based on template
+    const quickStartParams: Record<string, TrainingParameters> = {
+      'quick-train': {
+        modelName: 'Quick Training Model',
+        architecture: 'transformer',
+        dataset: 'sample_dataset',
+        epochs: 10,
+        batchSize: 16,
+        learningRate: 0.001,
+        optimizer: 'adam'
+      },
+      'aurag-builder': {
+        modelName: 'AURAG Knowledge Model',
+        architecture: 'rag',
+        dataset: 'knowledge_base',
+        epochs: 25,
+        batchSize: 8,
+        learningRate: 0.0005,
+        optimizer: 'adamw'
+      },
+      'clone-modify': {
+        modelName: 'Cloned Model Variant',
+        architecture: 'pretrained',
+        dataset: 'fine_tuning_set',
+        epochs: 5,
+        batchSize: 32,
+        learningRate: 0.00001,
+        optimizer: 'adam'
+      }
+    };
+
+    const params = quickStartParams[templateId];
+    if (params) {
+      try {
+        await startTraining(params);
+      } catch (error) {
+        console.error('Failed to start quick training:', error);
+      }
     }
   };
 
-  const handlePauseSession = (sessionId: string) => {
-    setTrainingSessions(prev => prev.map(session => 
-      session.id === sessionId 
-        ? { ...session, status: 'paused' as const }
-        : session
-    ));
+
+  const handlePauseSession = async (sessionId: string) => {
+    try {
+      await pauseTraining(sessionId);
+    } catch (error) {
+      console.error('Failed to pause session:', error);
+    }
   };
 
-  const handleStopSession = (sessionId: string) => {
-    setTrainingSessions(prev => prev.map(session => 
-      session.id === sessionId 
-        ? { ...session, status: 'failed' as const, progress: session.progress }
-        : session
-    ));
+  const handleStopSession = async (sessionId: string) => {
+    try {
+      await stopTraining(sessionId);
+    } catch (error) {
+      console.error('Failed to stop session:', error);
+    }
+  };
+
+  const handleExportMetrics = async (sessionId: string) => {
+    try {
+      await exportMetrics(sessionId, 'json');
+    } catch (error) {
+      console.error('Failed to export metrics:', error);
+    }
   };
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="text-center py-8">
-        <h1 className="text-4xl font-bold text-gradient mb-4">
-          AI Training Operations Center
-        </h1>
+        <div className="flex items-center justify-center space-x-4 mb-4">
+          <h1 className="text-4xl font-bold text-gradient">
+            AI Training Operations Center
+          </h1>
+          <button
+            onClick={refreshData}
+            disabled={loading}
+            className="p-2 bg-sis-gray-700 text-sis-gray-300 rounded-lg hover:bg-sis-gray-600 disabled:opacity-50 transition-colors"
+            title="Refresh Data"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-5 h-5" />
+            )}
+          </button>
+        </div>
         <p className="text-sis-gray-400 text-lg max-w-2xl mx-auto">
           Centralized command center for all AI model training operations.
           Monitor, manage, and optimize your training pipeline in real-time.
         </p>
+        {error && (
+          <div className="mt-4 max-w-2xl mx-auto p-3 bg-red-900/30 border border-red-500/30 rounded-lg">
+            <p className="text-red-300 text-sm">
+              <AlertCircle className="w-4 h-4 inline mr-2" />
+              {error}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Key Metrics Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <Brain className="w-8 h-8 text-sis-blue-400" />
-            <span className="text-2xl font-bold text-white">{modelStats.totalModels}</span>
+      {modelStats ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Brain className="w-8 h-8 text-sis-blue-400" />
+              <span className="text-2xl font-bold text-white">{modelStats.totalModels}</span>
+            </div>
+            <h3 className="text-sis-gray-300 font-medium">Total Models</h3>
           </div>
-          <h3 className="text-sis-gray-300 font-medium">Total Models</h3>
-        </div>
 
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <Activity className="w-8 h-8 text-green-400" />
-            <span className="text-2xl font-bold text-green-400">{modelStats.activeTraining}</span>
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Activity className="w-8 h-8 text-green-400" />
+              <span className="text-2xl font-bold text-green-400">{modelStats.activeTraining}</span>
+            </div>
+            <h3 className="text-sis-gray-300 font-medium">Active Training</h3>
           </div>
-          <h3 className="text-sis-gray-300 font-medium">Active Training</h3>
-        </div>
 
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <TrendingUp className="w-8 h-8 text-blue-400" />
-            <span className="text-2xl font-bold text-blue-400">{modelStats.completedToday}</span>
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <TrendingUp className="w-8 h-8 text-blue-400" />
+              <span className="text-2xl font-bold text-blue-400">{modelStats.completedToday}</span>
+            </div>
+            <h3 className="text-sis-gray-300 font-medium">Completed Today</h3>
           </div>
-          <h3 className="text-sis-gray-300 font-medium">Completed Today</h3>
-        </div>
 
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <AlertCircle className="w-8 h-8 text-red-400" />
-            <span className="text-2xl font-bold text-red-400">{modelStats.failedToday}</span>
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <AlertCircle className="w-8 h-8 text-red-400" />
+              <span className="text-2xl font-bold text-red-400">{modelStats.failedToday}</span>
+            </div>
+            <h3 className="text-sis-gray-300 font-medium">Failed Today</h3>
           </div>
-          <h3 className="text-sis-gray-300 font-medium">Failed Today</h3>
-        </div>
 
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <BarChart3 className="w-8 h-8 text-purple-400" />
-            <span className="text-2xl font-bold text-purple-400">
-              {(modelStats.averageAccuracy * 100).toFixed(1)}%
-            </span>
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <BarChart3 className="w-8 h-8 text-purple-400" />
+              <span className="text-2xl font-bold text-purple-400">
+                {(modelStats.averageAccuracy * 100).toFixed(1)}%
+              </span>
+            </div>
+            <h3 className="text-sis-gray-300 font-medium">Avg Accuracy</h3>
           </div>
-          <h3 className="text-sis-gray-300 font-medium">Avg Accuracy</h3>
-        </div>
 
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <Clock className="w-8 h-8 text-orange-400" />
-            <span className="text-2xl font-bold text-orange-400">{modelStats.totalTrainingHours}h</span>
+          <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <Clock className="w-8 h-8 text-orange-400" />
+              <span className="text-2xl font-bold text-orange-400">{modelStats.totalTrainingHours}h</span>
+            </div>
+            <h3 className="text-sis-gray-300 font-medium">Training Hours</h3>
           </div>
-          <h3 className="text-sis-gray-300 font-medium">Training Hours</h3>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="card p-6 animate-pulse">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-8 h-8 bg-sis-gray-600 rounded" />
+                <div className="w-16 h-8 bg-sis-gray-600 rounded" />
+              </div>
+              <div className="w-20 h-4 bg-sis-gray-600 rounded" />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="mb-6">
-        <QuickTrainingActions onActionSelect={handleQuickAction} />
+        <QuickTrainingActions onActionSelect={handleQuickStart} />
       </div>
 
       {/* Main Content Grid */}
@@ -531,7 +448,11 @@ export const TrainingOperationsCenter: React.FC = () => {
               <GitBranch className="w-4 h-4" />
               <span>Distributed Training</span>
             </button>
-            <button className="w-full btn-secondary text-sm py-2 flex items-center justify-center space-x-2">
+            <button 
+              onClick={() => selectedSession && handleExportMetrics(selectedSession)}
+              disabled={!selectedSession}
+              className="w-full btn-secondary text-sm py-2 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Download className="w-4 h-4" />
               <span>Export Metrics</span>
             </button>
@@ -558,57 +479,66 @@ export const TrainingOperationsCenter: React.FC = () => {
         </h2>
 
         <div className="space-y-3">
-          <div className="flex items-start space-x-3">
-            <div className="w-2 h-2 bg-green-400 rounded-full mt-2" />
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <span className="text-white font-medium">Legal Document Analyzer v2 - Training Started</span>
-                <span className="text-sis-gray-400 text-sm">1 hour ago</span>
-              </div>
-              <p className="text-sis-gray-400 text-sm mt-1">
-                Fine-tuning initiated with 10,000 legal documents dataset
-              </p>
-            </div>
-          </div>
+          {activityEvents.length > 0 ? (
+            activityEvents.slice(0, 10).map((event) => {
+              const getEventColor = (type: string) => {
+                switch (type) {
+                  case 'training_started': return 'bg-green-400';
+                  case 'training_completed': return 'bg-blue-400';
+                  case 'training_failed': return 'bg-red-400';
+                  case 'model_queued': return 'bg-yellow-400';
+                  case 'dataset_updated': return 'bg-purple-400';
+                  default: return 'bg-gray-400';
+                }
+              };
 
-          <div className="flex items-start space-x-3">
-            <div className="w-2 h-2 bg-blue-400 rounded-full mt-2" />
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <span className="text-white font-medium">Code Generation Model - Evaluation Complete</span>
-                <span className="text-sis-gray-400 text-sm">2 hours ago</span>
-              </div>
-              <p className="text-sis-gray-400 text-sm mt-1">
-                Achieved 95.7% accuracy on test dataset with 0.156 loss
-              </p>
-            </div>
-          </div>
+              const formatTimeAgo = (timestamp: string) => {
+                const now = new Date();
+                const eventTime = new Date(timestamp);
+                const diffMs = now.getTime() - eventTime.getTime();
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                
+                if (diffHours > 0) {
+                  return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                } else if (diffMinutes > 0) {
+                  return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+                } else {
+                  return 'Just now';
+                }
+              };
 
-          <div className="flex items-start space-x-3">
-            <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2" />
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <span className="text-white font-medium">Medical Knowledge Assistant - Queued</span>
-                <span className="text-sis-gray-400 text-sm">3 hours ago</span>
-              </div>
-              <p className="text-sis-gray-400 text-sm mt-1">
-                Training scheduled for next available compute slot
-              </p>
+              return (
+                <div key={event.id} className="flex items-start space-x-3">
+                  <div className={`w-2 h-2 ${getEventColor(event.type)} rounded-full mt-2`} />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-white font-medium">{event.modelName} - {event.type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                      <span className="text-sis-gray-400 text-sm">{formatTimeAgo(event.timestamp)}</span>
+                    </div>
+                    <p className="text-sis-gray-400 text-sm mt-1">
+                      {event.message}
+                    </p>
+                    {event.details && (
+                      <div className="mt-1 text-xs text-sis-gray-500">
+                        {Object.entries(event.details).map(([key, value]) => (
+                          <span key={key} className="mr-3">
+                            {key}: {String(value)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center py-8 text-sis-gray-500">
+              <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No recent training activity</p>
+              <p className="text-sm mt-1">Start a training session to see activity updates here</p>
             </div>
-          </div>
-
-          <div className="flex items-start space-x-3">
-            <div className="w-2 h-2 bg-purple-400 rounded-full mt-2" />
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <span className="text-white font-medium">AURAG Knowledge Base Updated</span>
-                <span className="text-sis-gray-400 text-sm">5 hours ago</span>
-              </div>
-              <p className="text-sis-gray-400 text-sm mt-1">
-                Added 500 new documents to philosophical reasoning corpus
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

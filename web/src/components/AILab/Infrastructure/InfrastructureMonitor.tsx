@@ -218,7 +218,7 @@ export const InfrastructureMonitor: React.FC = () => {
     ctx.font = '14px Inter';
     ctx.textAlign = 'left';
     ctx.fillText(
-      `${selectedMetric.toUpperCase()}: ${data[data.length - 1]?.toFixed(1)}${selectedMetric === 'temperature' ? '°C' : '%'}`,
+      `${selectedMetric.toUpperCase()}: ${data[data.length - 1]?.toFixed(1)}%`,
       padding,
       padding - 10
     );
