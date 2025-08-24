@@ -73,26 +73,28 @@ fn init_memory_barriers() -> Result<(), &'static str> {
     Ok(())
 }
 
-/// Apple Neural Engine detection via device tree
+/// Apple Neural Engine detection via device tree  
 pub fn detect_apple_neural_engine() -> Result<Option<NeuralEngineInfo>, &'static str> {
-    // Placeholder for Neural Engine detection
-    // In a real implementation, this would:
-    // 1. Parse device tree for "apple,neural-engine" node
-    // 2. Read generation and capability registers
-    // 3. Validate firmware if accessible
+    use crate::arch::aarch64::neural_detect;
     
-    // For now, return a simulated M2 Neural Engine
-    #[cfg(target_arch = "aarch64")]
-    {
-        Ok(Some(NeuralEngineInfo {
-            generation: 0x2000, // M2 generation
-            tops: 15.8,
-            memory_requirement_mb: 256,
-            mmio_base: 0x0, // Will be filled from device tree
-        }))
-    }
-    #[cfg(not(target_arch = "aarch64"))]
-    {
+    // Real hardware detection implementation
+    if let Some(mut detection) = neural_detect::detect_via_device_tree() {
+        // Validate hardware access
+        match neural_detect::validate_neural_engine_hardware(&mut detection) {
+            Ok(()) => {
+                serial::write_str("[HW] Neural Engine validation successful\n");
+                Ok(Some(detection.into()))
+            }
+            Err(e) => {
+                serial::write_str("[HW] Neural Engine validation failed: ");
+                serial::write_str(e);
+                serial::write_str(" - continuing in CPU-only mode\n");
+                // Return None for graceful degradation
+                Ok(None)
+            }
+        }
+    } else {
+        serial::write_str("[HW] No Neural Engine detected - CPU-only mode\n");
         Ok(None)
     }
 }

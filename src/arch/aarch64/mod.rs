@@ -31,6 +31,8 @@ pub mod neural_power;
 pub mod boot;
 pub mod uart;
 pub mod vectors;
+pub mod neural_detect;
+pub mod performance_validation;
 pub mod neural_hardware_probe;
 pub mod atomic_bitmap;
 pub mod mmio_barriers;

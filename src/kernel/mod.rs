@@ -64,6 +64,9 @@ pub mod no_std_shims;
 pub mod boot_metrics;
 pub mod boot_recovery;
 
+// Phase 1D Security Framework
+pub mod security_framework;
+
 // Provide stable re-exports for callers
 pub use pci::read_id;
 pub use pci::{cfg_read32, cfg_write32, find_first_e1000, PciId};
