@@ -248,8 +248,8 @@ impl NumericalValidator {
         }
 
         let dot_product: f32 = a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum();
-        let norm_a: f32 = a.iter().map(|&x| x * x).sum::<f32>().sqrt();
-        let norm_b: f32 = b.iter().map(|&x| x * x).sum::<f32>().sqrt();
+        let norm_a: f32 = crate::kernel::no_std_shims::math::sqrt_f32(a.iter().map(|&x| x * x).sum::<f32>());
+        let norm_b: f32 = crate::kernel::no_std_shims::math::sqrt_f32(b.iter().map(|&x| x * x).sum::<f32>());
 
         if norm_a == 0.0 || norm_b == 0.0 {
             return 0.0;

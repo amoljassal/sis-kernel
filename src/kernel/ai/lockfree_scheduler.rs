@@ -56,9 +56,9 @@ impl CognitiveTask {
     pub fn scheduling_priority(&self) -> u32 {
         let base_priority = match self.priority {
             CognitivePriority::RealTimeInference => 1000,
-            CognitivePriority::InteractiveResponse => 800,
-            CognitivePriority::BackgroundTraining => 200,
-            CognitivePriority::BatchProcessing => 100,
+            CognitivePriority::Interactive => 800,
+            CognitivePriority::Background => 200,
+            CognitivePriority::Maintenance => 100,
         };
         
         // Adjust based on deadline urgency
@@ -298,9 +298,9 @@ impl LockFreeScheduler {
     fn priority_to_queue_index(&self, priority: CognitivePriority) -> usize {
         match priority {
             CognitivePriority::RealTimeInference => 0,
-            CognitivePriority::InteractiveResponse => 1,
-            CognitivePriority::BackgroundTraining => 2,
-            CognitivePriority::BatchProcessing => 3,
+            CognitivePriority::Interactive => 1,
+            CognitivePriority::Background => 2,
+            CognitivePriority::Maintenance => 3,
         }
     }
 }

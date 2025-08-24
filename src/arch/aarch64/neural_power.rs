@@ -151,7 +151,7 @@ impl NEPowerManager {
     }
     
     /// Set Neural Engine power state with smooth transitions
-    pub fn set_power_state(&self, target_state: NEPowerState) -> Result<(), &'static str> {
+    pub fn set_power_state(&mut self, target_state: NEPowerState) -> Result<(), &'static str> {
         let target_config = NE_POWER_CONFIGS
             .iter()
             .find(|cfg| cfg.state == target_state)

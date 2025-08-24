@@ -347,10 +347,10 @@ impl M1DMAEngine {
     }
     
     /// Execute DMA transfer for Neural Engine
-    pub fn transfer(&self, transfer: &DMATransfer) -> Result<(), &'static str> {
+    pub fn transfer(&mut self, transfer: &DMATransfer) -> Result<(), &'static str> {
         // Allocate DMA channel
         let channel_id = self.allocate_channel()?;
-        let channel = &self.channels[channel_id];
+        let channel = &mut self.channels[channel_id];
         
         // Configure transfer
         unsafe {
@@ -513,8 +513,14 @@ pub fn free_ne_tensor(tensor: &NETensor) -> Result<(), MemoryError> {
 
 /// Execute DMA transfer for Neural Engine
 pub fn ne_dma_transfer(transfer: &DMATransfer) -> Result<(), &'static str> {
-    match DMA_ENGINE.get() {
-        Some(engine) => engine.transfer(transfer),
-        None => Err("DMA engine not initialized"),
+    // SAFETY: We ensure single-threaded access through kernel scheduling
+    unsafe {
+        match DMA_ENGINE.get() {
+            Some(engine) => {
+                let engine_mut = &mut *(engine as *const NeuralDMAEngine as *mut NeuralDMAEngine);
+                engine_mut.transfer(transfer)
+            },
+            None => Err("DMA engine not initialized"),
+        }
     }
 }

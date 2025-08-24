@@ -182,7 +182,7 @@ impl M1NeuralHAL {
             };
         }
         
-        let hal = Self {
+        let mut hal = Self {
             regs,
             cmd_queue,
             queue_head: AtomicU32::new(0),
@@ -204,7 +204,7 @@ impl M1NeuralHAL {
     }
     
     /// Hardware initialization sequence
-    fn hardware_init(&self) -> Result<(), NEInitError> {
+    fn hardware_init(&mut self) -> Result<(), NEInitError> {
         // Reset Neural Engine
         unsafe {
             write_volatile(&mut self.regs.ctrl, 0x2); // Reset bit
@@ -264,7 +264,7 @@ impl M1NeuralHAL {
     
     /// Execute high-performance AI inference
     pub fn execute_inference(
-        &self,
+        &mut self,
         input_data: &[u8],
         output_buffer: &mut [u8],
         workload_type: WorkloadType,
@@ -306,7 +306,7 @@ impl M1NeuralHAL {
     
     /// Submit command to Neural Engine command queue  
     fn submit_command(
-        &self,
+        &mut self,
         opcode: NEOpcode,
         flags: u32,
         input_data: &[u8],
@@ -480,7 +480,7 @@ impl M1NeuralHAL {
     }
     
     /// Set Neural Engine power state
-    pub fn set_power_state(&self, state: NEPowerState) -> Result<(), &'static str> {
+    pub fn set_power_state(&mut self, state: NEPowerState) -> Result<(), &'static str> {
         let power_val = match state {
             NEPowerState::HighPerformance => 0x3,
             NEPowerState::Balanced => 0x2,
@@ -539,8 +539,14 @@ pub fn neural_inference(
     workload_type: WorkloadType,
     priority: CognitivePriority,
 ) -> Result<NEInferenceResult, &'static str> {
-    match get_neural_hal() {
-        Some(hal) => hal.execute_inference(input, output, workload_type, priority),
-        None => Err("Neural Engine HAL not initialized"),
+    // SAFETY: We ensure single-threaded access through kernel scheduling
+    unsafe {
+        match M1_NEURAL_HAL.get() {
+            Some(hal) => {
+                let hal_mut = &mut *(hal as *const M1NeuralHAL as *mut M1NeuralHAL);
+                hal_mut.execute_inference(input, output, workload_type, priority)
+            },
+            None => Err("Neural Engine HAL not initialized"),
+        }
     }
 }

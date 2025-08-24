@@ -79,7 +79,7 @@ impl ARM64CognitiveScheduler {
 
         // Route to appropriate queue based on optimization
         match task.workload_type {
-            WorkloadType::Inference if task.requires_neural_engine => {
+            WorkloadType::RealTimeInference if task.requires_neural_engine => {
                 // Neural Engine is optimal for inference
                 let mut queue = self.neural_engine_queue.lock();
                 queue.push(task);
@@ -132,7 +132,7 @@ impl ARM64CognitiveScheduler {
         // Set NEON optimization level
         if ai_ctx.neon_optimizations.use_vectorized_ops {
             task.neon_optimization_level = match task.workload_type {
-                WorkloadType::Inference if ai_ctx.neon_optimizations.use_fp16_math => {
+                WorkloadType::RealTimeInference if ai_ctx.neon_optimizations.use_fp16_math => {
                     NEONOptLevel::Advanced
                 }
                 WorkloadType::DataProcessing if ai_ctx.neon_optimizations.use_crypto_extensions => {
@@ -149,7 +149,7 @@ impl ARM64CognitiveScheduler {
     fn would_benefit_from_neural_engine(&self, task: &ARM64CognitiveTask) -> bool {
         match task.workload_type {
             // Neural Engine excels at inference workloads
-            WorkloadType::Inference => true,
+            WorkloadType::RealTimeInference => true,
             // Some preprocessing can benefit
             WorkloadType::Preprocessing => task.priority <= CognitivePriority::Interactive,
             _ => false,

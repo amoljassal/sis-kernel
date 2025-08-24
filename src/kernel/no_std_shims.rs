@@ -143,6 +143,73 @@ pub mod math {
         
         sum
     }
+
+    /// Fast square root approximation using Newton's method
+    #[inline]
+    pub fn sqrt_f32(x: f32) -> f32 {
+        if x < 0.0 { return f32::NAN; }
+        if x == 0.0 { return 0.0; }
+        
+        // Initial guess using bit manipulation
+        let mut bits = x.to_bits();
+        bits = 0x5f3759df - (bits >> 1); // Magic number for fast inverse sqrt
+        let mut y = f32::from_bits(bits);
+        
+        // Newton-Raphson iterations for better precision
+        y = 0.5 * (y + x / y);
+        y = 0.5 * (y + x / y);
+        y
+    }
+
+    /// Round to nearest integer
+    #[inline]
+    pub fn round_f32(x: f32) -> f32 {
+        if x >= 0.0 {
+            floor_f32(x + 0.5)
+        } else {
+            ceil_f32(x - 0.5)
+        }
+    }
+
+    /// Exponential function (e^x) using existing exp_approx
+    #[inline]
+    pub fn exp_f32(x: f32) -> f32 {
+        exp_approx(x)
+    }
+
+    /// Natural logarithm using existing ln_approx
+    #[inline]
+    pub fn ln_f32(x: f32) -> f32 {
+        ln_approx(x)
+    }
+
+    /// Cosine approximation using Taylor series
+    #[inline]
+    pub fn cos_f32(mut x: f32) -> f32 {
+        // Normalize to [0, 2π]
+        const PI: f32 = 3.14159265359;
+        const TWO_PI: f32 = 2.0 * PI;
+        
+        x = x % TWO_PI;
+        if x < 0.0 { x += TWO_PI; }
+        
+        // Use symmetry to reduce range to [0, π]
+        let sign = if x > PI { -1.0 } else { 1.0 };
+        if x > PI { x = TWO_PI - x; }
+        
+        // Taylor series: cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6! + ...
+        let x2 = x * x;
+        let mut result = 1.0;
+        let mut term = 1.0;
+        
+        for n in 1..=8 {
+            term *= -x2 / ((2 * n - 1) * (2 * n)) as f32;
+            result += term;
+            if term.abs() < 1e-7 { break; }
+        }
+        
+        sign * result
+    }
 }
 
 /// String handling without heap allocation for performance-critical paths

@@ -177,7 +177,7 @@ impl CognitiveFabric {
         }
 
         // Bonus for NPU if inference task
-        if task.workload_type == WorkloadType::Inference && node.capabilities.has_npu {
+        if task.workload_type == WorkloadType::RealTimeInference && node.capabilities.has_npu {
             score += 30;
         }
 

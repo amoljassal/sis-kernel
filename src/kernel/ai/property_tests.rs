@@ -243,11 +243,12 @@ impl PropertyTestGenerator {
             }
         }
 
+        let success = violations.is_empty();
         PropertyTestResult {
             property_name: "Linear Distributivity".to_string(),
             iterations_tested: iterations,
             violations,
-            success: violations.is_empty(),
+            success,
         }
     }
 
@@ -269,7 +270,7 @@ impl PropertyTestGenerator {
             // Simulate INT8 quantization
             let scale = 127.0;
             let quantized: Vec<i8> = input.iter()
-                .map(|&x| ((x * scale).round() as i8).max(-127).min(127))
+                .map(|&x| ((crate::kernel::no_std_shims::math::round_f32(x * scale)) as i8).max(-127).min(127))
                 .collect();
             
             let dequantized: Vec<f32> = quantized.iter()
@@ -288,11 +289,12 @@ impl PropertyTestGenerator {
             }
         }
 
+        let success = violations.is_empty();
         PropertyTestResult {
             property_name: "Quantization Round-trip".to_string(),
             iterations_tested: iterations,
             violations,
-            success: violations.is_empty(),
+            success,
         }
     }
 
@@ -337,11 +339,12 @@ impl PropertyTestGenerator {
             }
         }
 
+        let success = violations.is_empty();
         PropertyTestResult {
             property_name: "Numerical Stability".to_string(),
             iterations_tested: iterations,
             violations,
-            success: violations.is_empty(),
+            success,
         }
     }
 
@@ -355,7 +358,7 @@ impl PropertyTestGenerator {
         let max_val = input.iter().fold(f32::NEG_INFINITY, |acc, &x| acc.max(x));
         
         // Compute exp(x - max) and sum
-        let exp_values: Vec<f32> = input.iter().map(|&x| (x - max_val).exp()).collect();
+        let exp_values: Vec<f32> = input.iter().map(|&x| crate::kernel::no_std_shims::math::exp_f32(x - max_val)).collect();
         let sum: f32 = exp_values.iter().sum();
         
         // Normalize

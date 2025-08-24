@@ -93,14 +93,14 @@ impl CfvsOrchestrator {
         
         // Execute tests in parallel across nodes
         let mut node_results = Vec::new();
-        for (node_id, test_batch) in execution_plan.node_assignments {
-            match self.execute_node_batch(node_id, test_batch) {
+        for (node_id, test_batch) in &execution_plan.node_assignments {
+            match self.execute_node_batch(*node_id, test_batch.clone()) {
                 Ok(result) => node_results.push(result),
                 Err(e) => {
                     serial::write_str("[CFVS] Node execution failed\n");
                     // Continue with other nodes, mark this as failed
                     node_results.push(NodeBatchResult {
-                        node_id,
+                        node_id: *node_id,
                         test_results: vec![],
                         execution_successful: false,
                         error_details: Some("Execution failed".to_string()),
@@ -112,6 +112,9 @@ impl CfvsOrchestrator {
 
         // Aggregate results and achieve consensus
         let consensus_result = self.consensus.achieve_consensus(&node_results)?;
+        let total_tests = consensus_result.total_tests;
+        let successful_tests = consensus_result.successful_tests;
+        let consensus_achieved = consensus_result.consensus_achieved;
         
         // Monitor performance regression
         let regression_analysis = self.monitor.analyze_performance_regression(&node_results)?;
@@ -123,15 +126,15 @@ impl CfvsOrchestrator {
         );
 
         Ok(DistributedCampaignResult {
-            campaign_name: campaign.name,
+            campaign_name: campaign.name.clone(),
             execution_plan,
             node_results,
             consensus_result,
             regression_analysis,
             campaign_duration_us: (campaign_duration / 1000) as u32,
-            total_tests: consensus_result.total_tests,
-            successful_tests: consensus_result.successful_tests,
-            consensus_achieved: consensus_result.consensus_achieved,
+            total_tests,
+            successful_tests,
+            consensus_achieved,
         })
     }
 

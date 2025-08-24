@@ -338,7 +338,7 @@ impl DeterministicEventSimulator {
         // Simplified normal distribution using Box-Muller transform
         let u1 = (self.rng.next_u32() as f32) / (u32::MAX as f32);
         let u2 = (self.rng.next_u32() as f32) / (u32::MAX as f32);
-        let z = (-2.0 * u1.ln()).sqrt() * (2.0 * 3.14159 * u2).cos();
+        let z = crate::kernel::no_std_shims::math::sqrt_f32(-2.0 * crate::kernel::no_std_shims::math::ln_f32(u1)) * crate::kernel::no_std_shims::math::cos_f32(2.0 * 3.14159 * u2);
         ((z * (jitter_us as f32 / 4.0)).abs() as u32).min(jitter_us)
     }
 

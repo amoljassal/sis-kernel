@@ -550,7 +550,7 @@ impl UnifiedAiScheduler {
     fn create_default_fingerprint(&self, model_id: u32, workload_type: WorkloadType) -> PerformanceFingerprint {
         // Simplified defaults based on workload type
         let (ne_time, cpu_time, gpu_time) = match workload_type {
-            WorkloadType::Inference => (100_000, 500_000, 200_000), // ns
+            WorkloadType::RealTimeInference => (100_000, 500_000, 200_000), // ns
             WorkloadType::Training => (1_000_000, 5_000_000, 800_000),
             WorkloadType::DataProcessing => (50_000, 200_000, 100_000),
             WorkloadType::Preprocessing => (80_000, 300_000, 150_000),
