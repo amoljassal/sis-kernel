@@ -123,7 +123,7 @@ pub struct KernelAIAccelerator {
     /// Available models
     models: BTreeMap<u32, AIModel>,
     /// Neural Engine HAL reference
-    neural_hal: Option<&'static ne_hal::M1NeuralHAL>,
+    neural_hal: Option<&'static spin::Mutex<ne_hal::M1NeuralHAL>>,
     /// Performance statistics
     total_inferences: AtomicU64,
     successful_inferences: AtomicU64,
@@ -314,7 +314,7 @@ impl KernelAIAccelerator {
         };
         
         // Execute with hardware acceleration
-        hal.execute_inference(
+        hal.lock().execute_inference(
             input_data,
             output_data,
             request.workload_type,

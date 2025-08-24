@@ -153,12 +153,13 @@ impl CfvsOrchestrator {
         
         // Validate distributed system recovery
         let recovery_validation = self.validate_distributed_recovery(&fault_results)?;
+        let consistency_maintained = recovery_validation.consistency_maintained;
         
         Ok(DistributedFaultResult {
             campaign_name: fault_campaign.name,
             fault_results,
             recovery_validation,
-            distributed_consistency: recovery_validation.consistency_maintained,
+            distributed_consistency: consistency_maintained,
         })
     }
 
@@ -185,6 +186,7 @@ impl CfvsOrchestrator {
         let bft_results = self.test_byzantine_fault_tolerance()?;
         
         let validation_duration = self.read_timer() - validation_start;
+        let overall_success = self.determine_overall_success(&property_results, &differential_results, &fault_results);
         
         Ok(CfvsValidationResult {
             property_test_results: property_results,
@@ -193,7 +195,7 @@ impl CfvsOrchestrator {
             performance_validation: performance_results,
             bft_validation: bft_results,
             validation_duration_us: (validation_duration / 1000) as u32,
-            overall_success: self.determine_overall_success(&property_results, &differential_results, &fault_results),
+            overall_success,
         })
     }
 
@@ -203,11 +205,14 @@ impl CfvsOrchestrator {
         node_id: NodeId,
         test_batch: TestBatch,
     ) -> Result<NodeBatchResult, ValidationError> {
-        let node = self.nodes.get_mut(&node_id)
-            .ok_or(ValidationError::InferenceError("Node not found"))?;
-
-        node.status = NodeStatus::Executing;
         let batch_start = self.read_timer();
+        
+        // Update node status
+        {
+            let node = self.nodes.get_mut(&node_id)
+                .ok_or(ValidationError::InferenceError("Node not found"))?;
+            node.status = NodeStatus::Executing;
+        }
         
         let mut test_results = Vec::new();
         
@@ -216,14 +221,20 @@ impl CfvsOrchestrator {
                 Ok(result) => test_results.push(result),
                 Err(_) => {
                     // Log error and continue with next test
-                    node.failure_count.fetch_add(1, Ordering::Relaxed);
+                    if let Some(node) = self.nodes.get_mut(&node_id) {
+                        node.failure_count.fetch_add(1, Ordering::Relaxed);
+                    }
                 }
             }
         }
         
         let execution_time = self.read_timer() - batch_start;
-        node.status = NodeStatus::Available;
-        node.test_count.fetch_add(test_results.len() as u64, Ordering::Relaxed);
+        
+        // Update node status and test count
+        if let Some(node) = self.nodes.get_mut(&node_id) {
+            node.status = NodeStatus::Available;
+            node.test_count.fetch_add(test_results.len() as u64, Ordering::Relaxed);
+        }
         
         Ok(NodeBatchResult {
             node_id,
@@ -267,7 +278,8 @@ impl CfvsOrchestrator {
         let property_generator = PropertyTestGenerator::new(12345, ValidationTolerance::default());
         let mut results = Vec::new();
         
-        for (node_id, _node) in &self.nodes {
+        let node_ids: Vec<NodeId> = self.nodes.keys().copied().collect();
+        for node_id in node_ids {
             // Create property test batch for this node
             let test_batch = TestBatch {
                 batch_id: self.generate_batch_id(),
@@ -285,7 +297,7 @@ impl CfvsOrchestrator {
                 ],
             };
             
-            match self.execute_node_batch(*node_id, test_batch) {
+            match self.execute_node_batch(node_id, test_batch) {
                 Ok(result) => results.push(result),
                 Err(_) => {
                     // Continue with other nodes
@@ -302,7 +314,8 @@ impl CfvsOrchestrator {
         let mut results = Vec::new();
         
         // Create differential test cases between different node types
-        for (node_id, _node) in &self.nodes {
+        let node_ids: Vec<NodeId> = self.nodes.keys().copied().collect();
+        for node_id in node_ids {
             let test_batch = TestBatch {
                 batch_id: self.generate_batch_id(),
                 test_cases: vec![
@@ -319,7 +332,7 @@ impl CfvsOrchestrator {
                 ],
             };
             
-            match self.execute_node_batch(*node_id, test_batch) {
+            match self.execute_node_batch(node_id, test_batch) {
                 Ok(result) => results.push(result),
                 Err(_) => {}
             }
@@ -340,10 +353,11 @@ impl CfvsOrchestrator {
         // Analyze performance consistency across nodes
         let consistency_score = self.calculate_performance_consistency(&node_performances);
         
+        let performance_outliers = self.detect_performance_outliers(&node_performances);
         Ok(PerformanceValidationResult {
             node_performances,
             consistency_score,
-            performance_outliers: self.detect_performance_outliers(&node_performances),
+            performance_outliers,
             meets_sla: consistency_score > 0.95, // 95% consistency threshold
         })
     }

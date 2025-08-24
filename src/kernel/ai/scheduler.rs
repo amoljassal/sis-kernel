@@ -112,7 +112,7 @@ pub struct ResourceCost {
 /// Lock-free SPSC Ring Buffer for AI Tasks
 pub struct AiTaskQueue<const N: usize> {
     /// Task storage ring
-    tasks: [Option<AiTask>; N],
+    tasks: [core::cell::UnsafeCell<Option<AiTask>>; N],
     /// Head index (consumer)
     head: AtomicU32,
     /// Tail index (producer)
@@ -125,8 +125,8 @@ pub struct AiTaskQueue<const N: usize> {
 impl<const N: usize> AiTaskQueue<N> {
     /// Create new task queue
     pub const fn new() -> Self {
-        // Initialize with None values
-        const NONE_TASK: Option<AiTask> = None;
+        // Initialize with None values in UnsafeCell
+        const NONE_TASK: core::cell::UnsafeCell<Option<AiTask>> = core::cell::UnsafeCell::new(None);
         Self {
             tasks: [NONE_TASK; N],
             head: AtomicU32::new(0),
@@ -148,8 +148,7 @@ impl<const N: usize> AiTaskQueue<N> {
         
         // Store task
         unsafe {
-            let slot = &self.tasks[tail as usize] as *const _ as *mut Option<AiTask>;
-            (*slot) = Some(task);
+            *self.tasks[tail as usize].get() = Some(task);
         }
         
         // Update tail with release ordering
@@ -171,8 +170,7 @@ impl<const N: usize> AiTaskQueue<N> {
         
         // Load task
         let task = unsafe {
-            let slot = &self.tasks[head as usize] as *const _ as *mut Option<AiTask>;
-            (*slot).take()
+            (*self.tasks[head as usize].get()).take()
         };
         
         // Update head with release ordering
@@ -555,6 +553,8 @@ impl UnifiedAiScheduler {
             WorkloadType::DataProcessing => (50_000, 200_000, 100_000),
             WorkloadType::Preprocessing => (80_000, 300_000, 150_000),
             WorkloadType::Serving => (120_000, 400_000, 180_000),
+            WorkloadType::Interactive => (90_000, 350_000, 160_000),
+            WorkloadType::Background => (200_000, 800_000, 300_000),
         };
 
         PerformanceFingerprint {
@@ -585,11 +585,11 @@ impl UnifiedAiScheduler {
     
     /// Update predictive power management with task information
     fn update_power_predictions(&mut self, resource: ComputeResource, task: &AiTask) {
-        let resource_mgr = self.power_manager.get_resource_manager(resource);
-        
-        // Update arrival predictions (convert from cycles to microseconds)
+        // Capture immutable values first
         let current_cycles = self.read_cycle_counter();
         let timer_freq = self.get_timer_frequency();
+        
+        let resource_mgr = self.power_manager.get_resource_manager(resource);
         let current_time_us = (current_cycles / (timer_freq / 1_000_000)) as u32;
         
         // Get queue depth for current resource

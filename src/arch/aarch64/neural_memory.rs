@@ -481,7 +481,7 @@ pub struct DMAStats {
 
 /// Global instances
 static NE_ALLOCATOR: InitCell<spin::Mutex<NEMemoryAllocator>> = InitCell::new();
-static DMA_ENGINE: InitCell<M1DMAEngine> = InitCell::new();
+static DMA_ENGINE: InitCell<spin::Mutex<M1DMAEngine>> = InitCell::new();
 
 /// Initialize Neural Engine memory management
 pub fn init_neural_memory() -> Result<(), MemoryError> {
@@ -490,7 +490,7 @@ pub fn init_neural_memory() -> Result<(), MemoryError> {
     
     let dma_engine = M1DMAEngine::new()
         .map_err(|_| MemoryError::InitializationFailed)?;
-    DMA_ENGINE.init(|| dma_engine);
+    DMA_ENGINE.init(|| spin::Mutex::new(dma_engine));
     
     Ok(())
 }
@@ -513,14 +513,8 @@ pub fn free_ne_tensor(tensor: &NETensor) -> Result<(), MemoryError> {
 
 /// Execute DMA transfer for Neural Engine
 pub fn ne_dma_transfer(transfer: &DMATransfer) -> Result<(), &'static str> {
-    // SAFETY: We ensure single-threaded access through kernel scheduling
-    unsafe {
-        match DMA_ENGINE.get() {
-            Some(engine) => {
-                let engine_mut = &mut *(engine as *const NeuralDMAEngine as *mut NeuralDMAEngine);
-                engine_mut.transfer(transfer)
-            },
-            None => Err("DMA engine not initialized"),
-        }
+    match DMA_ENGINE.get() {
+        Some(engine) => engine.lock().transfer(transfer),
+        None => Err("DMA engine not initialized"),
     }
 }

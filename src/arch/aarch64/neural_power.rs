@@ -198,7 +198,7 @@ impl NEPowerManager {
     }
     
     /// Adaptive power scaling based on workload characteristics
-    pub fn adaptive_scale(&self, workload: &WorkloadProfile, priority: CognitivePriority) -> Result<(), &'static str> {
+    pub fn adaptive_scale(&mut self, workload: &WorkloadProfile, priority: CognitivePriority) -> Result<(), &'static str> {
         if !self.adaptive_scaling_enabled.load(Ordering::Acquire) {
             return Ok(());
         }
@@ -260,7 +260,7 @@ impl NEPowerManager {
     }
     
     /// Set Neural Engine frequency with PLL management
-    fn set_frequency(&self, frequency_mhz: u32) -> Result<(), &'static str> {
+    fn set_frequency(&mut self, frequency_mhz: u32) -> Result<(), &'static str> {
         // Calculate PLL configuration for target frequency
         let pll_config = self.calculate_pll_config(frequency_mhz)?;
         
@@ -283,7 +283,7 @@ impl NEPowerManager {
     }
     
     /// Set Neural Engine voltage with smooth ramping
-    fn set_voltage(&self, voltage_mv: u32) -> Result<(), &'static str> {
+    fn set_voltage(&mut self, voltage_mv: u32) -> Result<(), &'static str> {
         // Voltage control with safety limits
         if voltage_mv > 1100 || (voltage_mv > 0 && voltage_mv < 700) {
             return Err("Voltage out of safe range");
@@ -400,7 +400,7 @@ impl NEPowerManager {
     }
     
     /// Thermal emergency throttling
-    pub fn emergency_thermal_throttle(&self) -> Result<(), &'static str> {
+    pub fn emergency_thermal_throttle(&mut self) -> Result<(), &'static str> {
         serial::write_str("[NEPower] EMERGENCY THERMAL THROTTLE ACTIVATED!\n");
         
         // Immediate reduction to power saver mode
@@ -514,23 +514,37 @@ impl From<WorkloadType> for WorkloadProfile {
                 latency_priority: 0.8,
                 duration_estimate_ms: 100,
             },
+            WorkloadType::Interactive => WorkloadProfile {
+                compute_intensity: 0.6,
+                memory_bandwidth: 0.4,
+                thermal_sensitivity: 0.5,
+                latency_priority: 0.9,
+                duration_estimate_ms: 80,
+            },
+            WorkloadType::Background => WorkloadProfile {
+                compute_intensity: 0.3,
+                memory_bandwidth: 0.3,
+                thermal_sensitivity: 0.2,
+                latency_priority: 0.1,
+                duration_estimate_ms: 2000,
+            },
         }
     }
 }
 
 /// Global power manager instance
-static NE_POWER_MANAGER: InitCell<NEPowerManager> = InitCell::new();
+static NE_POWER_MANAGER: InitCell<spin::Mutex<NEPowerManager>> = InitCell::new();
 
 /// Initialize Neural Engine power management
 pub fn init_neural_power_management(ne_base_addr: u64) -> Result<(), &'static str> {
     serial::write_str("[NEPower] Initializing Neural Engine power management\n");
     
     let power_manager = NEPowerManager::new(ne_base_addr)?;
-    NE_POWER_MANAGER.init(|| power_manager);
+    NE_POWER_MANAGER.init(|| spin::Mutex::new(power_manager));
     
     // Set initial balanced power state
     if let Some(pm) = NE_POWER_MANAGER.get() {
-        pm.set_power_state(NEPowerState::Balanced)?;
+        pm.lock().set_power_state(NEPowerState::Balanced)?;
         serial::write_str("[NEPower] Neural Engine power management initialized in Balanced mode\n");
     }
     
@@ -538,14 +552,14 @@ pub fn init_neural_power_management(ne_base_addr: u64) -> Result<(), &'static st
 }
 
 /// Get global power manager
-pub fn get_power_manager() -> Option<&'static NEPowerManager> {
+pub fn get_power_manager() -> Option<&'static spin::Mutex<NEPowerManager>> {
     NE_POWER_MANAGER.get()
 }
 
 /// Set Neural Engine power state (global interface)
 pub fn set_ne_power_state(state: NEPowerState) -> Result<(), &'static str> {
     match get_power_manager() {
-        Some(pm) => pm.set_power_state(state),
+        Some(pm) => pm.lock().set_power_state(state),
         None => Err("Power manager not initialized"),
     }
 }
@@ -555,7 +569,7 @@ pub fn adaptive_power_scale(workload_type: WorkloadType, priority: CognitivePrio
     match get_power_manager() {
         Some(pm) => {
             let workload = WorkloadProfile::from(workload_type);
-            pm.adaptive_scale(&workload, priority)
+            pm.lock().adaptive_scale(&workload, priority)
         },
         None => Err("Power manager not initialized"),
     }
@@ -563,5 +577,5 @@ pub fn adaptive_power_scale(workload_type: WorkloadType, priority: CognitivePrio
 
 /// Get power management statistics (global interface)
 pub fn get_ne_power_stats() -> Option<NEPowerStats> {
-    get_power_manager().map(|pm| pm.get_power_stats())
+    get_power_manager().map(|pm| pm.lock().get_power_stats())
 }

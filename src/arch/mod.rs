@@ -46,5 +46,5 @@ impl From<&'static str> for ArchError {
 
 /// Initialize architecture-specific components
 pub fn init() -> Result<(), ArchError> {
-    arch_impl::init().map_err(|_| ArchError::InitializationFailed)
+    arch_impl::init().map_err(|_| ArchError::InitializationFailed("Architecture initialization failed"))
 }

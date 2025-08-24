@@ -343,12 +343,14 @@ pub fn install_for_task(
     let code_guard = pt.map_user(code_va, manager.vdso_code.frame(), code_flags)
         .map_err(|_| VdsoError::Map)?;
     
-    // Map communication page with RAII guard
-    let comm_guard = pt.map_user(comm_va, comm_frame, comm_flags)
-        .map_err(|_| VdsoError::Map)?; // code_guard auto-unmaps on error
-    
-    // Success: commit both mappings (release borrows)
+    // Commit code mapping first to release borrow
     code_guard.commit();
+    
+    // Map communication page with separate borrow
+    let comm_guard = pt.map_user(comm_va, comm_frame, comm_flags)
+        .map_err(|_| VdsoError::Map)?;
+    
+    // Commit communication mapping
     comm_guard.commit();
     
     // Map communication page into kernel space for updates

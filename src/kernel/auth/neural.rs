@@ -37,7 +37,7 @@ pub struct NeuralEngine {
 #[derive(Debug, Clone, Copy)]
 pub struct EngineCapabilities {
     /// Maximum operations per second
-    pub max_ops_per_sec: u32,
+    pub max_ops_per_sec: u64,
     /// Memory bandwidth (GB/s)
     pub memory_bandwidth: u32,
     /// Supported precision formats

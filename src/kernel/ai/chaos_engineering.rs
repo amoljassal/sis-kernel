@@ -109,18 +109,18 @@ impl DeterministicEventSimulator {
     fn execute_event(&mut self, event: ChaosEvent) {
         let execution_start = self.read_timer();
         
-        match event.fault_spec {
+        match &event.fault_spec {
             FaultSpecification::Hardware(hw_fault) => {
-                self.execute_hardware_fault(hw_fault, &event);
+                self.execute_hardware_fault(*hw_fault, &event);
             }
             FaultSpecification::Network(net_fault) => {
-                self.execute_network_fault(net_fault, &event);
+                self.execute_network_fault(*net_fault, &event);
             }
             FaultSpecification::Resource(res_fault) => {
-                self.execute_resource_fault(res_fault, &event);
+                self.execute_resource_fault(*res_fault, &event);
             }
             FaultSpecification::Timing(timing_fault) => {
-                self.execute_timing_fault(timing_fault, &event);
+                self.execute_timing_fault(*timing_fault, &event);
             }
         }
 
@@ -167,6 +167,12 @@ impl DeterministicEventSimulator {
                 serial::write_str("[Chaos] Injecting memory contention\n");
                 self.inject_memory_contention(bandwidth_reduction_pct, event);
             }
+            HardwareFault::ThermalRecover => {
+                serial::write_str("[Chaos] Recovering from thermal throttling\n");
+            }
+            HardwareFault::DmaRestore => {
+                serial::write_str("[Chaos] Restoring DMA operations\n");
+            }
         }
     }
 
@@ -188,6 +194,9 @@ impl DeterministicEventSimulator {
             NetworkFault::Bandwidth { limit_mbps, burst_mb } => {
                 serial::write_str("[Chaos] Injecting bandwidth limit\n");
                 self.inject_bandwidth_limit(limit_mbps, burst_mb, event);
+            }
+            NetworkFault::PartitionRecover => {
+                serial::write_str("[Chaos] Recovering from network partition\n");
             }
         }
     }
@@ -527,8 +536,9 @@ impl SlaMonitor {
 
     pub fn record_latency(&mut self, latency_us: u32) {
         let index = self.window_index.load(Ordering::Relaxed) as usize;
-        self.recent_latencies[index % self.recent_latencies.len()] = latency_us;
-        self.window_index.store(((index + 1) % self.recent_latencies.len()) as u8, Ordering::Release);
+        let len = self.recent_latencies.len();
+        self.recent_latencies[index % len] = latency_us;
+        self.window_index.store(((index + 1) % len) as u8, Ordering::Release);
 
         if latency_us > self.latency_threshold_us {
             self.violation_count.fetch_add(1, Ordering::Relaxed);
@@ -655,7 +665,7 @@ impl FaultSpecification {
 }
 
 /// Hardware-specific fault types for M1 Neural Engine and x86_64 SIMD
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HardwareFault {
     ThermalThrottle { temp_c: u8, duration_us: u32 },
     ComputeUnitFailure { core_mask: u16, probability_q15: u16 },
@@ -666,7 +676,7 @@ pub enum HardwareFault {
 }
 
 /// Network fault simulation types
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NetworkFault {
     Partition { partition_type: PartitionType, duration_us: u32 },
     Latency { base_us: u32, jitter_us: u32, distribution: LatencyDistribution },
@@ -676,7 +686,7 @@ pub enum NetworkFault {
 }
 
 /// Resource exhaustion fault types
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResourceFault {
     CpuExhaustion { utilization_pct: u8, duration_us: u32 },
     MemoryPressure { allocation_mb: u32, duration_us: u32 },
@@ -684,7 +694,7 @@ pub enum ResourceFault {
 }
 
 /// Timing-related fault types
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimingFault {
     ClockSkew { skew_us: i32, duration_us: u32 },
     SchedulerDelay { delay_us: u32, jitter_us: u32 },

@@ -225,6 +225,10 @@ impl CognitiveScheduler {
             WorkloadType::Serving => Some(0),
             // Data processing can use efficiency cores
             WorkloadType::DataProcessing => Some(1),
+            // Interactive tasks prefer performance cores
+            WorkloadType::Interactive => Some(0),
+            // Background tasks can use efficiency cores
+            WorkloadType::Background => Some(1),
         }
     }
 

@@ -320,6 +320,9 @@ impl M1NeuralHAL {
             return Err("Command queue full");
         }
         
+        // Capture timestamp before mutable borrow
+        let timestamp = self.read_timer();
+        
         // Get command slot
         let cmd = &mut self.cmd_queue[tail as usize];
         
@@ -331,7 +334,7 @@ impl M1NeuralHAL {
             cmd.output_addr = output_buffer.as_ptr() as u64;
             cmd.model_addr = 0; // TODO: Model management
             cmd.callback = 0;
-            cmd.timestamp = self.read_timer();
+            cmd.timestamp = timestamp;
         }
         
         // Update tail pointer
@@ -518,17 +521,17 @@ pub enum NEPowerState {
 }
 
 /// Global Neural Engine HAL instance
-static M1_NEURAL_HAL: InitCell<M1NeuralHAL> = InitCell::new();
+static M1_NEURAL_HAL: InitCell<spin::Mutex<M1NeuralHAL>> = InitCell::new();
 
 /// Initialize M1 Neural Engine HAL
 pub fn init_m1_neural_hal() -> Result<(), NEInitError> {
     let hal = M1NeuralHAL::new()?;
-    M1_NEURAL_HAL.init(|| hal);
+    M1_NEURAL_HAL.init(|| spin::Mutex::new(hal));
     Ok(())
 }
 
 /// Get global Neural Engine HAL instance
-pub fn get_neural_hal() -> Option<&'static M1NeuralHAL> {
+pub fn get_neural_hal() -> Option<&'static spin::Mutex<M1NeuralHAL>> {
     M1_NEURAL_HAL.get()
 }
 
@@ -539,14 +542,8 @@ pub fn neural_inference(
     workload_type: WorkloadType,
     priority: CognitivePriority,
 ) -> Result<NEInferenceResult, &'static str> {
-    // SAFETY: We ensure single-threaded access through kernel scheduling
-    unsafe {
-        match M1_NEURAL_HAL.get() {
-            Some(hal) => {
-                let hal_mut = &mut *(hal as *const M1NeuralHAL as *mut M1NeuralHAL);
-                hal_mut.execute_inference(input, output, workload_type, priority)
-            },
-            None => Err("Neural Engine HAL not initialized"),
-        }
+    match M1_NEURAL_HAL.get() {
+        Some(hal) => hal.lock().execute_inference(input, output, workload_type, priority),
+        None => Err("Neural Engine HAL not initialized"),
     }
 }

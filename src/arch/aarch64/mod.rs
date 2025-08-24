@@ -239,6 +239,18 @@ impl ARM64AIContext {
                     self.neon_inference(data_size_bytes)
                 }
             }
+            WorkloadType::Interactive => {
+                // Interactive tasks prefer low latency
+                if let Some(ref ne) = self.neural_engine {
+                    self.neural_engine_inference(ne, data_size_bytes)
+                } else {
+                    self.neon_inference(data_size_bytes)
+                }
+            }
+            WorkloadType::Background => {
+                // Background tasks can use any available resource
+                self.cpu_inference(data_size_bytes)
+            }
         }
     }
 

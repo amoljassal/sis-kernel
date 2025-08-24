@@ -199,14 +199,14 @@ impl MmioRegion {
     }
 
     /// Batch read multiple registers efficiently
-    pub fn batch_read_u32(&self, operations: &[(usize, &mut u32)]) {
+    pub fn batch_read_u32(&self, operations: &mut [(usize, &mut u32)]) {
         // Single barrier for all reads
         MemoryBarriers::dmb_ish();
         
-        for &(offset, ref mut dest) in operations {
-            assert!(offset + 4 <= self.size, "Batch read offset out of bounds");
+        for (offset, dest) in operations {
+            assert!(*offset + 4 <= self.size, "Batch read offset out of bounds");
             **dest = unsafe {
-                read_volatile((self.base_addr + offset as u64) as *const u32)
+                read_volatile((self.base_addr + *offset as u64) as *const u32)
             };
         }
     }

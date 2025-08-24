@@ -17,7 +17,7 @@ pub mod math {
         if base == 0.0 { return 0.0; }
         
         // Handle integer exponents efficiently
-        if exp.fract() == 0.0 {
+        if fract_f32(exp) == 0.0 {
             return powi_fast(base, exp as i32);
         }
         
