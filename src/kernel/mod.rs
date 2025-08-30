@@ -40,6 +40,8 @@ pub mod sis_fs;        // SIS File System with CoW and AI features
 pub mod osemn_pipeline; // OSEMN cognitive pipeline with kernel acceleration
 pub mod cognitive_runtime; // Cognitive runtime with dual-hemisphere coordination
 pub mod asymmetric_scheduler; // Asymmetric scheduler for analytical vs creative tasks
+pub mod hardware_optimization; // Hardware-specific optimizations (AMX, Neural Engine, multi-GPU)
+pub mod power_thermal; // Power and thermal management with DVFS and predictive control
 pub mod types_old;
 pub mod types;
 pub mod vfio;
