@@ -42,6 +42,7 @@ pub mod cognitive_runtime; // Cognitive runtime with dual-hemisphere coordinatio
 pub mod asymmetric_scheduler; // Asymmetric scheduler for analytical vs creative tasks
 pub mod hardware_optimization; // Hardware-specific optimizations (AMX, Neural Engine, multi-GPU)
 pub mod power_thermal; // Power and thermal management with DVFS and predictive control
+pub mod ai_training_lab; // AI Training Lab with MLX drivers and distributed training
 pub mod types_old;
 pub mod types;
 pub mod vfio;
@@ -74,6 +75,11 @@ pub mod boot_recovery;
 
 // Phase 1D Security Framework
 pub mod security_framework;
+
+// Phase 5: Production Hardening
+pub mod formal_verification;
+pub mod secure_enclave;
+pub mod mlperf_benchmarking;
 
 // Provide stable re-exports for callers
 pub use pci::read_id;
