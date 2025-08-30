@@ -187,9 +187,11 @@ impl SecureEnclaveManager {
 
     /// Destroy a secure enclave
     pub fn destroy_enclave(&mut self, enclave_id: EnclaveId) -> Result<(), EnclaveError> {
-        let mut enclaves = self.enclaves.write();
-        let enclave = enclaves.remove(&enclave_id)
-            .ok_or(EnclaveError::EnclaveNotFound)?;
+        let enclave = {
+            let mut enclaves = self.enclaves.write();
+            enclaves.remove(&enclave_id)
+                .ok_or(EnclaveError::EnclaveNotFound)?
+        };
         
         // Securely wipe enclave memory
         self.secure_wipe_memory(&enclave)?;
@@ -230,7 +232,7 @@ impl SecureEnclaveManager {
     #[cfg(target_arch = "aarch64")]
     pub fn create_apple_secure_enclave(&mut self, config: AppleEnclaveConfig) -> Result<EnclaveId, EnclaveError> {
         // Apple Secure Enclave integration
-        let apple_enclave = AppleSecureEnclave::new(config)?;
+        let apple_enclave = AppleSecureEnclave::new(config.clone())?;
         let enclave_id = EnclaveId::new();
         
         let secure_enclave = SecureEnclave {
@@ -251,7 +253,7 @@ impl SecureEnclaveManager {
     #[cfg(target_arch = "aarch64")]
     pub fn create_trustzone_enclave(&mut self, config: TrustZoneConfig) -> Result<EnclaveId, EnclaveError> {
         // ARM TrustZone secure world setup
-        let tz_enclave = TrustZoneEnclave::new(config)?;
+        let tz_enclave = TrustZoneEnclave::new(config.clone())?;
         let enclave_id = EnclaveId::new();
         
         let secure_enclave = SecureEnclave {
@@ -501,11 +503,13 @@ impl AttestationService {
     pub fn generate_attestation(&self, enclave: &SecureEnclave) -> Result<AttestationReport, EnclaveError> {
         let measurement = self.measure_enclave(enclave)?;
         
+        let signature = self.sign_report(&measurement)?;
+        
         Ok(AttestationReport {
             enclave_id: enclave.id,
             measurement,
             timestamp: SecureEnclaveManager::current_time(),
-            signature: self.sign_report(&measurement)?,
+            signature,
             certificate_chain: self.certificate_chain.clone(),
         })
     }

@@ -21,7 +21,9 @@ impl CognitiveAPI {
     }
     
     pub fn generate_api_docs(&self, pipelines: &[CognitivePipeline]) -> Result<String, CognitiveAPIError> {
-        Ok("API documentation".to_string())
+        let mut docs = String::new();
+        docs.push_str("API documentation");
+        Ok(docs)
     }
 }
 

@@ -15,6 +15,12 @@ impl PerformanceProfiler {
     pub fn initialize(&mut self, config: &SDKConfiguration) -> Result<(), ProfilerError> {
         Ok(())
     }
+
+    fn str_to_string(s: &str) -> String {
+        let mut string = String::new();
+        string.push_str(s);
+        string
+    }
     
     pub fn profile_project(&mut self, project_id: ProjectId) -> Result<PerformanceReport, ProfilerError> {
         Ok(PerformanceReport {
@@ -29,7 +35,7 @@ impl PerformanceProfiler {
     }
     
     pub fn generate_performance_docs(&self, project_id: ProjectId) -> Result<String, ProfilerError> {
-        Ok("Performance analysis".to_string())
+        Ok(Self::str_to_string("Performance analysis"))
     }
 }
 

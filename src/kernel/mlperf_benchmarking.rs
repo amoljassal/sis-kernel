@@ -622,11 +622,29 @@ impl PerformanceAnalyticsEngine {
         
         Ok(PerformanceAnalysis {
             overall_score: 87.5,
-            bottlenecks: vec!["Memory bandwidth utilization".to_string()],
-            recommendations: vec![
-                "Enable NUMA-aware memory allocation".to_string(),
-                "Optimize cache utilization patterns".to_string(),
-            ],
+            bottlenecks: {
+                let mut vec = Vec::new();
+                vec.push({
+                    let mut s = String::new();
+                    s.push_str("Memory bandwidth utilization");
+                    s
+                });
+                vec
+            },
+            recommendations: {
+                let mut vec = Vec::new();
+                vec.push({
+                    let mut s = String::new();
+                    s.push_str("Enable NUMA-aware memory allocation");
+                    s
+                });
+                vec.push({
+                    let mut s = String::new();
+                    s.push_str("Optimize cache utilization patterns");
+                    s
+                });
+                vec
+            },
             performance_trends: PerformanceTrends::default(),
         })
     }
@@ -686,8 +704,10 @@ pub struct Benchmark {
 
 impl Benchmark {
     pub fn new(name: &str, benchmark_type: BenchmarkType) -> Self {
+        let mut name_string = String::new();
+        name_string.push_str(name);
         Self {
-            name: name.to_string(),
+            name: name_string,
             benchmark_type,
         }
     }

@@ -43,6 +43,13 @@ impl DeploymentTools {
         }
     }
 
+    // Helper function to convert &str to String
+    fn str_to_string(s: &str) -> String {
+        let mut string = String::new();
+        string.push_str(s);
+        string
+    }
+
     pub fn initialize(&mut self, config: &super::SDKConfiguration) -> Result<(), DeploymentError> {
         self.orchestrator.initialize(config)?;
         self.resource_manager.initialize()?;
@@ -260,7 +267,7 @@ impl DeploymentTools {
         
         Ok(DeploymentInfo {
             deployment_type: DeploymentType::Local,
-            access_url: Some("http://localhost:8080".to_string()),
+            access_url: Some(Self::str_to_string("http://localhost:8080")),
             resource_usage: super::ResourceUsage {
                 cpu_cores: allocation.cpu_cores,
                 memory_mb: allocation.memory_mb,
@@ -268,7 +275,7 @@ impl DeploymentTools {
                 storage_mb: allocation.storage_mb,
             },
             instances: vec![InstanceInfo {
-                instance_id: "local-001".to_string(),
+                instance_id: Self::str_to_string("local-001"),
                 status: InstanceStatus::Running,
                 resource_usage: super::ResourceUsage {
                     cpu_cores: allocation.cpu_cores,
@@ -288,7 +295,7 @@ impl DeploymentTools {
         
         Ok(DeploymentInfo {
             deployment_type: DeploymentType::Cloud,
-            access_url: Some("https://app.sis-cloud.ai".to_string()),
+            access_url: Some(Self::str_to_string("https://app.sis-cloud.ai")),
             resource_usage: super::ResourceUsage {
                 cpu_cores: allocation.cpu_cores * instances.len() as u32,
                 memory_mb: allocation.memory_mb * instances.len() as u64,
@@ -307,7 +314,7 @@ impl DeploymentTools {
         
         Ok(DeploymentInfo {
             deployment_type: DeploymentType::Edge,
-            access_url: Some("https://edge.sis-ai.net".to_string()),
+            access_url: Some(Self::str_to_string("https://edge.sis-ai.net")),
             resource_usage: super::ResourceUsage {
                 cpu_cores: allocation.cpu_cores * edge_instances.len() as u32,
                 memory_mb: allocation.memory_mb * edge_instances.len() as u64,
@@ -326,7 +333,7 @@ impl DeploymentTools {
         
         Ok(DeploymentInfo {
             deployment_type: DeploymentType::Distributed,
-            access_url: Some("https://distributed.sis-cluster.ai".to_string()),
+            access_url: Some(Self::str_to_string("https://distributed.sis-cluster.ai")),
             resource_usage: super::ResourceUsage {
                 cpu_cores: allocation.cpu_cores * distributed_instances.len() as u32,
                 memory_mb: allocation.memory_mb * distributed_instances.len() as u64,
@@ -359,11 +366,17 @@ impl ContainerOrchestrator {
         Ok(())
     }
 
+    fn str_to_string(s: &str) -> String {
+        let mut string = String::new();
+        string.push_str(s);
+        string
+    }
+
     pub fn create_container(&mut self, project: &DeveloperProject, plan: &DeploymentPlan) 
         -> Result<Container, DeploymentError> {
         
         Ok(Container {
-            id: "container-001".to_string(),
+            id: Self::str_to_string("container-001"),
             image: {
                 let mut image_name = String::new();
                 image_name.push_str("sis-app/");
@@ -396,8 +409,8 @@ impl ContainerOrchestrator {
         
         Ok(UpdateResult {
             deployment_id,
-            previous_version: "1.0.0".to_string(),
-            new_version: "1.1.0".to_string(),
+            previous_version: Self::str_to_string("1.0.0"),
+            new_version: Self::str_to_string("1.1.0"),
             update_time_ms: 30000,
             success: true,
         })
@@ -416,7 +429,7 @@ impl ContainerOrchestrator {
         
         Ok(vec![
             InstanceInfo {
-                instance_id: "cloud-001".to_string(),
+                instance_id: Self::str_to_string("cloud-001"),
                 status: InstanceStatus::Running,
                 resource_usage: super::ResourceUsage {
                     cpu_cores: 4,
@@ -426,7 +439,7 @@ impl ContainerOrchestrator {
                 },
             },
             InstanceInfo {
-                instance_id: "cloud-002".to_string(),
+                instance_id: Self::str_to_string("cloud-002"),
                 status: InstanceStatus::Running,
                 resource_usage: super::ResourceUsage {
                     cpu_cores: 4,
@@ -443,7 +456,7 @@ impl ContainerOrchestrator {
         
         Ok(vec![
             InstanceInfo {
-                instance_id: "edge-us-west-001".to_string(),
+                instance_id: Self::str_to_string("edge-us-west-001"),
                 status: InstanceStatus::Running,
                 resource_usage: super::ResourceUsage {
                     cpu_cores: 2,
@@ -453,7 +466,7 @@ impl ContainerOrchestrator {
                 },
             },
             InstanceInfo {
-                instance_id: "edge-eu-central-001".to_string(),
+                instance_id: Self::str_to_string("edge-eu-central-001"),
                 status: InstanceStatus::Running,
                 resource_usage: super::ResourceUsage {
                     cpu_cores: 2,
@@ -470,7 +483,7 @@ impl ContainerOrchestrator {
         
         Ok(vec![
             InstanceInfo {
-                instance_id: "node-001".to_string(),
+                instance_id: Self::str_to_string("node-001"),
                 status: InstanceStatus::Running,
                 resource_usage: super::ResourceUsage {
                     cpu_cores: 8,
@@ -480,7 +493,7 @@ impl ContainerOrchestrator {
                 },
             },
             InstanceInfo {
-                instance_id: "node-002".to_string(),
+                instance_id: Self::str_to_string("node-002"),
                 status: InstanceStatus::Running,
                 resource_usage: super::ResourceUsage {
                     cpu_cores: 8,
@@ -507,6 +520,12 @@ impl ResourceManager {
         }
     }
 
+    fn str_to_string(s: &str) -> String {
+        let mut string = String::new();
+        string.push_str(s);
+        string
+    }
+
     pub fn initialize(&mut self) -> Result<(), DeploymentError> {
         // Query system resources
         self.available_resources = AvailableResources {
@@ -525,15 +544,15 @@ impl ResourceManager {
     pub fn allocate_resources(&mut self, limits: &ResourceLimits) -> Result<ResourceAllocation, DeploymentError> {
         // Check resource availability
         if limits.max_cpu_cores > self.available_resources.available_cpu_cores {
-            return Err(DeploymentError::InsufficientResources("CPU cores".to_string()));
+            return Err(DeploymentError::InsufficientResources(Self::str_to_string("CPU cores")));
         }
 
         if limits.max_memory_mb > self.available_resources.available_memory_mb {
-            return Err(DeploymentError::InsufficientResources("Memory".to_string()));
+            return Err(DeploymentError::InsufficientResources(Self::str_to_string("Memory")));
         }
 
         if limits.max_neural_units > self.available_resources.available_neural_units {
-            return Err(DeploymentError::InsufficientResources("Neural units".to_string()));
+            return Err(DeploymentError::InsufficientResources(Self::str_to_string("Neural units")));
         }
 
         // Allocate resources

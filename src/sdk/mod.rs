@@ -182,14 +182,14 @@ impl SISDeveloperSDK {
 
     /// Profile application performance
     pub fn profile_performance(&mut self, project_id: ProjectId) -> Result<PerformanceReport, SDKError> {
-        self.performance_profiler.profile_project(project_id)
+        self.performance_profiler.profile_project(project_id).map_err(SDKError::ProfilingError)
     }
 
     /// Debug application in development environment
     pub fn debug_application(&mut self, project_id: ProjectId, debug_config: DebugConfiguration) 
         -> Result<DebugSession, SDKError> {
         
-        self.debugging_tools.start_debug_session(project_id, debug_config)
+        self.debugging_tools.start_debug_session(project_id, debug_config).map_err(SDKError::DebugError)
     }
 
     // Helper methods
@@ -232,7 +232,11 @@ pub struct SDKConfiguration {
 impl Default for SDKConfiguration {
     fn default() -> Self {
         Self {
-            sdk_version: "1.0.0".to_string(),
+            sdk_version: {
+                let mut s = String::new();
+                s.push_str("1.0.0");
+                s
+            },
             target_platform: TargetPlatform::SIS_OS,
             optimization_level: OptimizationLevel::Release,
             debug_enabled: false,
@@ -283,7 +287,7 @@ impl ProjectId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DeploymentId(u64);
 
 impl DeploymentId {

@@ -21,7 +21,9 @@ impl TemplateBuilder {
     }
     
     pub fn generate_template_docs(&self, templates: &[Template]) -> Result<String, TemplateError> {
-        Ok("Template documentation".to_string())
+        let mut docs = String::new();
+        docs.push_str("Template documentation");
+        Ok(docs)
     }
 }
 
