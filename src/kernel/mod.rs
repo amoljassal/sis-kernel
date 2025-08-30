@@ -38,6 +38,8 @@ pub mod hybrid_kernel;  // L4 microkernel + AI runtime hybrid
 pub mod capability;     // EROS/CHERI-style capability system
 pub mod sis_fs;        // SIS File System with CoW and AI features
 pub mod osemn_pipeline; // OSEMN cognitive pipeline with kernel acceleration
+pub mod cognitive_runtime; // Cognitive runtime with dual-hemisphere coordination
+pub mod asymmetric_scheduler; // Asymmetric scheduler for analytical vs creative tasks
 pub mod types_old;
 pub mod types;
 pub mod vfio;

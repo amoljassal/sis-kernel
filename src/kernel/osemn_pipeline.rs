@@ -848,9 +848,10 @@ impl PipelineMetrics {
     }
 }
 
+#[derive(Default)]
 pub struct MetricsSummary {
-    total_operations: u64,
-    phase_times: BTreeMap<&'static str, u64>,
+    pub total_operations: u64,
+    pub phase_times: BTreeMap<&'static str, u64>,
 }
 
 // Errors
