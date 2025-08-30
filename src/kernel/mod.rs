@@ -34,6 +34,10 @@ pub mod ai_syscalls;
 pub mod auth;  // Soulprint Protocol authentication
 pub mod memory;
 pub mod vdso_manager;
+pub mod hybrid_kernel;  // L4 microkernel + AI runtime hybrid
+pub mod capability;     // EROS/CHERI-style capability system
+pub mod sis_fs;        // SIS File System with CoW and AI features
+pub mod osemn_pipeline; // OSEMN cognitive pipeline with kernel acceleration
 pub mod types_old;
 pub mod types;
 pub mod vfio;
