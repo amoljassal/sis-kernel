@@ -1,0 +1,17 @@
+[package]
+name = "uefi-boot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+uefi = { version = "0.24", default-features = false, features = ["alloc"] }
+uefi-services = { version = "0.21" }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1
+

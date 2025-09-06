@@ -1,79 +1,10 @@
-[package]
-name = "sis_kernel"
-version = "0.1.0"
-edition = "2021"
-
-# The kernel runs without the standard library.  The `alloc`
-# dependency is enabled via the nightly `alloc` feature.  See
-# `rustc --print target-spec-json` for more details on the target.
-
-[dependencies]
-# Runtime API used by kernel entry point
-bootloader_api = { version = "=0.11.11", default-features = false }
-# Simple heap allocator used by this kernel.
-linked_list_allocator = { version = "0.10.5", default-features = false, features = ["use_spin"] }
-# Spinlock for concurrent data structures in `no_std` environment.
-spin = { version = "0.9.8", default-features = false, features = ["spin_mutex", "once", "rwlock"] }
-lazy_static = { version = "1.4.0", default-features = false, features = ["spin_no_std"] }
-# Bitflags for capability management
-bitflags = { version = "2.9.1", default-features = false }
-# Half-precision floating point support for NEON SIMD
-half = { version = "2.4.1", default-features = false, features = ["bytemuck"] }
-# Collections library for no_std environments
-heapless = { version = "0.8", default-features = false }
-# SHA256 for content-addressed storage in SIS filesystem
-sha2 = { version = "0.10", default-features = false }
-
-# x86_64-specific dependencies
-[target.'cfg(target_arch = "x86_64")'.dependencies]
-# x86_64 architecture helpers for descriptor tables, paging and control registers
-x86_64 = { version = "=0.14.13", default-features = false, features = ["instructions", "abi_x86_interrupt"] }
-# Serial port driver for 16550 UARTs
-uart_16550 = { version = "0.2.0", default-features = false }
-# 8259 Programmable Interrupt Controller (PIC) driver
-pic8259 = { version = "0.10.1", default-features = false }
-
-# ARM64-specific dependencies (placeholder for future ARM64 equivalents)
-[target.'cfg(target_arch = "aarch64")'.dependencies]
-# ARM64 architecture and interrupt controller support will be added here
-# For now, we'll use the existing aarch64 modules in src/arch/aarch64/
-
-[features]
-default = []
-firewall = []           # Emergency isolation for compilation issues
-
-# Core features
-apic = []
-smp = ["apic"]                    # ensure apic present whenever smp is on
-ipc = []
-userland = []
-iommu = []
-vfio = ["iommu"]                 # explicit dependency as documented in Phase 5
-ai = ["smp", "apic"]             # AI-native kernel features (requires SMP + APIC)
-arm64-ai = ["ai"]                # ARM64 AI acceleration (Neural Engine, Metal, NEON)
-idt-selftest = []
-qemu-intel-iommu-sim = []
-
-# Phase-specific features
-affinity = ["smp","scheduler"] # Phase 6B: CPU affinity support (requires SMP + scheduler)
-pf-matrix = []
-per-task-mm = []
-scheduler = []          # Phase 3: preemptive scheduler + wait queues (feature-gated)
-
-# CI/lint hygiene
-# Gate all selftest-only code behind a single feature so clippy doesn't see dead cfgs
-selftests = []
-
-# Minimal set we use for clippy job; add or remove features here if needed
-ci-lint-min = []
-
-[build-dependencies]
-# Builder restored after resolving kernel compilation bottleneck  
-bootloader = { version = "=0.11.11", default-features = false, features = ["bios"] }
-bootloader_api = { version = "=0.11.11" }
-
-# bootimage metadata removed - using build.rs with bootloader 0.11.x builder API
-
+[workspace]
+members = [
+  "crates/kernel",
+  "devtools/prop-tests",
+  "crates/uefi-boot"
+]
+resolver = "2"
 [profile.dev.package.bootloader]
 # Compile bootloader once, quickly, and keep it stable in cache
 opt-level = 3
