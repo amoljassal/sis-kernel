@@ -85,9 +85,9 @@ mod bringup {
         asm!("msr MAIR_EL1, {x}", x = in(reg) mair, options(nostack, preserves_flags));
 
         // TCR: 4KB pages, Inner/Outer WBWA, Inner shareable,
-        // 39-bit VA (T0SZ=9), 48-bit PA (IPS=5). Correct bit positions:
+        // 39-bit VA (T0SZ=25), 48-bit PA (IPS=5). Correct bit positions:
         // T0SZ[5:0], IRGN0[9:8], ORGN0[11:10], SH0[13:12], TG0[15:14], IPS[34:32]
-        let t0sz: u64 = 48 - 39; // 9
+        let t0sz: u64 = 64 - 39; // 25
         let tcr =
             (t0sz & 0x3Fu64) |
             (0b01u64 << 8)  | // IRGN0 = WBWA
