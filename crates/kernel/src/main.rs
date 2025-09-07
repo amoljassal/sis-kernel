@@ -26,14 +26,28 @@ unsafe fn uart_print(msg: &[u8]) {
     }
 }
 
-#[cfg(all(target_arch = "aarch64", feature = "bringup"))]
-mod bringup {
-    use core::arch::asm;
+#[macro_export]
+macro_rules! kprint {
+    ($($t:tt)*) => {{
+        #[allow(unused_unsafe)]
+        unsafe { crate::uart_print(format_args!($($t)*).to_string().as_bytes()); }
+    }};
+}
 
-    // 64 KiB bootstrap stack (16-byte aligned)
-    #[repr(C, align(16))]
-    struct Stack([u8; 64 * 1024]);
-    static mut BOOT_STACK: Stack = Stack([0; 64 * 1024]);
+#[macro_export]
+macro_rules! kprintln {
+    () => { $crate::kprint!("\n") };
+    ($($t:tt)*) => { $crate::kprint!("{}\n", format_args!($($t)*)) };
+}
+
+#[cfg(all(target_arch = "aarch64", feature = "bringup"))]
+    mod bringup {
+        use core::arch::asm;
+
+        // 64 KiB bootstrap stack (16-byte aligned)
+        #[repr(C, align(16))]
+        struct Stack([u8; 64 * 1024]);
+        static mut BOOT_STACK: Stack = Stack([0; 64 * 1024]);
 
     // Level-1 translation table (4 KiB aligned)
     #[repr(C, align(4096))]
@@ -64,6 +78,11 @@ mod bringup {
         }
         enable_mmu_el1();
         super::uart_print(b"MMU ON\n");
+
+        // 4) Initialize GICv3 + timer and enable interrupts
+        gicv3_init_ppi27();
+        timer_init_1hz();
+        enable_irq();
     }
 
     unsafe fn install_vectors() {
@@ -155,7 +174,7 @@ mod bringup {
         b .
         // EL1h
         b .
-        b .
+        b irq_el1h
         b .
         b .
         // EL0_64
@@ -168,6 +187,84 @@ mod bringup {
         b .
         b .
         b .
+
+    irq_el1h:
+        bl irq_handler
+        eret
         "#
     );
+
+    #[no_mangle]
+    extern "C" fn irq_handler() {
+        unsafe {
+            let mut irq: u64;
+            asm!("mrs {x}, icc_iar1_el1", x = out(reg) irq);
+            super::uart_print(b"tick\n");
+            // reload timer for ~1s
+            let mut frq: u64;
+            asm!("mrs {x}, cntfrq_el0", x = out(reg) frq);
+            asm!("msr cntv_tval_el0, {x}", x = in(reg) frq);
+            // signal end of interrupt
+            asm!("msr icc_eoir1_el1, {x}", x = in(reg) irq);
+            asm!("msr icc_dir_el1, {x}", x = in(reg) irq);
+        }
+    }
+
+    unsafe fn enable_irq() {
+        // Unmask IRQs in PSTATE
+        asm!("msr daifclr, #2", options(nostack, preserves_flags));
+    }
+
+    unsafe fn timer_init_1hz() {
+        let mut frq: u64;
+        asm!("mrs {x}, cntfrq_el0", x = out(reg) frq);
+        // Set initial interval ~1s
+        asm!("msr cntv_tval_el0, {x}", x = in(reg) frq);
+        // Enable virtual timer, unmask
+        let ctl: u64 = 1; // ENABLE=1, IMASK=0
+        asm!("msr cntv_ctl_el0, {x}", x = in(reg) ctl);
+    }
+
+    unsafe fn gicv3_init_ppi27() {
+        // Wake redistributor for CPU0 and enable PPI ID27 (virtual timer)
+        const GICR_BASE: u64 = 0x080A_0000;
+        const GICR_WAKER: u64 = 0x0014;
+        const GICR_IGROUPR0: u64 = 0x0080;
+        const GICR_ISENABLER0: u64 = 0x0100;
+        const GICR_IPRIORITYR: u64 = 0x0400;
+
+        let waker = (GICR_BASE + GICR_WAKER) as *mut u32;
+        // Clear ProcessorSleep bit [1]
+        let mut w: u32 = core::ptr::read_volatile(waker);
+        w &= !(1 << 1);
+        core::ptr::write_volatile(waker, w);
+        // Wait for ChildrenAsleep bit [2] to clear
+        loop {
+            let v = core::ptr::read_volatile(waker);
+            if (v & (1 << 2)) == 0 { break; }
+        }
+
+        // Group 1 (non-secure)
+        let igroupr0 = (GICR_BASE + GICR_IGROUPR0) as *mut u32;
+        let mut grp = core::ptr::read_volatile(igroupr0);
+        grp |= 1 << 27;
+        core::ptr::write_volatile(igroupr0, grp);
+
+        // Priority for all PPIs
+        let iprio = (GICR_BASE + GICR_IPRIORITYR) as *mut u32;
+        for i in 0..8 { // 32 PPIs priorities (4 per u32)
+            core::ptr::write_volatile(iprio.add(i), 0x80808080);
+        }
+
+        // Enable PPI 27
+        let isenabler0 = (GICR_BASE + GICR_ISENABLER0) as *mut u32;
+        core::ptr::write_volatile(isenabler0, 1 << 27);
+
+        // CPU interface via system registers
+        let pmr: u64 = 0xFF; // unmask all priorities
+        asm!("msr icc_pmr_el1, {x}", x = in(reg) pmr);
+        let grp1: u64 = 1;
+        asm!("msr icc_igrpen1_el1, {x}", x = in(reg) grp1);
+        asm!("isb", options(nostack, preserves_flags));
+    }
 }
