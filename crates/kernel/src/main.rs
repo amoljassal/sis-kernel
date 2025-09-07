@@ -35,11 +35,10 @@ mod bringup {
     struct Stack([u8; 64 * 1024]);
     static mut BOOT_STACK: Stack = Stack([0; 64 * 1024]);
 
-    // Level-1 and Level-2 translation tables (4 KiB aligned)
+    // Level-1 translation table (4 KiB aligned)
     #[repr(C, align(4096))]
     struct Table512([u64; 512]);
     static mut L1_TABLE: Table512 = Table512([0; 512]);
-    static mut L2_TABLE_0: Table512 = Table512([0; 512]);
 
     // Simple EL-aware VBAR install and UART helper from outer module
     extern "C" {
@@ -121,11 +120,9 @@ mod bringup {
     unsafe fn build_tables() {
         // Clear tables
         for e in L1_TABLE.0.iter_mut() { *e = 0; }
-        for e in L2_TABLE_0.0.iter_mut() { *e = 0; }
 
         // Descriptor helpers
-        const DESC_VALID: u64 = 1; // bit0
-        const DESC_TABLE: u64 = 3; // bits[1:0]=11 for next-level table
+        const DESC_BLOCK: u64 = 1; // bits[1:0]=01 for block
 
         const SH_INNER: u64 = 0b11 << 8;
         const AF: u64 = 1 << 10;
@@ -135,21 +132,15 @@ mod bringup {
         // L1[1] = 1GB block for 0x40000000..0x7FFFFFFF as Normal WBWA, InnerShareable
         let l1_idx_kernel = 0x4000_0000u64 >> 30; // 1
         L1_TABLE.0[l1_idx_kernel as usize] =
-            ((0x4000_0000u64 >> 30) << 30) | // output address aligned
-            (0b01) | // block descriptor
+            ((0x4000_0000u64 >> 30) << 30) |
+            DESC_BLOCK |
             AF | SH_INNER | ATTRIDX_NORMAL;
 
-        // L1[0] = pointer to L2_TABLE_0 for low 1GB
-        let l2_pa = &L2_TABLE_0.0 as *const _ as u64;
-        L1_TABLE.0[0] = (l2_pa & !0xFFFu64) | DESC_TABLE;
-
-        // Map UART at 0x0900_0000 as a 2MB device block in L2
-        let uart_addr: u64 = 0x0900_0000;
-        let l2_index = (uart_addr >> 21) & 0x1FF; // 2MB blocks
-        L2_TABLE_0.0[l2_index as usize] =
-            ((uart_addr >> 21) << 21) | // output address aligned
-            (0b01) | // block descriptor (for level 2)
-            AF | ATTRIDX_DEVICE; // Non-shareable is fine for device
+        // L1[0] = 1GB block for 0x00000000..0x3FFFFFFF as Device-nGnRE (covers UART 0x0900_0000)
+        L1_TABLE.0[0] =
+            (0x0000_0000u64) |
+            DESC_BLOCK |
+            AF | ATTRIDX_DEVICE; // Non-shareable default
     }
 
     core::arch::global_asm!(
