@@ -57,15 +57,51 @@ Implementation targeting AI workload optimization:
 *Performance validation pending hardware deployment*
 
 ### **Apple Silicon Integration Layer**
-Hardware interface implementation for M1/M2 Neural Engine:
+Hardware interface goals for Apple Silicon (M1/M2):
 
-- **MMIO Interface**: Direct hardware register access layer (targeting sub-microsecond latency)
-- **Hardware Validator**: M1/M2 specific capability detection and validation
-- **Power Management**: Predictive thermal and frequency scaling integration points
-- **NEON Acceleration**: 128-bit SIMD instruction path optimization
-- **Memory Architecture**: Unified memory access patterns for Neural Engine coordination
+- NE integration path (pragmatic): Today, Apple’s Neural Engine is typically accessed via userland frameworks; direct EL1 MMIO access is not publicly supported. Near‑term validation will target aarch64 under QEMU and ARM SBCs, and ANE experiments via userland on macOS.
+- Hardware Validator: M1/M2 capability detection and validation (documented constraints).
+- Power Management: Predictive thermal and frequency scaling integration points.
+- NEON Acceleration: 128‑bit SIMD instruction path optimization.
+- Memory Architecture: Unified memory access patterns for accelerator coordination.
 
-*Hardware compatibility validation pending physical device testing*
+Note: Bare‑metal ANE access remains a research track; benchmarks and CI are grounded on QEMU and open platforms until HIL access is feasible.
+
+## UEFI Boot (ARM64, QEMU)
+
+The repository includes a minimal UEFI loader and a clean boot pipeline to the ARM64 kernel under QEMU on macOS/Linux.
+
+- Loader: `crates/uefi-boot` (no_std UEFI app) locates and loads `EFI/SIS/KERNEL.ELF` from the ESP, maps PT_LOAD segments, exits boot services, and jumps to the kernel entry on ARM64.
+- Kernel: `crates/kernel` provides a minimal aarch64 entry that prints on PL011. An optional bring-up path initializes stack, exception vectors, and enables the MMU.
+- Linker script: `src/arch/aarch64/aarch64-qemu.ld` places text at `0x4000_0000 + 0x80000`.
+- Runner: `scripts/uefi_run.sh` builds the UEFI app and kernel, prepares a FAT ESP, and boots with edk2 firmware in QEMU.
+
+Quick start (macOS/Homebrew QEMU):
+
+```bash
+# Optional: enable bring-up (stack, vectors, MMU)
+BRINGUP=1 ./scripts/uefi_run.sh
+
+# Or just boot without bring-up logs
+./scripts/uefi_run.sh
+```
+
+Expected serial output:
+
+```
+BOOT-ARM64 (UEFI)
+SIS UEFI loader v2 (VERBOSE)
+...
+!KERNEL(U)
+STACK OK
+VECTORS OK
+MMU ON
+```
+
+Notes:
+- QEMU firmware may print warnings like “Image type X64 can’t be loaded on AARCH64” during device/driver scanning — these are harmless for our flow.
+- Quit QEMU: press `Ctrl+a`, then `x`.
+- Firmware path used on macOS: `/opt/homebrew/share/qemu/edk2-aarch64-code.fd` (install via `brew install qemu`).
 
 ## Architecture Overview
 
