@@ -43,6 +43,7 @@ per-task-mm = []
 scheduler = []
 selftests = []
 ci-lint-min = []
+bringup = []
 
 [build-dependencies]
 bootloader = { version = "=0.11.11", default-features = false, features = ["bios"] }

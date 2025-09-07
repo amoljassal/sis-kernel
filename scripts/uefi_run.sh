@@ -5,6 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR/.."
+cd "$ROOT_DIR"
 ESP_DIR="$SCRIPT_DIR/esp"
 EFI_BOOT_DIR="$ESP_DIR/EFI/BOOT"
 EFI_SIS_DIR="$ESP_DIR/EFI/SIS"
@@ -27,7 +28,12 @@ cp "$UEFI_APP" "$EFI_BOOT_DIR/BOOTAA64.EFI"
 echo "[*] Building kernel (aarch64-unknown-none)..."
 rustup target add aarch64-unknown-none >/dev/null 2>&1 || true
 export RUSTFLAGS="-C link-arg=-T$ROOT_DIR/src/arch/aarch64/aarch64-qemu.ld"
-cargo +nightly build -p sis_kernel -Z build-std=core,alloc --target aarch64-unknown-none
+if [[ "${BRINGUP:-}" != "" ]]; then
+  echo "[*] Enabling bringup feature (STACK/VECTORS/MMU)"
+  cargo +nightly build -p sis_kernel -Z build-std=core,alloc --target aarch64-unknown-none --features bringup
+else
+  cargo +nightly build -p sis_kernel -Z build-std=core,alloc --target aarch64-unknown-none
+fi
 KERNEL_ELF="$ROOT_DIR/target/aarch64-unknown-none/debug/sis_kernel"
 if [[ ! -f "$KERNEL_ELF" ]]; then
   echo "[!] Kernel ELF not found: $KERNEL_ELF" >&2
