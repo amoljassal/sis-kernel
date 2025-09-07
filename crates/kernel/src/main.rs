@@ -80,6 +80,7 @@ mod bringup {
     }
 
     unsafe fn enable_mmu_el1() {
+        super::uart_print(b"MMU: MAIR/TCR\n");
         // Memory attributes: AttrIdx0 = Device-nGnRE, AttrIdx1 = Normal WBWA
         let mair = (0x04u64) | (0xFFu64 << 8);
         asm!("msr MAIR_EL1, {x}", x = in(reg) mair, options(nostack, preserves_flags));
@@ -96,16 +97,20 @@ mod bringup {
             (0b00u64 << 14) | // TG0 = 4KB
             (0b101u64 << 32);  // IPS = 48-bit PA
         asm!("msr TCR_EL1, {x}", x = in(reg) tcr, options(nostack, preserves_flags));
+        asm!("isb", options(nostack, preserves_flags));
 
         // Build translation tables
+        super::uart_print(b"MMU: TABLES\n");
         build_tables();
 
         // Set TTBR0 to L1 table
         let l1_pa = &L1_TABLE.0 as *const _ as u64;
+        super::uart_print(b"MMU: TTBR0\n");
         asm!("msr TTBR0_EL1, {x}", x = in(reg) l1_pa, options(nostack, preserves_flags));
         asm!("dsb ish; isb", options(nostack, preserves_flags));
 
         // Enable MMU + caches
+        super::uart_print(b"MMU: SCTLR\n");
         let mut sctlr: u64;
         asm!("mrs {x}, SCTLR_EL1", x = out(reg) sctlr);
         sctlr |= (1<<0) | (1<<2) | (1<<12); // M, C, I
