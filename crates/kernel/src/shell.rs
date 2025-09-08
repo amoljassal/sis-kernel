@@ -36,9 +36,12 @@ impl Shell {
         while self.running {
             self.print_prompt();
             
-            // For now, simulate reading a command since we don't have UART input yet
-            // In a real implementation, this would read from UART
-            self.simulate_command_input();
+            // Read real user input from UART
+            let cmd_len = self.read_command_input();
+            
+            if cmd_len > 0 {
+                self.process_command(cmd_len);
+            }
             
             if !self.running {
                 break;
@@ -57,42 +60,17 @@ impl Shell {
         }
     }
 
-    /// Simulate command input (since we don't have UART input yet)
-    fn simulate_command_input(&mut self) {
-        // Simulate different commands for demonstration
-        static mut CMD_INDEX: usize = 0;
-        
-        let demo_commands: &[&[u8]] = &[
-            b"help",
-            b"echo Hello from SIS shell!",
-            b"info", 
-            b"test",
-            b"exit",
-        ];
-        
+    /// Read command input from UART with line editing
+    fn read_command_input(&mut self) -> usize {
         unsafe {
-            if CMD_INDEX < demo_commands.len() {
-                let cmd = demo_commands[CMD_INDEX];
-                
-                // Print the simulated input
-                crate::uart_print(cmd);
-                crate::uart_print(b"\n");
-                
-                // Copy to command buffer
-                let len = cmd.len().min(MAX_CMD_LEN - 1);
-                CMD_BUFFER[..len].copy_from_slice(&cmd[..len]);
-                CMD_BUFFER[len] = 0; // Null terminate
-                
-                self.process_command(len);
-                CMD_INDEX += 1;
-                
-                // Add delay for readability
-                for _ in 0..1000000 {
-                    core::hint::spin_loop();
-                }
-            } else {
-                self.running = false;
+            let len = crate::uart::read_line(&mut CMD_BUFFER);
+            
+            // Null terminate the command
+            if len < MAX_CMD_LEN {
+                CMD_BUFFER[len] = 0;
             }
+            
+            len
         }
     }
 
@@ -115,6 +93,9 @@ impl Shell {
                 "echo" => self.cmd_echo(&parts[1..]),
                 "info" => self.cmd_info(),
                 "test" => self.cmd_test(),
+                "mem" => self.cmd_mem(),
+                "regs" => self.cmd_regs(),
+                "clear" => self.cmd_clear(),
                 "exit" => self.cmd_exit(),
                 _ => self.cmd_unknown(parts[0]),
             }
@@ -129,6 +110,9 @@ impl Shell {
             crate::uart_print(b"  echo    - Echo text to output\n");
             crate::uart_print(b"  info    - Show kernel information\n");
             crate::uart_print(b"  test    - Run syscall tests\n");
+            crate::uart_print(b"  mem     - Show memory information\n");
+            crate::uart_print(b"  regs    - Show system registers\n");
+            crate::uart_print(b"  clear   - Clear screen\n");
             crate::uart_print(b"  exit    - Exit shell\n");
         }
     }
@@ -190,6 +174,67 @@ impl Shell {
         self.running = false;
     }
 
+    /// Memory information command
+    fn cmd_mem(&self) {
+        unsafe {
+            crate::uart_print(b"Memory Information:\n");
+            crate::uart_print(b"  Kernel loaded at: 0x40080000\n");
+            crate::uart_print(b"  MMU Status: Enabled (39-bit VA)\n");
+            crate::uart_print(b"  Page Size: 4KB\n");
+            crate::uart_print(b"  Address Space Layout:\n");
+            crate::uart_print(b"    0x00000000-0x3FFFFFFF: Device Memory\n");
+            crate::uart_print(b"    0x40000000-0x7FFFFFFF: Normal Memory\n");
+            crate::uart_print(b"    UART Base: 0x09000000\n");
+        }
+    }
+
+    /// System registers command  
+    fn cmd_regs(&self) {
+        use core::arch::asm;
+        
+        unsafe {
+            crate::uart_print(b"ARM64 System Registers:\n");
+            
+            let mut reg_val: u64;
+            
+            // Current Exception Level
+            asm!("mrs {}, CurrentEL", out(reg) reg_val);
+            crate::uart_print(b"  CurrentEL: ");
+            self.print_hex(reg_val);
+            crate::uart_print(b" (EL");
+            self.print_number((reg_val >> 2) & 0x3);
+            crate::uart_print(b")\n");
+            
+            // Main ID Register
+            asm!("mrs {}, MIDR_EL1", out(reg) reg_val);
+            crate::uart_print(b"  MIDR_EL1:  ");
+            self.print_hex(reg_val);
+            crate::uart_print(b"\n");
+            
+            // System Control Register
+            asm!("mrs {}, SCTLR_EL1", out(reg) reg_val);
+            crate::uart_print(b"  SCTLR_EL1: ");
+            self.print_hex(reg_val);
+            crate::uart_print(b" (MMU=");
+            self.print_number(reg_val & 1);
+            crate::uart_print(b")\n");
+            
+            // Translation Control Register
+            asm!("mrs {}, TCR_EL1", out(reg) reg_val);
+            crate::uart_print(b"  TCR_EL1:   ");
+            self.print_hex(reg_val);
+            crate::uart_print(b"\n");
+        }
+    }
+
+    /// Clear screen command
+    fn cmd_clear(&self) {
+        unsafe {
+            // ANSI escape sequence to clear screen
+            crate::uart_print(b"\x1b[2J\x1b[H");
+        }
+    }
+
     /// Unknown command handler
     fn cmd_unknown(&self, cmd: &str) {
         unsafe {
@@ -214,6 +259,42 @@ impl Shell {
         while num > 0 {
             digits[i] = b'0' + (num % 10) as u8;
             num /= 10;
+            i += 1;
+        }
+        
+        // Print digits in reverse order
+        while i > 0 {
+            i -= 1;
+            unsafe {
+                crate::uart_print(&[digits[i]]);
+            }
+        }
+    }
+
+    /// Print a hexadecimal number
+    fn print_hex(&self, mut num: u64) {
+        unsafe {
+            crate::uart_print(b"0x");
+        }
+        
+        if num == 0 {
+            unsafe {
+                crate::uart_print(b"0");
+            }
+            return;
+        }
+
+        let mut digits = [0u8; 16]; // 64-bit number has max 16 hex digits
+        let mut i = 0;
+        
+        while num > 0 {
+            let digit = (num % 16) as u8;
+            digits[i] = if digit < 10 {
+                b'0' + digit
+            } else {
+                b'A' + digit - 10
+            };
+            num /= 16;
             i += 1;
         }
         

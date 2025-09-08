@@ -131,15 +131,66 @@ impl SyscallFrame {
 
 /// Main system call dispatcher
 pub fn handle_syscall(frame: &mut SyscallFrame) -> SyscallResult {
+    unsafe {
+        crate::uart_print(b"[SYSCALL] Raw x8 register: ");
+        let raw_x8 = frame.gpr[8];
+        // Print the raw x8 register value in hex
+        crate::uart_print(b"0x");
+        for i in (0..16).rev() {
+            let nibble = (raw_x8 >> (i * 4)) & 0xF;
+            let c = if nibble < 10 { b'0' + nibble as u8 } else { b'A' + (nibble - 10) as u8 };
+            crate::uart_print(&[c]);
+        }
+        crate::uart_print(b"\n");
+    }
+    
     let syscall_num = frame.syscall_number();
     let args = frame.args();
 
     // Performance measurement start
     let start_cycles = read_cycle_counter();
 
+    unsafe {
+        crate::uart_print(b"[SYSCALL] Dispatching syscall number: ");
+        // Print the actual syscall number for debugging
+        let num = syscall_num as u64;
+        if num == 64 {
+            crate::uart_print(b"WRITE(64)");
+        } else if num == 63 {
+            crate::uart_print(b"READ(63)");
+        } else if num == 93 {
+            crate::uart_print(b"EXIT(93)");
+        } else if num == 172 {
+            crate::uart_print(b"GETPID(172)");
+        } else if num == 220 {
+            crate::uart_print(b"FORK(220)");
+        } else if num == u64::MAX {
+            crate::uart_print(b"INVALID(MAX)");
+        } else {
+            crate::uart_print(b"UNKNOWN(");
+            // Print raw number in a simple way
+            if num < 10 {
+                crate::uart_print(&[b'0' + num as u8]);
+            } else if num < 100 {
+                crate::uart_print(&[b'0' + (num / 10) as u8, b'0' + (num % 10) as u8]);
+            } else {
+                crate::uart_print(b"XXX");
+            }
+            crate::uart_print(b")");
+        }
+        crate::uart_print(b"\n");
+    }
+    
     let result = match syscall_num {
         SyscallNumber::Read => sys_read(args.x0 as i32, args.x1 as *mut u8, args.x2),
-        SyscallNumber::Write => sys_write(args.x0 as i32, args.x1 as *const u8, args.x2),
+        SyscallNumber::Write => {
+            unsafe {
+                crate::uart_print(b"[SYSCALL] Calling sys_write with fd=");
+                crate::uart_print(if args.x0 == 1 { b"1(stdout)" } else { b"OTHER" });
+                crate::uart_print(b"\n");
+            }
+            sys_write(args.x0 as i32, args.x1 as *const u8, args.x2)
+        }
         SyscallNumber::Exit => sys_exit(args.x0 as i32),
         SyscallNumber::Fork => sys_fork(),
         SyscallNumber::Exec => sys_exec(args.x0 as *const u8, args.x1 as *const *const u8),
@@ -201,9 +252,18 @@ fn sys_write(fd: i32, buf: *const u8, count: u64) -> SyscallResult {
 
     // Implement UART write for stdout/stderr (fd 1, 2)
     if fd == 1 || fd == 2 {
+        unsafe {
+            crate::uart_print(b"[SYSCALL] sys_write: fd is stdout/stderr, calling uart_write_bytes\n");
+        }
         let bytes_written = uart_write_bytes(buf, count as usize)?;
+        unsafe {
+            crate::uart_print(b"[SYSCALL] sys_write: uart_write_bytes succeeded\n");
+        }
         Ok(bytes_written as u64)
     } else {
+        unsafe {
+            crate::uart_print(b"[SYSCALL] sys_write: fd is not stdout/stderr, returning ENOSYS\n");
+        }
         // TODO: Integrate with SIS filesystem module
         Err(SyscallError::ENOSYS)
     }
@@ -323,10 +383,19 @@ fn record_syscall_metrics(syscall: SyscallNumber, cycles: u64, success: bool) {
 #[no_mangle]
 pub extern "C" fn syscall_handler(frame: *mut SyscallFrame) {
     unsafe {
+        crate::uart_print(b"[SYSCALL] Handler called\n");
         let frame_ref = &mut *frame;
+        crate::uart_print(b"[SYSCALL] About to handle syscall\n");
         match handle_syscall(frame_ref) {
-            Ok(result) => frame_ref.set_return_value(result),
-            Err(error) => frame_ref.set_return_value(error.into()),
+            Ok(result) => {
+                crate::uart_print(b"[SYSCALL] Success, setting return value\n");
+                frame_ref.set_return_value(result);
+            }
+            Err(error) => {
+                crate::uart_print(b"[SYSCALL] Error, setting error value\n");
+                frame_ref.set_return_value(error.into());
+            }
         }
+        crate::uart_print(b"[SYSCALL] Handler returning\n");
     }
 }

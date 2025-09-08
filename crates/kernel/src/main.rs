@@ -7,6 +7,8 @@ pub mod syscall;
 pub mod userspace_test;
 // Interactive shell module
 pub mod shell;
+// UART driver module
+pub mod uart;
 
 #[cfg(target_arch = "aarch64")]
 #[link_section = ".text._start"]
@@ -86,17 +88,22 @@ macro_rules! kprintln {
         enable_mmu_el1();
         super::uart_print(b"MMU ON\n");
 
-        // 4) Initialize GICv3 + timer and enable interrupts (skip GIC for now)
-        super::uart_print(b"GIC: SKIPPED\n");
-        // gicv3_init_ppi27(); // Skip problematic GIC init for QEMU
-        // timer_init_1hz();   // Skip timer without GIC
-        // enable_irq();       // Skip interrupt enable
+        // 4) Initialize UART for interactive I/O
+        super::uart_print(b"UART: INIT\n");
+        crate::uart::init();
+        super::uart_print(b"UART: READY\n");
+
+        // 5) Initialize GICv3 + timer and enable interrupts  
+        super::uart_print(b"GIC: INIT\n");
+        gicv3_init_qemu();
+        timer_init_1hz();
+        enable_irq();
         
-        // 5) Test syscall functionality
+        // 6) Test syscall functionality
         super::uart_print(b"SYSCALL TESTS\n");
         crate::userspace_test::run_syscall_tests();
         
-        // 6) Launch interactive shell
+        // 7) Launch interactive shell
         super::uart_print(b"LAUNCHING SHELL\n");
         crate::shell::run_shell();
     }
@@ -189,10 +196,10 @@ macro_rules! kprintln {
         b .
         b .
         // EL1h
-        b .
+        b sync_el1h
         b irq_el1h
-        b .
-        b .
+        b fiq_el1h
+        b serr_el1h
         // EL0_64 (userspace)
         b sync_el0_64
         b .
@@ -208,7 +215,119 @@ macro_rules! kprintln {
         bl irq_handler
         eret
 
+    fiq_el1h:
+        // FIQ handler - output FIQ debug message
+        stp x0, x1, [sp, #-16]!      // Save x0, x1 temporarily
+        mov x0, #0x09000000          // UART base
+        mov w1, #0x46                // 'F'
+        str w1, [x0]
+        mov w1, #0x49                // 'I'
+        str w1, [x0]
+        mov w1, #0x51                // 'Q'
+        str w1, [x0]
+        mov w1, #0x0A                // '\n'
+        str w1, [x0]
+        ldp x0, x1, [sp], #16        // Restore x0, x1
+        b .                          // Hang for debugging
+
+    serr_el1h:
+        // System error handler - output SERR debug message  
+        stp x0, x1, [sp, #-16]!      // Save x0, x1 temporarily
+        mov x0, #0x09000000          // UART base
+        mov w1, #0x53                // 'S'
+        str w1, [x0]
+        mov w1, #0x45                // 'E'
+        str w1, [x0]
+        mov w1, #0x52                // 'R'
+        str w1, [x0]
+        mov w1, #0x52                // 'R'
+        str w1, [x0]
+        mov w1, #0x0A                // '\n'
+        str w1, [x0]
+        ldp x0, x1, [sp], #16        // Restore x0, x1
+        b .                          // Hang for debugging
+
+    sync_el1h:
+        // Handle synchronous exceptions from EL1 (including syscalls from kernel mode)
+        // Save all registers FIRST to avoid corruption
+        sub sp, sp, #(34 * 8)        // Allocate SyscallFrame
+        
+        // Save general purpose registers x0-x30
+        stp x0, x1, [sp, #(0 * 8)]
+        stp x2, x3, [sp, #(2 * 8)]
+        stp x4, x5, [sp, #(4 * 8)]
+        stp x6, x7, [sp, #(6 * 8)]
+        stp x8, x9, [sp, #(8 * 8)]
+        stp x10, x11, [sp, #(10 * 8)]
+        stp x12, x13, [sp, #(12 * 8)]
+        stp x14, x15, [sp, #(14 * 8)]
+        stp x16, x17, [sp, #(16 * 8)]
+        stp x18, x19, [sp, #(18 * 8)]
+        stp x20, x21, [sp, #(20 * 8)]
+        stp x22, x23, [sp, #(22 * 8)]
+        stp x24, x25, [sp, #(24 * 8)]
+        stp x26, x27, [sp, #(26 * 8)]
+        stp x28, x29, [sp, #(28 * 8)]
+        str x30, [sp, #(30 * 8)]
+        
+        // Save current SP (EL1 already using EL1 stack)
+        // For EL1h, we don't need to save/restore EL0 SP
+        mov x0, #0
+        str x0, [sp, #(31 * 8)]
+        
+        // Save exception info
+        mrs x0, elr_el1
+        mrs x1, spsr_el1
+        stp x0, x1, [sp, #(32 * 8)]
+        
+        // Call system call handler
+        mov x0, sp
+        bl syscall_handler
+        
+        // Restore all registers
+        ldp x0, x1, [sp, #(32 * 8)]
+        msr elr_el1, x0
+        msr spsr_el1, x1
+        
+        // Skip restoring SP since we're staying in EL1
+        // ldr x0, [sp, #(31 * 8)]
+        
+        // Restore GPRs
+        ldp x0, x1, [sp, #(0 * 8)]
+        ldp x2, x3, [sp, #(2 * 8)]
+        ldp x4, x5, [sp, #(4 * 8)]
+        ldp x6, x7, [sp, #(6 * 8)]
+        ldp x8, x9, [sp, #(8 * 8)]
+        ldp x10, x11, [sp, #(10 * 8)]
+        ldp x12, x13, [sp, #(12 * 8)]
+        ldp x14, x15, [sp, #(14 * 8)]
+        ldp x16, x17, [sp, #(16 * 8)]
+        ldp x18, x19, [sp, #(18 * 8)]
+        ldp x20, x21, [sp, #(20 * 8)]
+        ldp x22, x23, [sp, #(22 * 8)]
+        ldp x24, x25, [sp, #(24 * 8)]
+        ldp x26, x27, [sp, #(26 * 8)]
+        ldp x28, x29, [sp, #(28 * 8)]
+        ldr x30, [sp, #(30 * 8)]
+        
+        add sp, sp, #(34 * 8)        // Restore stack
+        eret
+
     sync_el0_64:
+        // Handle synchronous exceptions from EL0 (userspace syscalls)
+        // First, output debug message to see if we get here
+        stp x0, x1, [sp, #-16]!      // Save x0, x1 temporarily
+        mov x0, #0x09000000          // UART base
+        mov w1, #0x45                // 'E'
+        str w1, [x0]
+        mov w1, #0x4C                // 'L'
+        str w1, [x0]
+        mov w1, #0x30                // '0'
+        str w1, [x0]
+        mov w1, #0x0A                // '\n'
+        str w1, [x0]
+        ldp x0, x1, [sp], #16        // Restore x0, x1
+        
         // Save all registers for system call
         sub sp, sp, #(34 * 8)        // Allocate SyscallFrame
         
@@ -305,56 +424,90 @@ macro_rules! kprintln {
         asm!("msr cntv_ctl_el0, {x}", x = in(reg) ctl);
     }
 
-    unsafe fn gicv3_init_ppi27() {
-        super::uart_print(b"GIC: INIT\n");
-        // Wake redistributor for CPU0 and enable PPI ID27 (virtual timer)
-        const GICR_BASE: u64 = 0x080A_0000;
+    unsafe fn gicv3_init_qemu() {
+        super::uart_print(b"GIC: DISTRIBUTOR\n");
+        
+        // QEMU ARM64 virt machine GICv3 addresses
+        const GICD_BASE: u64 = 0x08000000;  // GIC Distributor  
+        const GICR_BASE: u64 = 0x080A0000;  // GIC Redistributor
+
+        // GIC Distributor registers
+        const GICD_CTLR: u64 = 0x0000;
+        const GICD_TYPER: u64 = 0x0004;
+        const GICD_IGROUPR: u64 = 0x0080;
+        const GICD_ISENABLER: u64 = 0x0100;
+        const GICD_IPRIORITYR: u64 = 0x0400;
+        
+        // GIC Redistributor registers  
         const GICR_WAKER: u64 = 0x0014;
         const GICR_IGROUPR0: u64 = 0x0080;
         const GICR_ISENABLER0: u64 = 0x0100;
         const GICR_IPRIORITYR: u64 = 0x0400;
 
-        let waker = (GICR_BASE + GICR_WAKER) as *mut u32;
-        // Clear ProcessorSleep bit [1]
-        super::uart_print(b"GIC: WAKER READ\n");
-        let mut w: u32 = core::ptr::read_volatile(waker);
-        super::uart_print(b"GIC: WAKER WRITE\n");
-        w &= !(1 << 1);
-        core::ptr::write_volatile(waker, w);
-        // Wait for ChildrenAsleep bit [2] to clear with timeout
-        super::uart_print(b"GIC: WAIT LOOP\n");
-        let mut timeout = 1000000;
-        loop {
-            let v = core::ptr::read_volatile(waker);
-            if (v & (1 << 2)) == 0 { 
-                super::uart_print(b"GIC: WAKER OK\n");
-                break; 
-            }
-            timeout -= 1;
-            if timeout == 0 {
-                super::uart_print(b"GIC: WAKER TIMEOUT\n");
-                break;
-            }
+        // 1) Initialize GIC Distributor
+        let gicd_ctlr = (GICD_BASE + GICD_CTLR) as *mut u32;
+        
+        // Check if already enabled
+        let ctlr_val = core::ptr::read_volatile(gicd_ctlr);
+        if (ctlr_val & 0x3) == 0 {
+            super::uart_print(b"GIC: ENABLING DISTRIBUTOR\n");
+            // Enable Group 0 and Group 1 (both secure and non-secure)
+            core::ptr::write_volatile(gicd_ctlr, 0x3);
+        } else {
+            super::uart_print(b"GIC: DISTRIBUTOR ALREADY ENABLED\n");
         }
 
-        // Group 1 (non-secure)
-        super::uart_print(b"GIC: GROUP\n");
+        // 2) Wake up redistributor for CPU0
+        super::uart_print(b"GIC: REDISTRIBUTOR\n");
+        let waker = (GICR_BASE + GICR_WAKER) as *mut u32;
+        
+        // Clear ProcessorSleep bit [1] 
+        let mut w: u32 = core::ptr::read_volatile(waker);
+        if (w & (1 << 1)) != 0 {
+            super::uart_print(b"GIC: WAKING UP CPU0\n");
+            w &= !(1 << 1);
+            core::ptr::write_volatile(waker, w);
+            
+            // Wait for ChildrenAsleep bit [2] to clear with timeout
+            let mut timeout = 1000000;
+            loop {
+                let v = core::ptr::read_volatile(waker);
+                if (v & (1 << 2)) == 0 { 
+                    super::uart_print(b"GIC: CPU0 AWAKE\n");
+                    break; 
+                }
+                timeout -= 1;
+                if timeout == 0 {
+                    super::uart_print(b"GIC: WAKER TIMEOUT\n");
+                    break;
+                }
+            }
+        } else {
+            super::uart_print(b"GIC: CPU0 ALREADY AWAKE\n");
+        }
+
+        // 3) Configure PPI 27 (virtual timer) as Group 1 (non-secure)
+        super::uart_print(b"GIC: CONFIGURE PPI27\n");
         let igroupr0 = (GICR_BASE + GICR_IGROUPR0) as *mut u32;
         let mut grp = core::ptr::read_volatile(igroupr0);
         grp |= 1 << 27;
         core::ptr::write_volatile(igroupr0, grp);
 
-        // Priority for all PPIs
-        super::uart_print(b"GIC: PRIORITY\n");
+        // 4) Set priority for PPI 27
         let iprio = (GICR_BASE + GICR_IPRIORITYR) as *mut u32;
-        for i in 0..8 { // 32 PPIs priorities (4 per u32)
-            core::ptr::write_volatile(iprio.add(i), 0x80808080);
-        }
+        let prio_reg = iprio.add(27 / 4); // 4 priorities per 32-bit register
+        let shift = (27 % 4) * 8;
+        let mut prio_val = core::ptr::read_volatile(prio_reg);
+        prio_val &= !(0xFF << shift);
+        prio_val |= 0x80 << shift; // Medium priority
+        core::ptr::write_volatile(prio_reg, prio_val);
 
-        // Enable PPI 27
-        super::uart_print(b"GIC: ENABLE\n");
+        // 5) Enable PPI 27
+        super::uart_print(b"GIC: ENABLE PPI27\n");
         let isenabler0 = (GICR_BASE + GICR_ISENABLER0) as *mut u32;
         core::ptr::write_volatile(isenabler0, 1 << 27);
+        
+        super::uart_print(b"GIC: READY\n");
 
         // CPU interface via system registers
         super::uart_print(b"GIC: CPU IF\n");
