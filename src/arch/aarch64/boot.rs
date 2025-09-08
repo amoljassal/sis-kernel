@@ -116,6 +116,12 @@ pub fn init_late() -> Result<(), &'static str> {
     // Set up interrupt handling
     init_interrupt_controller()?;
     
+    // Initialize SMP if feature enabled
+    #[cfg(feature = "smp")]
+    {
+        crate::arch::aarch64::smp_boot::init_smp()?;
+    }
+    
     Ok(())
 }
 

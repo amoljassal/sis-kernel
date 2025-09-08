@@ -19,6 +19,13 @@ pub mod neural_engine;
 pub mod neon_simd_optimized;
 pub use neon_simd_optimized as neon_simd;
 
+// Phase 1 SMP and Performance modules
+pub mod percpu;
+pub mod smp;
+pub mod gicv3;
+pub mod pmu;
+pub mod smp_boot;
+
 #[cfg(feature = "selftests")]
 pub mod vdso_test;
 
