@@ -93,6 +93,10 @@ impl Shell {
                 "echo" => self.cmd_echo(&parts[1..]),
                 "info" => self.cmd_info(),
                 "test" => self.cmd_test(),
+                "perf" => self.cmd_perf(),
+                "bench" => self.cmd_bench(),
+                "stress" => self.cmd_stress(),
+                "overhead" => self.cmd_overhead(),
                 "mem" => self.cmd_mem(),
                 "regs" => self.cmd_regs(),
                 "clear" => self.cmd_clear(),
@@ -106,14 +110,18 @@ impl Shell {
     fn cmd_help(&self) {
         unsafe {
             crate::uart_print(b"Available commands:\n");
-            crate::uart_print(b"  help    - Show this help message\n");
-            crate::uart_print(b"  echo    - Echo text to output\n");
-            crate::uart_print(b"  info    - Show kernel information\n");
-            crate::uart_print(b"  test    - Run syscall tests\n");
-            crate::uart_print(b"  mem     - Show memory information\n");
-            crate::uart_print(b"  regs    - Show system registers\n");
-            crate::uart_print(b"  clear   - Clear screen\n");
-            crate::uart_print(b"  exit    - Exit shell\n");
+            crate::uart_print(b"  help     - Show this help message\n");
+            crate::uart_print(b"  echo     - Echo text to output\n");
+            crate::uart_print(b"  info     - Show kernel information\n");
+            crate::uart_print(b"  test     - Run syscall tests\n");
+            crate::uart_print(b"  perf     - Show performance metrics report\n");
+            crate::uart_print(b"  bench    - Run syscall performance benchmarks\n");
+            crate::uart_print(b"  stress   - Run syscall stress tests\n");
+            crate::uart_print(b"  overhead - Measure syscall overhead\n");
+            crate::uart_print(b"  mem      - Show memory information\n");
+            crate::uart_print(b"  regs     - Show system registers\n");
+            crate::uart_print(b"  clear    - Clear screen\n");
+            crate::uart_print(b"  exit     - Exit shell\n");
         }
     }
 
@@ -164,6 +172,26 @@ impl Shell {
             crate::uart_print(b"Running syscall tests...\n");
         }
         crate::userspace_test::run_syscall_tests();
+    }
+
+    /// Performance metrics report command
+    fn cmd_perf(&self) {
+        crate::syscall::print_syscall_performance_report();
+    }
+
+    /// Performance benchmarks command
+    fn cmd_bench(&self) {
+        crate::userspace_test::run_syscall_performance_tests();
+    }
+
+    /// Stress test command
+    fn cmd_stress(&self) {
+        crate::userspace_test::run_syscall_stress_test();
+    }
+
+    /// Syscall overhead measurement command
+    fn cmd_overhead(&self) {
+        crate::userspace_test::measure_syscall_overhead();
     }
 
     /// Exit command

@@ -54,7 +54,7 @@ if [[ ! -f "$FIRMWARE" ]]; then
   exit 1
 fi
 
-echo "[*] Launching QEMU (UEFI) with GICv3 and highmem ..."
+echo "[*] Launching QEMU (UEFI) with GICv3, highmem, and VirtIO devices ..."
 qemu-system-aarch64 \
   -M virt,gic-version=3,highmem=on \
   -cpu cortex-a72 \
@@ -64,4 +64,6 @@ qemu-system-aarch64 \
   -bios "$FIRMWARE" \
   -drive if=none,id=esp,format=raw,file=fat:rw:"$ESP_DIR" \
   -device virtio-blk-pci,drive=esp \
+  -device virtio-rng-pci \
+  -device virtio-serial-pci \
   -no-reboot

@@ -359,7 +359,7 @@ fn uart_write_bytes(buf: *const u8, count: usize) -> Result<usize, SyscallError>
 
 /// Read ARM64 cycle counter for performance measurement
 #[inline(always)]
-fn read_cycle_counter() -> u64 {
+pub fn read_cycle_counter() -> u64 {
     unsafe {
         let mut count: u64;
         asm!("mrs {}, cntvct_el0", out(reg) count);
@@ -367,15 +367,345 @@ fn read_cycle_counter() -> u64 {
     }
 }
 
-/// Record system call performance metrics
-fn record_syscall_metrics(_syscall: SyscallNumber, cycles: u64, _success: bool) {
-    // TODO: Integrate with performance monitoring
-    const HIGH_LATENCY_THRESHOLD: u64 = 1000; // cycles
-    
-    if cycles > HIGH_LATENCY_THRESHOLD {
-        unsafe {
-            crate::uart_print(b"[PERF] High latency syscall detected\n");
+/// Performance metrics for syscall microbenchmarking
+#[derive(Debug, Clone, Copy)]
+struct SyscallMetrics {
+    call_count: u64,
+    total_cycles: u64,
+    min_cycles: u64,
+    max_cycles: u64,
+    avg_cycles: u64,
+}
+
+impl SyscallMetrics {
+    const fn new() -> Self {
+        Self {
+            call_count: 0,
+            total_cycles: 0,
+            min_cycles: u64::MAX,
+            max_cycles: 0,
+            avg_cycles: 0,
         }
+    }
+
+    fn update(&mut self, cycles: u64) {
+        self.call_count += 1;
+        self.total_cycles += cycles;
+        self.min_cycles = self.min_cycles.min(cycles);
+        self.max_cycles = self.max_cycles.max(cycles);
+        self.avg_cycles = self.total_cycles / self.call_count;
+    }
+}
+
+/// Global performance metrics storage
+static mut SYSCALL_METRICS: [SyscallMetrics; 16] = [SyscallMetrics::new(); 16];
+
+fn syscall_to_index(syscall: SyscallNumber) -> usize {
+    match syscall {
+        SyscallNumber::Read => 0,
+        SyscallNumber::Write => 1,
+        SyscallNumber::Exit => 2,
+        SyscallNumber::Fork => 3,
+        SyscallNumber::Exec => 4,
+        SyscallNumber::Open => 5,
+        SyscallNumber::Close => 6,
+        SyscallNumber::Mmap => 7,
+        SyscallNumber::Munmap => 8,
+        SyscallNumber::Brk => 9,
+        SyscallNumber::GetPid => 10,
+        SyscallNumber::GetPpid => 11,
+        SyscallNumber::Wait4 => 12,
+        SyscallNumber::Invalid => 13,
+        // Reserve slots 14-15 for future syscalls
+    }
+}
+
+/// Record system call performance metrics
+fn record_syscall_metrics(syscall: SyscallNumber, cycles: u64, success: bool) {
+    const HIGH_LATENCY_THRESHOLD: u64 = 1000; // cycles
+    const VERY_HIGH_LATENCY_THRESHOLD: u64 = 5000; // cycles
+    
+    unsafe {
+        let index = syscall_to_index(syscall);
+        SYSCALL_METRICS[index].update(cycles);
+        
+        // Performance warnings
+        if cycles > VERY_HIGH_LATENCY_THRESHOLD {
+            crate::uart_print(b"[PERF] CRITICAL latency: ");
+            print_syscall_name(syscall);
+            crate::uart_print(b" took ");
+            print_cycles(cycles);
+            crate::uart_print(b" cycles\n");
+        } else if cycles > HIGH_LATENCY_THRESHOLD {
+            crate::uart_print(b"[PERF] High latency: ");
+            print_syscall_name(syscall);
+            crate::uart_print(b" took ");
+            print_cycles(cycles);
+            crate::uart_print(b" cycles\n");
+        }
+        
+        // Success/failure tracking
+        if !success {
+            crate::uart_print(b"[PERF] Failed syscall: ");
+            print_syscall_name(syscall);
+            crate::uart_print(b"\n");
+        }
+    }
+}
+
+/// Helper function to print syscall name
+fn print_syscall_name(syscall: SyscallNumber) {
+    unsafe {
+        match syscall {
+            SyscallNumber::Read => crate::uart_print(b"read"),
+            SyscallNumber::Write => crate::uart_print(b"write"),
+            SyscallNumber::Exit => crate::uart_print(b"exit"),
+            SyscallNumber::Fork => crate::uart_print(b"fork"),
+            SyscallNumber::Exec => crate::uart_print(b"exec"),
+            SyscallNumber::Open => crate::uart_print(b"open"),
+            SyscallNumber::Close => crate::uart_print(b"close"),
+            SyscallNumber::Mmap => crate::uart_print(b"mmap"),
+            SyscallNumber::Munmap => crate::uart_print(b"munmap"),
+            SyscallNumber::Brk => crate::uart_print(b"brk"),
+            SyscallNumber::GetPid => crate::uart_print(b"getpid"),
+            SyscallNumber::GetPpid => crate::uart_print(b"getppid"),
+            SyscallNumber::Wait4 => crate::uart_print(b"wait4"),
+            SyscallNumber::Invalid => crate::uart_print(b"invalid"),
+        }
+    }
+}
+
+/// Helper function to print cycle count
+pub fn print_cycles(cycles: u64) {
+    unsafe {
+        if cycles < 1000 {
+            // Print as decimal
+            let mut buf = [0u8; 20];
+            let mut idx = 19;
+            let mut n = cycles;
+            
+            if n == 0 {
+                crate::uart_print(b"0");
+                return;
+            }
+            
+            while n > 0 && idx > 0 {
+                buf[idx] = b'0' + (n % 10) as u8;
+                n /= 10;
+                idx -= 1;
+            }
+            
+            crate::uart_print(&buf[idx + 1..]);
+        } else if cycles < 1000000 {
+            // Print in K format
+            let k_cycles = cycles / 1000;
+            let mut buf = [0u8; 20];
+            let mut idx = 19;
+            let mut n = k_cycles;
+            
+            while n > 0 && idx > 0 {
+                buf[idx] = b'0' + (n % 10) as u8;
+                n /= 10;
+                idx -= 1;
+            }
+            
+            crate::uart_print(&buf[idx + 1..]);
+            crate::uart_print(b"K");
+        } else {
+            // Print in M format
+            let m_cycles = cycles / 1000000;
+            let mut buf = [0u8; 20];
+            let mut idx = 19;
+            let mut n = m_cycles;
+            
+            while n > 0 && idx > 0 {
+                buf[idx] = b'0' + (n % 10) as u8;
+                n /= 10;
+                idx -= 1;
+            }
+            
+            crate::uart_print(&buf[idx + 1..]);
+            crate::uart_print(b"M");
+        }
+    }
+}
+
+/// Display comprehensive performance metrics report
+pub fn print_syscall_performance_report() {
+    unsafe {
+        crate::uart_print(b"\n[PERF] ========== SYSCALL PERFORMANCE REPORT ==========\n");
+        crate::uart_print(b"[PERF] Syscall        | Calls |  Min  |  Max  |  Avg  |\n");
+        crate::uart_print(b"[PERF] -------------- | ----- | ----- | ----- | ----- |\n");
+        
+        let syscalls = [
+            (SyscallNumber::Read, "read          "),
+            (SyscallNumber::Write, "write         "),
+            (SyscallNumber::Exit, "exit          "),
+            (SyscallNumber::Fork, "fork          "),
+            (SyscallNumber::Exec, "exec          "),
+            (SyscallNumber::Open, "open          "),
+            (SyscallNumber::Close, "close         "),
+            (SyscallNumber::Mmap, "mmap          "),
+            (SyscallNumber::Munmap, "munmap        "),
+            (SyscallNumber::Brk, "brk           "),
+            (SyscallNumber::GetPid, "getpid        "),
+            (SyscallNumber::GetPpid, "getppid       "),
+            (SyscallNumber::Wait4, "wait4         "),
+            (SyscallNumber::Invalid, "invalid       "),
+        ];
+
+        for (syscall, name) in &syscalls {
+            let index = syscall_to_index(*syscall);
+            let metrics = &SYSCALL_METRICS[index];
+            
+            if metrics.call_count > 0 {
+                crate::uart_print(b"[PERF] ");
+                crate::uart_print(name.as_bytes());
+                crate::uart_print(b" | ");
+                print_padded_number(metrics.call_count, 5);
+                crate::uart_print(b" | ");
+                print_padded_cycles(metrics.min_cycles, 5);
+                crate::uart_print(b" | ");
+                print_padded_cycles(metrics.max_cycles, 5);
+                crate::uart_print(b" | ");
+                print_padded_cycles(metrics.avg_cycles, 5);
+                crate::uart_print(b" |\n");
+            }
+        }
+        
+        crate::uart_print(b"[PERF] ================================================\n\n");
+    }
+}
+
+/// Helper function to print a number with padding
+fn print_padded_number(num: u64, width: usize) {
+    unsafe {
+        let mut buf = [b' '; 20];
+        let mut idx = 19;
+        let mut n = num;
+        
+        if n == 0 {
+            buf[19] = b'0';
+            idx = 19;
+        } else {
+            while n > 0 && idx > 0 {
+                buf[idx] = b'0' + (n % 10) as u8;
+                n /= 10;
+                idx -= 1;
+            }
+            idx += 1;
+        }
+        
+        let len = 20 - idx;
+        let padding = if width > len { width - len } else { 0 };
+        
+        // Print padding spaces
+        for _ in 0..padding {
+            crate::uart_print(b" ");
+        }
+        
+        crate::uart_print(&buf[idx..]);
+    }
+}
+
+/// Helper function to print cycle count with padding
+fn print_padded_cycles(cycles: u64, width: usize) {
+    unsafe {
+        if cycles == u64::MAX {
+            // Handle uninitialized min values
+            let padding = if width > 1 { width - 1 } else { 0 };
+            for _ in 0..padding {
+                crate::uart_print(b" ");
+            }
+            crate::uart_print(b"-");
+        } else if cycles < 1000 {
+            print_padded_number(cycles, width);
+        } else if cycles < 1000000 {
+            let k_cycles = cycles / 1000;
+            print_padded_number(k_cycles, width - 1);
+            crate::uart_print(b"K");
+        } else {
+            let m_cycles = cycles / 1000000;
+            print_padded_number(m_cycles, width - 1);
+            crate::uart_print(b"M");
+        }
+    }
+}
+
+/// Reset performance metrics (useful for focused testing)
+pub fn reset_syscall_metrics() {
+    unsafe {
+        for metrics in &mut SYSCALL_METRICS {
+            *metrics = SyscallMetrics::new();
+        }
+        crate::uart_print(b"[PERF] Performance metrics reset\n");
+    }
+}
+
+/// Syscall microbenchmark runner
+pub fn run_syscall_microbenchmark(syscall: SyscallNumber, iterations: u32) -> (u64, u64, u64) {
+    unsafe {
+        crate::uart_print(b"[PERF] Running microbenchmark for ");
+        print_syscall_name(syscall);
+        crate::uart_print(b" (");
+        print_padded_number(iterations as u64, 0);
+        crate::uart_print(b" iterations)\n");
+        
+        let mut min_cycles = u64::MAX;
+        let mut max_cycles = 0;
+        let mut total_cycles = 0;
+        
+        for _ in 0..iterations {
+            // Create a mock syscall frame
+            let mut frame = SyscallFrame {
+                gpr: [0; 31],
+                sp_el0: 0,
+                elr_el1: 0,
+                spsr_el1: 0,
+            };
+            
+            // Setup basic syscall arguments
+            frame.gpr[8] = syscall as u64;
+            
+            match syscall {
+                SyscallNumber::Write => {
+                    let test_msg = b"benchmark\n";
+                    frame.gpr[0] = 1; // stdout
+                    frame.gpr[1] = test_msg.as_ptr() as u64;
+                    frame.gpr[2] = test_msg.len() as u64;
+                }
+                SyscallNumber::GetPid => {
+                    // No additional args needed
+                }
+                _ => {
+                    // Default args for other syscalls
+                    frame.gpr[0] = 0;
+                    frame.gpr[1] = 0;
+                    frame.gpr[2] = 0;
+                }
+            }
+            
+            let start_cycles = read_cycle_counter();
+            let _ = handle_syscall(&mut frame);
+            let end_cycles = read_cycle_counter();
+            
+            let cycles = end_cycles.wrapping_sub(start_cycles);
+            min_cycles = min_cycles.min(cycles);
+            max_cycles = max_cycles.max(cycles);
+            total_cycles += cycles;
+        }
+        
+        let avg_cycles = total_cycles / iterations as u64;
+        
+        crate::uart_print(b"[PERF] Benchmark results: min=");
+        print_cycles(min_cycles);
+        crate::uart_print(b", max=");
+        print_cycles(max_cycles);
+        crate::uart_print(b", avg=");
+        print_cycles(avg_cycles);
+        crate::uart_print(b" cycles\n");
+        
+        (min_cycles, max_cycles, avg_cycles)
     }
 }
 
