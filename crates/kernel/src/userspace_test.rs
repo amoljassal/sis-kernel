@@ -3,8 +3,7 @@
 //! This module contains a basic test program that can be used to validate
 //! the system call interface without requiring a separate userspace binary.
 
-use core::arch::asm;
-use crate::syscall::{SyscallNumber, SyscallError};
+use crate::syscall::SyscallError;
 
 /// Test the write syscall by calling the handler directly (from kernel mode)
 pub fn test_write_syscall() {
@@ -36,7 +35,7 @@ pub fn test_write_syscall() {
     let result = crate::syscall::handle_syscall(&mut frame);
     
     match result {
-        Ok(bytes_written) => {
+        Ok(_bytes_written) => {
             unsafe {
                 crate::uart_print(b"[TEST] Write syscall succeeded, wrote ");
                 crate::uart_print(b" bytes\n");
@@ -71,7 +70,7 @@ pub fn test_getpid_syscall() {
     let result = crate::syscall::handle_syscall(&mut frame);
     
     match result {
-        Ok(pid) => {
+        Ok(_pid) => {
             unsafe {
                 crate::uart_print(b"[TEST] GetPid syscall succeeded, PID: ");
                 crate::uart_print(b"1\n"); // We know it returns PID 1

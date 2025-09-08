@@ -270,7 +270,7 @@ fn sys_write(fd: i32, buf: *const u8, count: u64) -> SyscallResult {
 }
 
 /// Exit system call - terminate current process
-fn sys_exit(status: i32) -> SyscallResult {
+fn sys_exit(_status: i32) -> SyscallResult {
     // Use existing uart_print function
     unsafe {
         crate::uart_print(b"[SYSCALL] Process exit with status: ");
@@ -289,37 +289,37 @@ fn sys_fork() -> SyscallResult {
 }
 
 /// Exec system call - replace current process image
-fn sys_exec(path: *const u8, argv: *const *const u8) -> SyscallResult {
+fn sys_exec(_path: *const u8, _argv: *const *const u8) -> SyscallResult {
     // TODO: Integrate with ELF loader
     Err(SyscallError::ENOSYS)
 }
 
 /// Open system call - open file
-fn sys_open(path: *const u8, flags: i32, mode: u32) -> SyscallResult {
+fn sys_open(_path: *const u8, _flags: i32, _mode: u32) -> SyscallResult {
     // TODO: Integrate with filesystem
     Err(SyscallError::ENOSYS)
 }
 
 /// Close system call - close file descriptor
-fn sys_close(fd: i32) -> SyscallResult {
+fn sys_close(_fd: i32) -> SyscallResult {
     // TODO: Integrate with file descriptor table
     Err(SyscallError::ENOSYS)
 }
 
 /// Memory map system call
-fn sys_mmap(addr: u64, length: u64, prot: i32, flags: i32, fd: i32, offset: i64) -> SyscallResult {
+fn sys_mmap(_addr: u64, _length: u64, _prot: i32, _flags: i32, _fd: i32, _offset: i64) -> SyscallResult {
     // TODO: Integrate with memory management
     Err(SyscallError::ENOSYS)
 }
 
 /// Memory unmap system call
-fn sys_munmap(addr: u64, length: u64) -> SyscallResult {
+fn sys_munmap(_addr: u64, _length: u64) -> SyscallResult {
     // TODO: Integrate with memory management
     Err(SyscallError::ENOSYS)
 }
 
 /// Program break system call - adjust heap size
-fn sys_brk(addr: u64) -> SyscallResult {
+fn sys_brk(_addr: u64) -> SyscallResult {
     // TODO: Integrate with heap management
     Err(SyscallError::ENOSYS)
 }
@@ -337,13 +337,13 @@ fn sys_getppid() -> SyscallResult {
 }
 
 /// Wait for child process
-fn sys_wait4(pid: i32, status: *mut i32, options: i32) -> SyscallResult {
+fn sys_wait4(_pid: i32, _status: *mut i32, _options: i32) -> SyscallResult {
     // TODO: Integrate with process scheduler
     Err(SyscallError::ENOSYS)
 }
 
 /// UART read implementation
-fn uart_read_bytes(buf: *mut u8, count: usize) -> Result<usize, SyscallError> {
+fn uart_read_bytes(_buf: *mut u8, _count: usize) -> Result<usize, SyscallError> {
     // TODO: Implement UART input buffering
     Ok(0)
 }
@@ -368,7 +368,7 @@ fn read_cycle_counter() -> u64 {
 }
 
 /// Record system call performance metrics
-fn record_syscall_metrics(syscall: SyscallNumber, cycles: u64, success: bool) {
+fn record_syscall_metrics(_syscall: SyscallNumber, cycles: u64, _success: bool) {
     // TODO: Integrate with performance monitoring
     const HIGH_LATENCY_THRESHOLD: u64 = 1000; // cycles
     

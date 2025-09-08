@@ -54,9 +54,9 @@ if [[ ! -f "$FIRMWARE" ]]; then
   exit 1
 fi
 
-echo "[*] Launching QEMU (UEFI) ..."
+echo "[*] Launching QEMU (UEFI) with GICv3 and highmem ..."
 qemu-system-aarch64 \
-  -M virt \
+  -M virt,gic-version=3,highmem=on \
   -cpu cortex-a72 \
   -m 256M \
   -nographic \

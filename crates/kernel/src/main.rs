@@ -9,6 +9,12 @@ pub mod userspace_test;
 pub mod shell;
 // UART driver module
 pub mod uart;
+// Driver framework module
+pub mod driver;
+// VirtIO transport layer module
+pub mod virtio;
+// VirtIO console driver module
+pub mod virtio_console;
 
 #[cfg(target_arch = "aarch64")]
 #[link_section = ".text._start"]
@@ -99,11 +105,40 @@ macro_rules! kprintln {
         timer_init_1hz();
         enable_irq();
         
-        // 6) Test syscall functionality
+        // 6) Initialize driver framework and discover devices
+        super::uart_print(b"DRIVER FRAMEWORK\n");
+        if let Err(_) = crate::driver::init_driver_framework() {
+            super::uart_print(b"DRIVER: INIT FAILED\n");
+        } else {
+            super::uart_print(b"DRIVER: INIT OK\n");
+            
+            // Register VirtIO console driver
+            super::uart_print(b"DRIVER: REGISTERING VIRTIO CONSOLE\n");
+            if let Err(_) = crate::driver::register_driver(crate::virtio_console::get_virtio_console_driver()) {
+                super::uart_print(b"DRIVER: VIRTIO CONSOLE REGISTRATION FAILED\n");
+            } else {
+                super::uart_print(b"DRIVER: VIRTIO CONSOLE REGISTERED\n");
+            }
+            
+            if let Some(registry) = crate::driver::get_driver_registry() {
+                match registry.discover_devices() {
+                    Ok(count) => {
+                        super::uart_print(b"DRIVER: DISCOVERED ");
+                        print_number(count);
+                        super::uart_print(b" DEVICES\n");
+                    }
+                    Err(_) => {
+                        super::uart_print(b"DRIVER: DISCOVERY FAILED\n");
+                    }
+                }
+            }
+        }
+        
+        // 7) Test syscall functionality
         super::uart_print(b"SYSCALL TESTS\n");
         crate::userspace_test::run_syscall_tests();
         
-        // 7) Launch interactive shell
+        // 8) Launch interactive shell
         super::uart_print(b"LAUNCHING SHELL\n");
         crate::shell::run_shell();
     }
@@ -459,7 +494,9 @@ macro_rules! kprintln {
 
         // 2) Wake up redistributor for CPU0
         super::uart_print(b"GIC: REDISTRIBUTOR\n");
+        super::uart_print(b"GIC: ACCESSING GICR_WAKER\n");
         let waker = (GICR_BASE + GICR_WAKER) as *mut u32;
+        super::uart_print(b"GIC: READING WAKER VALUE\n");
         
         // Clear ProcessorSleep bit [1] 
         let mut w: u32 = core::ptr::read_volatile(waker);
@@ -517,5 +554,27 @@ macro_rules! kprintln {
         asm!("msr icc_igrpen1_el1, {x}", x = in(reg) grp1);
         asm!("isb", options(nostack, preserves_flags));
         super::uart_print(b"GIC: DONE\n");
+    }
+    
+    /// Helper function to print numbers
+    unsafe fn print_number(mut num: usize) {
+        if num == 0 {
+            super::uart_print(b"0");
+            return;
+        }
+        
+        let mut digits = [0u8; 20];
+        let mut i = 0;
+        
+        while num > 0 {
+            digits[i] = b'0' + (num % 10) as u8;
+            num /= 10;
+            i += 1;
+        }
+        
+        while i > 0 {
+            i -= 1;
+            super::uart_print(&[digits[i]]);
+        }
     }
 }
