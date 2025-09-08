@@ -5,6 +5,11 @@
 
 use core::arch::asm;
 
+// External vDSO fast syscall function from main kernel
+extern "C" {
+    fn vdso_fast_syscall(syscall_num: i64, arg0: u64, arg1: u64, arg2: u64) -> u64;
+}
+
 /// System call numbers (following Linux ARM64 convention)
 #[repr(u64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,8 +134,27 @@ impl SyscallFrame {
     }
 }
 
-/// Main system call dispatcher
+/// Main system call dispatcher with vDSO fast path support
 pub fn handle_syscall(frame: &mut SyscallFrame) -> SyscallResult {
+    // Check for vDSO fast syscalls (negative syscall numbers)
+    let raw_syscall = frame.gpr[8] as i64;
+    if raw_syscall < 0 {
+        // Fast path: vDSO syscalls avoid full kernel transition
+        let result = unsafe { vdso_fast_syscall(
+            raw_syscall,
+            frame.gpr[0],
+            frame.gpr[1], 
+            frame.gpr[2]
+        ) };
+        
+        // Fast path succeeded
+        if result != u64::MAX {
+            frame.set_return_value(result);
+            return Ok(result);
+        }
+        
+        // Fall through to regular syscall if vDSO failed
+    }
     unsafe {
         crate::uart_print(b"[SYSCALL] Raw x8 register: ");
         let raw_x8 = frame.gpr[8];

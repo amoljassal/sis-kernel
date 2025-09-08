@@ -65,6 +65,8 @@ mod qemu;
 mod selftest;
 #[cfg(not(feature = "firewall"))]
 mod time;
+#[cfg(not(feature = "firewall"))]
+mod vdso;
 #[cfg(feature = "userland")]
 mod userland;
 #[cfg(feature = "firewall")]
