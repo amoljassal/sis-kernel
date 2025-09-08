@@ -5,9 +5,14 @@
 
 use core::arch::asm;
 
-// External vDSO fast syscall function from main kernel
-extern "C" {
-    fn vdso_fast_syscall(syscall_num: i64, arg0: u64, arg1: u64, arg2: u64) -> u64;
+// Fast syscall implementation - normally would be in vDSO
+#[no_mangle]
+pub extern "C" fn vdso_fast_syscall(syscall_num: i64, arg0: u64, arg1: u64, arg2: u64) -> u64 {
+    // Simple implementation for kernel testing
+    match syscall_num {
+        1 => 0x42, // Dummy successful response
+        _ => 0,
+    }
 }
 
 /// System call numbers (following Linux ARM64 convention)

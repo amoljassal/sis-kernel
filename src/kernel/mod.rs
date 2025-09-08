@@ -37,6 +37,10 @@ pub mod vdso_manager;
 pub mod hybrid_kernel;  // L4 microkernel + AI runtime hybrid
 pub mod capability;     // EROS/CHERI-style capability system
 pub mod ai_capability_bft; // Enhanced AI capabilities with distributed BFT consensus
+pub mod ai_memory_safety; // Linear tensor types with Verus verification and DMA bounds checking
+pub mod ai_dma_isolation; // DMA bounds checking for AI workload isolation
+pub mod distributed_cognitive; // Network-transparent cognitive fabric with RDMA support
+pub mod ai_migration; // Cross-device AI migration with checkpoint-restart system
 pub mod sis_fs;        // SIS File System with CoW and AI features
 pub mod osemn_pipeline; // OSEMN cognitive pipeline with kernel acceleration
 pub mod cognitive_runtime; // Cognitive runtime with dual-hemisphere coordination
@@ -100,6 +104,20 @@ pub fn init_subsystems() -> Result<(), &'static str> {
     
     // Initialize enhanced AI capability system with BFT consensus
     ai_capability_bft::init_ai_capability_system()?;
+    
+    // Initialize AI memory safety with linear types and DMA bounds checking
+    ai_memory_safety::init_ai_memory_safety()?;
+    ai_memory_safety::init_ai_memory_allocator()?;
+    
+    // Initialize DMA isolation system with IOMMU and real-time bounds checking
+    ai_dma_isolation::init_ai_dma_isolation()?;
+    ai_dma_isolation::init_dma_isolation_manager()?;
+    
+    // Initialize network-transparent cognitive fabric with RDMA support
+    distributed_cognitive::init_distributed_cognitive()?;
+    
+    // Initialize cross-device AI migration with checkpoint-restart system
+    ai_migration::init_ai_migration()?;
     
     Ok(())
 }
