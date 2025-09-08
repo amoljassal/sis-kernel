@@ -1,7 +1,6 @@
 [workspace]
 members = [
   "crates/kernel",
-  "devtools/prop-tests",
   "crates/uefi-boot"
 ]
 resolver = "2"

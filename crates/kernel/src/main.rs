@@ -3,6 +3,8 @@
 
 // System call interface module
 pub mod syscall;
+// Userspace test module
+pub mod userspace_test;
 
 #[cfg(target_arch = "aarch64")]
 #[link_section = ".text._start"]
@@ -86,6 +88,10 @@ macro_rules! kprintln {
         gicv3_init_ppi27();
         timer_init_1hz();
         enable_irq();
+        
+        // 5) Test syscall functionality
+        super::uart_print(b"SYSCALL TESTS\n");
+        crate::userspace_test::run_syscall_tests();
     }
 
     unsafe fn install_vectors() {
