@@ -55,6 +55,13 @@ if [[ ! -f "$FIRMWARE" ]]; then
 fi
 
 echo "[*] Launching QEMU (UEFI) with GICv3, highmem, and VirtIO devices ..."
+# Add debugging for VirtIO discovery if DEBUG env var is set
+DEBUG_FLAGS=""
+if [[ "${DEBUG:-}" != "" ]]; then
+  DEBUG_FLAGS="-d int,mmio -D /tmp/qemu-debug.log"
+  echo "[*] Debug mode enabled: logging to /tmp/qemu-debug.log"
+fi
+
 qemu-system-aarch64 \
   -M virt,gic-version=3,highmem=on \
   -cpu cortex-a72 \
@@ -65,5 +72,6 @@ qemu-system-aarch64 \
   -drive if=none,id=esp,format=raw,file=fat:rw:"$ESP_DIR" \
   -device virtio-blk-pci,drive=esp \
   -device virtio-rng-pci \
-  -device virtio-serial-pci \
-  -no-reboot
+  -device virtio-serial-pci,id=serial0 \
+  -no-reboot \
+  $DEBUG_FLAGS

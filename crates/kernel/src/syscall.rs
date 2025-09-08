@@ -7,7 +7,7 @@ use core::arch::asm;
 
 // Fast syscall implementation - normally would be in vDSO
 #[no_mangle]
-pub extern "C" fn vdso_fast_syscall(syscall_num: i64, arg0: u64, arg1: u64, arg2: u64) -> u64 {
+pub extern "C" fn vdso_fast_syscall(syscall_num: i64, _arg0: u64, _arg1: u64, _arg2: u64) -> u64 {
     // Simple implementation for kernel testing
     match syscall_num {
         1 => 0x42, // Dummy successful response
@@ -145,12 +145,12 @@ pub fn handle_syscall(frame: &mut SyscallFrame) -> SyscallResult {
     let raw_syscall = frame.gpr[8] as i64;
     if raw_syscall < 0 {
         // Fast path: vDSO syscalls avoid full kernel transition
-        let result = unsafe { vdso_fast_syscall(
+        let result = vdso_fast_syscall(
             raw_syscall,
             frame.gpr[0],
             frame.gpr[1], 
             frame.gpr[2]
-        ) };
+        );
         
         // Fast path succeeded
         if result != u64::MAX {
