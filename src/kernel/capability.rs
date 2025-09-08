@@ -568,3 +568,4 @@ pub fn initialize_capability_system() -> CapabilityManager {
     
     manager
 }
+

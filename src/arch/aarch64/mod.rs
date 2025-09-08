@@ -38,6 +38,7 @@ pub mod atomic_bitmap;
 pub mod mmio_barriers;
 pub mod predictive_power;
 pub mod m1_hardware_validator;
+pub mod dvfs;
 
 #[cfg(feature = "selftests")]
 pub mod power_integration_test;

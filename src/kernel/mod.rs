@@ -36,6 +36,7 @@ pub mod memory;
 pub mod vdso_manager;
 pub mod hybrid_kernel;  // L4 microkernel + AI runtime hybrid
 pub mod capability;     // EROS/CHERI-style capability system
+pub mod ai_capability_bft; // Enhanced AI capabilities with distributed BFT consensus
 pub mod sis_fs;        // SIS File System with CoW and AI features
 pub mod osemn_pipeline; // OSEMN cognitive pipeline with kernel acceleration
 pub mod cognitive_runtime; // Cognitive runtime with dual-hemisphere coordination
@@ -96,6 +97,9 @@ pub fn init_subsystems() -> Result<(), &'static str> {
     
     // Initialize synchronization primitives
     sync::init_sync_primitives()?;
+    
+    // Initialize enhanced AI capability system with BFT consensus
+    ai_capability_bft::init_ai_capability_system()?;
     
     Ok(())
 }

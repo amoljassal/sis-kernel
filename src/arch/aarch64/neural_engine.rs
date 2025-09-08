@@ -7,7 +7,7 @@
 //! - Zero-copy unified memory operations
 //! - Future-frame prediction with temporal correlation (Wang et al., 2024)
 
-use super::{mmio::*, dma::*};
+use super::{mmio::*, dma::*, dvfs::DVFS_CONTROLLER};
 use crate::kernel::ai::{CognitivePriority, WorkloadType};
 use core::sync::atomic::{AtomicU64, AtomicU32, AtomicBool, Ordering};
 use alloc::vec::Vec;
@@ -493,6 +493,13 @@ impl NeuralEngineDriver {
     pub fn execute_inference(&self, request: NEInferenceRequest) -> Result<u64, &'static str> {
         let start_time = self.read_timestamp_us();
 
+        // DVFS: Request AI Boost mode for high-performance inference
+        // Based on workload priority and expected complexity
+        let expected_complexity = request.input_buffer.len() as u64 * 8; // rough FLOPS estimate
+        if expected_complexity > 10_000_000 || request.priority == CognitivePriority::Critical {
+            DVFS_CONTROLLER.request_ai_boost();
+        }
+
         // Ensure Neural Engine is pre-warmed
         if !self.is_prewarmed.load(Ordering::Acquire) {
             return Err("Neural Engine not pre-warmed");
@@ -616,6 +623,9 @@ impl NeuralEngineDriver {
                 crate::kernel::serial::write_str("[NE] Sub-35μs inference achieved with asymmetric windowing!\n");
             }
         }
+
+        // DVFS: Release AI Boost mode now that inference is complete
+        DVFS_CONTROLLER.release_ai_boost();
 
         Ok(latency)
     }
