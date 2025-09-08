@@ -86,6 +86,7 @@ pub mod security_framework;
 pub mod formal_verification;
 pub mod secure_enclave;
 pub mod mlperf_benchmarking;
+pub mod kernel_testing;
 
 // Provide stable re-exports for callers
 pub use pci::read_id;
@@ -122,6 +123,9 @@ pub fn init_subsystems() -> Result<(), &'static str> {
     
     // Initialize AI Byzantine Fault Tolerance with HotStuff consensus protocol
     ai_bft::init_ai_bft()?;
+    
+    // Initialize comprehensive kernel testing framework with metamorphic AI validation
+    kernel_testing::init_kernel_testing()?;
     
     Ok(())
 }
