@@ -5,6 +5,8 @@
 pub mod syscall;
 // Userspace test module
 pub mod userspace_test;
+// Interactive shell module
+pub mod shell;
 
 #[cfg(target_arch = "aarch64")]
 #[link_section = ".text._start"]
@@ -84,14 +86,19 @@ macro_rules! kprintln {
         enable_mmu_el1();
         super::uart_print(b"MMU ON\n");
 
-        // 4) Initialize GICv3 + timer and enable interrupts
-        gicv3_init_ppi27();
-        timer_init_1hz();
-        enable_irq();
+        // 4) Initialize GICv3 + timer and enable interrupts (skip GIC for now)
+        super::uart_print(b"GIC: SKIPPED\n");
+        // gicv3_init_ppi27(); // Skip problematic GIC init for QEMU
+        // timer_init_1hz();   // Skip timer without GIC
+        // enable_irq();       // Skip interrupt enable
         
         // 5) Test syscall functionality
         super::uart_print(b"SYSCALL TESTS\n");
         crate::userspace_test::run_syscall_tests();
+        
+        // 6) Launch interactive shell
+        super::uart_print(b"LAUNCHING SHELL\n");
+        crate::shell::run_shell();
     }
 
     unsafe fn install_vectors() {
@@ -299,6 +306,7 @@ macro_rules! kprintln {
     }
 
     unsafe fn gicv3_init_ppi27() {
+        super::uart_print(b"GIC: INIT\n");
         // Wake redistributor for CPU0 and enable PPI ID27 (virtual timer)
         const GICR_BASE: u64 = 0x080A_0000;
         const GICR_WAKER: u64 = 0x0014;
@@ -308,36 +316,53 @@ macro_rules! kprintln {
 
         let waker = (GICR_BASE + GICR_WAKER) as *mut u32;
         // Clear ProcessorSleep bit [1]
+        super::uart_print(b"GIC: WAKER READ\n");
         let mut w: u32 = core::ptr::read_volatile(waker);
+        super::uart_print(b"GIC: WAKER WRITE\n");
         w &= !(1 << 1);
         core::ptr::write_volatile(waker, w);
-        // Wait for ChildrenAsleep bit [2] to clear
+        // Wait for ChildrenAsleep bit [2] to clear with timeout
+        super::uart_print(b"GIC: WAIT LOOP\n");
+        let mut timeout = 1000000;
         loop {
             let v = core::ptr::read_volatile(waker);
-            if (v & (1 << 2)) == 0 { break; }
+            if (v & (1 << 2)) == 0 { 
+                super::uart_print(b"GIC: WAKER OK\n");
+                break; 
+            }
+            timeout -= 1;
+            if timeout == 0 {
+                super::uart_print(b"GIC: WAKER TIMEOUT\n");
+                break;
+            }
         }
 
         // Group 1 (non-secure)
+        super::uart_print(b"GIC: GROUP\n");
         let igroupr0 = (GICR_BASE + GICR_IGROUPR0) as *mut u32;
         let mut grp = core::ptr::read_volatile(igroupr0);
         grp |= 1 << 27;
         core::ptr::write_volatile(igroupr0, grp);
 
         // Priority for all PPIs
+        super::uart_print(b"GIC: PRIORITY\n");
         let iprio = (GICR_BASE + GICR_IPRIORITYR) as *mut u32;
         for i in 0..8 { // 32 PPIs priorities (4 per u32)
             core::ptr::write_volatile(iprio.add(i), 0x80808080);
         }
 
         // Enable PPI 27
+        super::uart_print(b"GIC: ENABLE\n");
         let isenabler0 = (GICR_BASE + GICR_ISENABLER0) as *mut u32;
         core::ptr::write_volatile(isenabler0, 1 << 27);
 
         // CPU interface via system registers
+        super::uart_print(b"GIC: CPU IF\n");
         let pmr: u64 = 0xFF; // unmask all priorities
         asm!("msr icc_pmr_el1, {x}", x = in(reg) pmr);
         let grp1: u64 = 1;
         asm!("msr icc_igrpen1_el1, {x}", x = in(reg) grp1);
         asm!("isb", options(nostack, preserves_flags));
+        super::uart_print(b"GIC: DONE\n");
     }
 }
