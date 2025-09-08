@@ -63,11 +63,12 @@ impl Shell {
     /// Read command input from UART with line editing
     fn read_command_input(&mut self) -> usize {
         unsafe {
-            let len = crate::uart::read_line(&mut CMD_BUFFER);
+            let buffer_ptr = &raw mut CMD_BUFFER;
+            let len = crate::uart::read_line(&mut *buffer_ptr);
             
             // Null terminate the command
             if len < MAX_CMD_LEN {
-                CMD_BUFFER[len] = 0;
+                (*buffer_ptr)[len] = 0;
             }
             
             len

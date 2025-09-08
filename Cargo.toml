@@ -14,3 +14,12 @@ debug = false
 opt-level = 3
 codegen-units = 1
 debug = false
+
+# Global profile settings
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1

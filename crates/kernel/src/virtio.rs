@@ -116,10 +116,13 @@ pub enum VirtIOStatus {
 #[derive(Debug)]
 pub struct VirtIOMMIOTransport {
     base_addr: u64,
+    #[allow(dead_code)]
     size: u64,
+    #[allow(dead_code)]
     irq: Option<u32>,
     device_type: VirtIODeviceType,
     version: u32,
+    #[allow(dead_code)]
     vendor_id: u32,
 }
 

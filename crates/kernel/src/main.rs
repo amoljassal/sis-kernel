@@ -76,7 +76,8 @@ macro_rules! kprintln {
 
     pub unsafe fn run() {
         // 1) Install stack
-        let sp_top = BOOT_STACK.0.as_ptr().wrapping_add(BOOT_STACK.0.len()) as u64;
+        let stack_ptr = &raw const BOOT_STACK.0;
+        let sp_top = stack_ptr.cast::<u8>().add((*stack_ptr).len()) as u64;
         asm!("mov sp, {sp}", sp = in(reg) sp_top, options(nostack, preserves_flags));
         super::uart_print(b"STACK OK\n");
 
@@ -180,7 +181,7 @@ macro_rules! kprintln {
         build_tables();
 
         // Set TTBR0 to L1 table
-        let l1_pa = &L1_TABLE.0 as *const _ as u64;
+        let l1_pa = &raw const L1_TABLE.0 as *const _ as u64;
         super::uart_print(b"MMU: TTBR0\n");
         asm!("msr TTBR0_EL1, {x}", x = in(reg) l1_pa, options(nostack, preserves_flags));
         asm!("dsb ish; isb", options(nostack, preserves_flags));
@@ -196,7 +197,8 @@ macro_rules! kprintln {
 
     unsafe fn build_tables() {
         // Clear tables
-        for e in L1_TABLE.0.iter_mut() { *e = 0; }
+        let table_ptr = &raw mut L1_TABLE.0 as *mut [u64; 512];
+        for e in (*table_ptr).iter_mut() { *e = 0; }
 
         // Descriptor helpers
         const DESC_BLOCK: u64 = 1; // bits[1:0]=01 for block
@@ -468,9 +470,13 @@ macro_rules! kprintln {
 
         // GIC Distributor registers
         const GICD_CTLR: u64 = 0x0000;
+        #[allow(dead_code)] // Complete register set for future use
         const GICD_TYPER: u64 = 0x0004;
+        #[allow(dead_code)] // Complete register set for future use  
         const GICD_IGROUPR: u64 = 0x0080;
+        #[allow(dead_code)] // Complete register set for future use
         const GICD_ISENABLER: u64 = 0x0100;
+        #[allow(dead_code)] // Complete register set for future use
         const GICD_IPRIORITYR: u64 = 0x0400;
         
         // GIC Redistributor registers  

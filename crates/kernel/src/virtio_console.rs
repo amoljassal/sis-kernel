@@ -18,6 +18,7 @@ pub enum VirtIOConsoleFeatures {
 /// VirtIO Console configuration space
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 struct VirtIOConsoleConfig {
     /// Number of columns
     cols: u16,
@@ -45,6 +46,7 @@ pub enum VirtIOConsoleControlType {
 /// VirtIO Console control message
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
 struct VirtIOConsoleControl {
     /// Port ID
     id: u32,
@@ -109,6 +111,7 @@ struct VirtQueueUsed {
 /// VirtQueue implementation
 struct VirtQueue {
     /// Queue index
+    #[allow(dead_code)]
     index: u16,
     /// Queue size
     size: u16,
@@ -503,5 +506,8 @@ static mut VIRTIO_CONSOLE_DRIVER: VirtIOConsoleDriver = VirtIOConsoleDriver::new
 
 /// Get reference to global VirtIO console driver
 pub fn get_virtio_console_driver() -> &'static mut VirtIOConsoleDriver {
-    unsafe { &mut VIRTIO_CONSOLE_DRIVER }
+    unsafe { 
+        let driver_ptr = &raw mut VIRTIO_CONSOLE_DRIVER;
+        &mut *driver_ptr
+    }
 }

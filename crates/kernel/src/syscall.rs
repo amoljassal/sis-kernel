@@ -664,7 +664,8 @@ fn print_padded_cycles(cycles: u64, width: usize) {
 /// Reset performance metrics (useful for focused testing)
 pub fn reset_syscall_metrics() {
     unsafe {
-        for metrics in &mut SYSCALL_METRICS {
+        let metrics_ptr = &raw mut SYSCALL_METRICS;
+        for metrics in (*metrics_ptr).iter_mut() {
             *metrics = SyscallMetrics::new();
         }
         crate::uart_print(b"[PERF] Performance metrics reset\n");

@@ -381,7 +381,8 @@ impl DriverRegistry {
 pub fn init_driver_framework() -> DriverResult<()> {
     unsafe {
         DRIVER_REGISTRY = Some(DriverRegistry::new());
-        if let Some(registry) = &mut DRIVER_REGISTRY {
+        let registry_ptr = &raw mut DRIVER_REGISTRY;
+        if let Some(registry) = (*registry_ptr).as_mut() {
             registry.init()
         } else {
             Err(DriverError::InitFailed)
@@ -391,7 +392,10 @@ pub fn init_driver_framework() -> DriverResult<()> {
 
 /// Get a mutable reference to the global driver registry
 pub fn get_driver_registry() -> Option<&'static mut DriverRegistry> {
-    unsafe { DRIVER_REGISTRY.as_mut() }
+    unsafe { 
+        let registry_ptr = &raw mut DRIVER_REGISTRY;
+        (*registry_ptr).as_mut()
+    }
 }
 
 /// Register a driver with the global registry

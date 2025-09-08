@@ -9,10 +9,10 @@ use core::fmt::Write;
 use core::mem;
 use uefi::prelude::*;
 use uefi::proto::loaded_image::LoadedImage;
-use uefi::proto::media::file::{Directory, File, FileAttribute, FileInfo, FileMode, RegularFile};
+use uefi::proto::media::file::{Directory, File, FileAttribute, FileMode, RegularFile};
 use uefi::proto::media::fs::SimpleFileSystem;
 use uefi::table::boot::{AllocateType, MemoryType, SearchType};
-use uefi::{CStr16, Handle, Identify};
+use uefi::{Handle, Identify};
 
 #[entry]
 fn efi_main(handle: Handle, mut st: SystemTable<Boot>) -> Status {
@@ -29,6 +29,7 @@ fn efi_main(handle: Handle, mut st: SystemTable<Boot>) -> Status {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum ChainloadError {
     LoadedImage,
     OpenSfs,

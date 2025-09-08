@@ -10,19 +10,27 @@ const UART_BASE: usize = 0x0900_0000;
 const UART_DR: usize = UART_BASE + 0x000;      // Data Register
 const UART_RSR_ECR: usize = UART_BASE + 0x004; // Receive Status/Error Clear
 const UART_FR: usize = UART_BASE + 0x018;      // Flag Register
+#[allow(dead_code)]
 const UART_ILPR: usize = UART_BASE + 0x020;    // IrDA Low-Power Counter
 const UART_IBRD: usize = UART_BASE + 0x024;    // Integer Baud Rate Divisor
 const UART_FBRD: usize = UART_BASE + 0x028;    // Fractional Baud Rate Divisor
 const UART_LCRH: usize = UART_BASE + 0x02C;    // Line Control Register
 const UART_CR: usize = UART_BASE + 0x030;      // Control Register
+#[allow(dead_code)]
 const UART_IFLS: usize = UART_BASE + 0x034;    // Interrupt FIFO Level Select
+#[allow(dead_code)]
 const UART_IMSC: usize = UART_BASE + 0x038;    // Interrupt Mask Set/Clear
+#[allow(dead_code)]
 const UART_RIS: usize = UART_BASE + 0x03C;     // Raw Interrupt Status
+#[allow(dead_code)]
 const UART_MIS: usize = UART_BASE + 0x040;     // Masked Interrupt Status
+#[allow(dead_code)]
 const UART_ICR: usize = UART_BASE + 0x044;     // Interrupt Clear Register
 
 /// Flag Register bits
+#[allow(dead_code)]
 const UART_FR_TXFE: u32 = 1 << 7; // Transmit FIFO Empty
+#[allow(dead_code)]
 const UART_FR_RXFF: u32 = 1 << 6; // Receive FIFO Full
 const UART_FR_TXFF: u32 = 1 << 5; // Transmit FIFO Full
 const UART_FR_RXFE: u32 = 1 << 4; // Receive FIFO Empty
@@ -36,21 +44,30 @@ const UART_DR_FE: u32 = 1 << 8;  // Framing Error
 const UART_DR_DATA: u32 = 0xFF;  // Data bits mask
 
 /// Control Register bits
+#[allow(dead_code)]
 const UART_CR_CTSEN: u32 = 1 << 15; // CTS hardware flow control enable
+#[allow(dead_code)]
 const UART_CR_RTSEN: u32 = 1 << 14; // RTS hardware flow control enable
+#[allow(dead_code)]
 const UART_CR_RTS: u32 = 1 << 11;   // Request to Send
 const UART_CR_RXE: u32 = 1 << 9;    // Receive Enable
 const UART_CR_TXE: u32 = 1 << 8;    // Transmit Enable
+#[allow(dead_code)]
 const UART_CR_LBE: u32 = 1 << 7;    // Loopback Enable
 const UART_CR_UARTEN: u32 = 1 << 0; // UART Enable
 
 /// Line Control Register bits
+#[allow(dead_code)]
 const UART_LCRH_SPS: u32 = 1 << 7;   // Stick Parity Select
 const UART_LCRH_WLEN_8: u32 = 3 << 5; // Word Length 8 bits
 const UART_LCRH_FEN: u32 = 1 << 4;   // Enable FIFOs
+#[allow(dead_code)]
 const UART_LCRH_STP2: u32 = 1 << 3;  // Two Stop Bits
+#[allow(dead_code)]
 const UART_LCRH_EPS: u32 = 1 << 2;   // Even Parity Select
+#[allow(dead_code)]
 const UART_LCRH_PEN: u32 = 1 << 1;   // Parity Enable
+#[allow(dead_code)]
 const UART_LCRH_BRK: u32 = 1 << 0;   // Send Break
 
 /// UART driver structure
@@ -198,35 +215,42 @@ static mut GLOBAL_UART: Uart = Uart::new();
 
 /// Initialize the global UART instance
 pub unsafe fn init() {
-    GLOBAL_UART.init();
+    let uart_ptr = &raw mut GLOBAL_UART;
+    (*uart_ptr).init();
 }
 
 /// Write bytes to the global UART
 pub unsafe fn write_bytes(bytes: &[u8]) {
-    GLOBAL_UART.write_bytes(bytes);
+    let uart_ptr = &raw const GLOBAL_UART;
+    (*uart_ptr).write_bytes(bytes);
 }
 
 /// Write a single byte to the global UART
 pub unsafe fn write_byte(byte: u8) {
-    GLOBAL_UART.write_byte(byte);
+    let uart_ptr = &raw const GLOBAL_UART;
+    (*uart_ptr).write_byte(byte);
 }
 
 /// Read a byte from the global UART (non-blocking)
 pub unsafe fn read_byte() -> Option<u8> {
-    GLOBAL_UART.read_byte()
+    let uart_ptr = &raw const GLOBAL_UART;
+    (*uart_ptr).read_byte()
 }
 
 /// Read a byte from the global UART (blocking)
 pub unsafe fn read_byte_blocking() -> u8 {
-    GLOBAL_UART.read_byte_blocking()
+    let uart_ptr = &raw const GLOBAL_UART;
+    (*uart_ptr).read_byte_blocking()
 }
 
 /// Read a line from the global UART with line editing
 pub unsafe fn read_line(buffer: &mut [u8]) -> usize {
-    GLOBAL_UART.read_line(buffer)
+    let uart_ptr = &raw const GLOBAL_UART;
+    (*uart_ptr).read_line(buffer)
 }
 
 /// Check if UART has received data
 pub unsafe fn has_rx_data() -> bool {
-    GLOBAL_UART.has_rx_data()
+    let uart_ptr = &raw const GLOBAL_UART;
+    (*uart_ptr).has_rx_data()
 }
