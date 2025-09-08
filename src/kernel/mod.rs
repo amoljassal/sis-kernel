@@ -41,6 +41,7 @@ pub mod ai_memory_safety; // Linear tensor types with Verus verification and DMA
 pub mod ai_dma_isolation; // DMA bounds checking for AI workload isolation
 pub mod distributed_cognitive; // Network-transparent cognitive fabric with RDMA support
 pub mod ai_migration; // Cross-device AI migration with checkpoint-restart system
+pub mod ai_bft; // AI Byzantine Fault Tolerance with HotStuff consensus protocol
 pub mod sis_fs;        // SIS File System with CoW and AI features
 pub mod osemn_pipeline; // OSEMN cognitive pipeline with kernel acceleration
 pub mod cognitive_runtime; // Cognitive runtime with dual-hemisphere coordination
@@ -118,6 +119,9 @@ pub fn init_subsystems() -> Result<(), &'static str> {
     
     // Initialize cross-device AI migration with checkpoint-restart system
     ai_migration::init_ai_migration()?;
+    
+    // Initialize AI Byzantine Fault Tolerance with HotStuff consensus protocol
+    ai_bft::init_ai_bft()?;
     
     Ok(())
 }
