@@ -87,6 +87,7 @@ pub mod formal_verification;
 pub mod secure_enclave;
 pub mod mlperf_benchmarking;
 pub mod kernel_testing;
+pub mod performance_validation;
 
 // Provide stable re-exports for callers
 pub use pci::read_id;
@@ -126,6 +127,9 @@ pub fn init_subsystems() -> Result<(), &'static str> {
     
     // Initialize comprehensive kernel testing framework with metamorphic AI validation
     kernel_testing::init_kernel_testing()?;
+    
+    // Initialize performance validation system for <40μs inference and <500ns context switch targets
+    performance_validation::init_performance_validation()?;
     
     Ok(())
 }
