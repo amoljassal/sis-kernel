@@ -27,7 +27,7 @@ elif [[ "${TEST}" == "IPC_PING" ]]; then
 elif [[ "${TEST}" == "VFIO_MSI_SMOKE" ]]; then
   FEATURES="idt-selftest,vfio,apic,iommu"
 fi
-RUSTFLAGS="--cfg selftest_${TEST}" /home/apple/.cargo/bin/cargo +nightly build -Z build-std=core,alloc --features "${FEATURES}" --target "${TARGET}"
+RUSTFLAGS="--cfg selftest_${TEST}" cargo +nightly build -Z build-std=core,alloc --features "${FEATURES}" --target "${TARGET}"
 
 # ====== RUN QEMU ======
 rm -f "${SERIAL_LOG}"

@@ -99,10 +99,28 @@ test_qemu() {
     info "Using bootimage: $bootimage_path"
     info "Starting QEMU test (will timeout in 10 seconds)..."
     
-    timeout 10s qemu-system-x86_64 \
-        -drive format=raw,file="$bootimage_path" \
-        -serial stdio \
-        -display none || true
+    # Use gtimeout if available (GNU coreutils), otherwise timeout, with fallback
+    if command -v gtimeout >/dev/null 2>&1; then
+        gtimeout 10s qemu-system-x86_64 \
+            -drive format=raw,file="$bootimage_path" \
+            -serial stdio \
+            -display none || true
+    elif command -v timeout >/dev/null 2>&1; then
+        timeout 10s qemu-system-x86_64 \
+            -drive format=raw,file="$bootimage_path" \
+            -serial stdio \
+            -display none || true
+    else
+        # Manual timeout using background process
+        qemu-system-x86_64 \
+            -drive format=raw,file="$bootimage_path" \
+            -serial stdio \
+            -display none &
+        QEMU_PID=$!
+        sleep 10
+        kill $QEMU_PID 2>/dev/null || true
+        wait $QEMU_PID 2>/dev/null || true
+    fi
         
     success "QEMU test completed (check output above)"
 }

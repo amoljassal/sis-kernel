@@ -3,7 +3,7 @@
 //! Provides basic command-line interface functionality with built-in commands.
 //! Demonstrates userspace-like interaction through the syscall interface.
 
-use crate::syscall::{SyscallNumber, SyscallError};
+use crate::syscall::{SyscallError, SyscallNumber};
 use core::arch::asm;
 
 /// Maximum command line length
@@ -35,19 +35,19 @@ impl Shell {
 
         while self.running {
             self.print_prompt();
-            
+
             // Read real user input from UART
             let cmd_len = self.read_command_input();
-            
+
             if cmd_len > 0 {
                 self.process_command(cmd_len);
             }
-            
+
             if !self.running {
                 break;
             }
         }
-        
+
         unsafe {
             crate::uart_print(b"Shell terminated\n");
         }
@@ -65,12 +65,12 @@ impl Shell {
         unsafe {
             let buffer_ptr = &raw mut CMD_BUFFER;
             let len = crate::uart::read_line(&mut *buffer_ptr);
-            
+
             // Null terminate the command
             if len < MAX_CMD_LEN {
                 (*buffer_ptr)[len] = 0;
             }
-            
+
             len
         }
     }
@@ -84,7 +84,7 @@ impl Shell {
         unsafe {
             let cmd_str = core::str::from_utf8_unchecked(&CMD_BUFFER[..cmd_len]);
             let parts: heapless::Vec<&str, 8> = cmd_str.split_whitespace().collect();
-            
+
             if parts.is_empty() {
                 return;
             }
@@ -152,7 +152,7 @@ impl Shell {
             crate::uart_print(b"  MMU Status: Enabled\n");
             crate::uart_print(b"  Syscalls: 13 POSIX-compatible\n");
             crate::uart_print(b"  Exception Level: EL1\n");
-            
+
             // Get current PID via syscall
             match self.syscall_getpid() {
                 Ok(pid) => {
@@ -220,12 +220,12 @@ impl Shell {
     /// System registers command  
     fn cmd_regs(&self) {
         use core::arch::asm;
-        
+
         unsafe {
             crate::uart_print(b"ARM64 System Registers:\n");
-            
+
             let mut reg_val: u64;
-            
+
             // Current Exception Level
             asm!("mrs {}, CurrentEL", out(reg) reg_val);
             crate::uart_print(b"  CurrentEL: ");
@@ -233,13 +233,13 @@ impl Shell {
             crate::uart_print(b" (EL");
             self.print_number((reg_val >> 2) & 0x3);
             crate::uart_print(b")\n");
-            
+
             // Main ID Register
             asm!("mrs {}, MIDR_EL1", out(reg) reg_val);
             crate::uart_print(b"  MIDR_EL1:  ");
             self.print_hex(reg_val);
             crate::uart_print(b"\n");
-            
+
             // System Control Register
             asm!("mrs {}, SCTLR_EL1", out(reg) reg_val);
             crate::uart_print(b"  SCTLR_EL1: ");
@@ -247,7 +247,7 @@ impl Shell {
             crate::uart_print(b" (MMU=");
             self.print_number(reg_val & 1);
             crate::uart_print(b")\n");
-            
+
             // Translation Control Register
             asm!("mrs {}, TCR_EL1", out(reg) reg_val);
             crate::uart_print(b"  TCR_EL1:   ");
@@ -284,13 +284,13 @@ impl Shell {
 
         let mut digits = [0u8; 20];
         let mut i = 0;
-        
+
         while num > 0 {
             digits[i] = b'0' + (num % 10) as u8;
             num /= 10;
             i += 1;
         }
-        
+
         // Print digits in reverse order
         while i > 0 {
             i -= 1;
@@ -305,7 +305,7 @@ impl Shell {
         unsafe {
             crate::uart_print(b"0x");
         }
-        
+
         if num == 0 {
             unsafe {
                 crate::uart_print(b"0");
@@ -315,7 +315,7 @@ impl Shell {
 
         let mut digits = [0u8; 16]; // 64-bit number has max 16 hex digits
         let mut i = 0;
-        
+
         while num > 0 {
             let digit = (num % 16) as u8;
             digits[i] = if digit < 10 {
@@ -326,7 +326,7 @@ impl Shell {
             num /= 16;
             i += 1;
         }
-        
+
         // Print digits in reverse order
         while i > 0 {
             i -= 1;
@@ -340,6 +340,7 @@ impl Shell {
     fn syscall_getpid(&self) -> Result<u32, SyscallError> {
         let result: i64;
         unsafe {
+            #[cfg(target_arch = "aarch64")]
             asm!(
                 "mov x8, {syscall_num}",
                 "svc #0",
@@ -349,8 +350,18 @@ impl Shell {
                 out("x8") _,
                 out("x0") _,
             );
+
+            #[cfg(target_arch = "x86_64")]
+            asm!(
+                "mov rax, {syscall_num}",
+                "int 0x80",
+                "mov {result}, rax",
+                syscall_num = in(reg) SyscallNumber::GetPid as u64,
+                result = out(reg) result,
+                out("rax") _,
+            );
         }
-        
+
         if result < 0 {
             Err(match result {
                 -38 => SyscallError::ENOSYS,

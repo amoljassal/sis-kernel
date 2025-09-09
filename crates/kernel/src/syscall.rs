@@ -145,19 +145,14 @@ pub fn handle_syscall(frame: &mut SyscallFrame) -> SyscallResult {
     let raw_syscall = frame.gpr[8] as i64;
     if raw_syscall < 0 {
         // Fast path: vDSO syscalls avoid full kernel transition
-        let result = vdso_fast_syscall(
-            raw_syscall,
-            frame.gpr[0],
-            frame.gpr[1], 
-            frame.gpr[2]
-        );
-        
+        let result = vdso_fast_syscall(raw_syscall, frame.gpr[0], frame.gpr[1], frame.gpr[2]);
+
         // Fast path succeeded
         if result != u64::MAX {
             frame.set_return_value(result);
             return Ok(result);
         }
-        
+
         // Fall through to regular syscall if vDSO failed
     }
     unsafe {
@@ -167,12 +162,16 @@ pub fn handle_syscall(frame: &mut SyscallFrame) -> SyscallResult {
         crate::uart_print(b"0x");
         for i in (0..16).rev() {
             let nibble = (raw_x8 >> (i * 4)) & 0xF;
-            let c = if nibble < 10 { b'0' + nibble as u8 } else { b'A' + (nibble - 10) as u8 };
+            let c = if nibble < 10 {
+                b'0' + nibble as u8
+            } else {
+                b'A' + (nibble - 10) as u8
+            };
             crate::uart_print(&[c]);
         }
         crate::uart_print(b"\n");
     }
-    
+
     let syscall_num = frame.syscall_number();
     let args = frame.args();
 
@@ -209,7 +208,7 @@ pub fn handle_syscall(frame: &mut SyscallFrame) -> SyscallResult {
         }
         crate::uart_print(b"\n");
     }
-    
+
     let result = match syscall_num {
         SyscallNumber::Read => sys_read(args.x0 as i32, args.x1 as *mut u8, args.x2),
         SyscallNumber::Write => {
@@ -225,7 +224,14 @@ pub fn handle_syscall(frame: &mut SyscallFrame) -> SyscallResult {
         SyscallNumber::Exec => sys_exec(args.x0 as *const u8, args.x1 as *const *const u8),
         SyscallNumber::Open => sys_open(args.x0 as *const u8, args.x1 as i32, args.x2 as u32),
         SyscallNumber::Close => sys_close(args.x0 as i32),
-        SyscallNumber::Mmap => sys_mmap(args.x0, args.x1, args.x2 as i32, args.x3 as i32, args.x4 as i32, args.x5 as i64),
+        SyscallNumber::Mmap => sys_mmap(
+            args.x0,
+            args.x1,
+            args.x2 as i32,
+            args.x3 as i32,
+            args.x4 as i32,
+            args.x5 as i64,
+        ),
         SyscallNumber::Munmap => sys_munmap(args.x0, args.x1),
         SyscallNumber::Brk => sys_brk(args.x0),
         SyscallNumber::GetPid => sys_getpid(),
@@ -282,7 +288,9 @@ fn sys_write(fd: i32, buf: *const u8, count: u64) -> SyscallResult {
     // Implement UART write for stdout/stderr (fd 1, 2)
     if fd == 1 || fd == 2 {
         unsafe {
-            crate::uart_print(b"[SYSCALL] sys_write: fd is stdout/stderr, calling uart_write_bytes\n");
+            crate::uart_print(
+                b"[SYSCALL] sys_write: fd is stdout/stderr, calling uart_write_bytes\n",
+            );
         }
         let bytes_written = uart_write_bytes(buf, count as usize)?;
         unsafe {
@@ -306,7 +314,7 @@ fn sys_exit(_status: i32) -> SyscallResult {
         // Convert status to string and print (simplified)
         crate::uart_print(b"\n");
     }
-    
+
     // For single process system, halt
     loop {}
 }
@@ -336,7 +344,14 @@ fn sys_close(_fd: i32) -> SyscallResult {
 }
 
 /// Memory map system call
-fn sys_mmap(_addr: u64, _length: u64, _prot: i32, _flags: i32, _fd: i32, _offset: i64) -> SyscallResult {
+fn sys_mmap(
+    _addr: u64,
+    _length: u64,
+    _prot: i32,
+    _flags: i32,
+    _fd: i32,
+    _offset: i64,
+) -> SyscallResult {
     // TODO: Integrate with memory management
     Err(SyscallError::ENOSYS)
 }
@@ -391,7 +406,12 @@ fn uart_write_bytes(buf: *const u8, count: usize) -> Result<usize, SyscallError>
 pub fn read_cycle_counter() -> u64 {
     unsafe {
         let mut count: u64;
+        #[cfg(target_arch = "aarch64")]
         asm!("mrs {}, cntvct_el0", out(reg) count);
+
+        #[cfg(target_arch = "x86_64")]
+        asm!("rdtsc", "shl rdx, 32", "or rax, rdx", out("rax") count, out("rdx") _);
+
         count
     }
 }
@@ -453,11 +473,11 @@ fn syscall_to_index(syscall: SyscallNumber) -> usize {
 fn record_syscall_metrics(syscall: SyscallNumber, cycles: u64, success: bool) {
     const HIGH_LATENCY_THRESHOLD: u64 = 1000; // cycles
     const VERY_HIGH_LATENCY_THRESHOLD: u64 = 5000; // cycles
-    
+
     unsafe {
         let index = syscall_to_index(syscall);
         SYSCALL_METRICS[index].update(cycles);
-        
+
         // Performance warnings
         if cycles > VERY_HIGH_LATENCY_THRESHOLD {
             crate::uart_print(b"[PERF] CRITICAL latency: ");
@@ -472,7 +492,7 @@ fn record_syscall_metrics(syscall: SyscallNumber, cycles: u64, success: bool) {
             print_cycles(cycles);
             crate::uart_print(b" cycles\n");
         }
-        
+
         // Success/failure tracking
         if !success {
             crate::uart_print(b"[PERF] Failed syscall: ");
@@ -512,18 +532,18 @@ pub fn print_cycles(cycles: u64) {
             let mut buf = [0u8; 20];
             let mut idx = 19;
             let mut n = cycles;
-            
+
             if n == 0 {
                 crate::uart_print(b"0");
                 return;
             }
-            
+
             while n > 0 && idx > 0 {
                 buf[idx] = b'0' + (n % 10) as u8;
                 n /= 10;
                 idx -= 1;
             }
-            
+
             crate::uart_print(&buf[idx + 1..]);
         } else if cycles < 1000000 {
             // Print in K format
@@ -531,13 +551,13 @@ pub fn print_cycles(cycles: u64) {
             let mut buf = [0u8; 20];
             let mut idx = 19;
             let mut n = k_cycles;
-            
+
             while n > 0 && idx > 0 {
                 buf[idx] = b'0' + (n % 10) as u8;
                 n /= 10;
                 idx -= 1;
             }
-            
+
             crate::uart_print(&buf[idx + 1..]);
             crate::uart_print(b"K");
         } else {
@@ -546,13 +566,13 @@ pub fn print_cycles(cycles: u64) {
             let mut buf = [0u8; 20];
             let mut idx = 19;
             let mut n = m_cycles;
-            
+
             while n > 0 && idx > 0 {
                 buf[idx] = b'0' + (n % 10) as u8;
                 n /= 10;
                 idx -= 1;
             }
-            
+
             crate::uart_print(&buf[idx + 1..]);
             crate::uart_print(b"M");
         }
@@ -565,7 +585,7 @@ pub fn print_syscall_performance_report() {
         crate::uart_print(b"\n[PERF] ========== SYSCALL PERFORMANCE REPORT ==========\n");
         crate::uart_print(b"[PERF] Syscall        | Calls |  Min  |  Max  |  Avg  |\n");
         crate::uart_print(b"[PERF] -------------- | ----- | ----- | ----- | ----- |\n");
-        
+
         let syscalls = [
             (SyscallNumber::Read, "read          "),
             (SyscallNumber::Write, "write         "),
@@ -586,7 +606,7 @@ pub fn print_syscall_performance_report() {
         for (syscall, name) in &syscalls {
             let index = syscall_to_index(*syscall);
             let metrics = &SYSCALL_METRICS[index];
-            
+
             if metrics.call_count > 0 {
                 crate::uart_print(b"[PERF] ");
                 crate::uart_print(name.as_bytes());
@@ -601,7 +621,7 @@ pub fn print_syscall_performance_report() {
                 crate::uart_print(b" |\n");
             }
         }
-        
+
         crate::uart_print(b"[PERF] ================================================\n\n");
     }
 }
@@ -612,7 +632,7 @@ fn print_padded_number(num: u64, width: usize) {
         let mut buf = [b' '; 20];
         let mut idx = 19;
         let mut n = num;
-        
+
         if n == 0 {
             buf[19] = b'0';
             idx = 19;
@@ -624,15 +644,15 @@ fn print_padded_number(num: u64, width: usize) {
             }
             idx += 1;
         }
-        
+
         let len = 20 - idx;
         let padding = if width > len { width - len } else { 0 };
-        
+
         // Print padding spaces
         for _ in 0..padding {
             crate::uart_print(b" ");
         }
-        
+
         crate::uart_print(&buf[idx..]);
     }
 }
@@ -680,11 +700,11 @@ pub fn run_syscall_microbenchmark(syscall: SyscallNumber, iterations: u32) -> (u
         crate::uart_print(b" (");
         print_padded_number(iterations as u64, 0);
         crate::uart_print(b" iterations)\n");
-        
+
         let mut min_cycles = u64::MAX;
         let mut max_cycles = 0;
         let mut total_cycles = 0;
-        
+
         for _ in 0..iterations {
             // Create a mock syscall frame
             let mut frame = SyscallFrame {
@@ -693,10 +713,10 @@ pub fn run_syscall_microbenchmark(syscall: SyscallNumber, iterations: u32) -> (u
                 elr_el1: 0,
                 spsr_el1: 0,
             };
-            
+
             // Setup basic syscall arguments
             frame.gpr[8] = syscall as u64;
-            
+
             match syscall {
                 SyscallNumber::Write => {
                     let test_msg = b"benchmark\n";
@@ -714,19 +734,19 @@ pub fn run_syscall_microbenchmark(syscall: SyscallNumber, iterations: u32) -> (u
                     frame.gpr[2] = 0;
                 }
             }
-            
+
             let start_cycles = read_cycle_counter();
             let _ = handle_syscall(&mut frame);
             let end_cycles = read_cycle_counter();
-            
+
             let cycles = end_cycles.wrapping_sub(start_cycles);
             min_cycles = min_cycles.min(cycles);
             max_cycles = max_cycles.max(cycles);
             total_cycles += cycles;
         }
-        
+
         let avg_cycles = total_cycles / iterations as u64;
-        
+
         crate::uart_print(b"[PERF] Benchmark results: min=");
         print_cycles(min_cycles);
         crate::uart_print(b", max=");
@@ -734,28 +754,30 @@ pub fn run_syscall_microbenchmark(syscall: SyscallNumber, iterations: u32) -> (u
         crate::uart_print(b", avg=");
         print_cycles(avg_cycles);
         crate::uart_print(b" cycles\n");
-        
+
         (min_cycles, max_cycles, avg_cycles)
     }
 }
 
 /// System call exception handler (called from assembly)
+///
+/// # Safety
+/// This function dereferences a raw pointer to SyscallFrame.
+/// The caller must ensure the pointer is valid and properly aligned.
 #[no_mangle]
-pub extern "C" fn syscall_handler(frame: *mut SyscallFrame) {
-    unsafe {
-        crate::uart_print(b"[SYSCALL] Handler called\n");
-        let frame_ref = &mut *frame;
-        crate::uart_print(b"[SYSCALL] About to handle syscall\n");
-        match handle_syscall(frame_ref) {
-            Ok(result) => {
-                crate::uart_print(b"[SYSCALL] Success, setting return value\n");
-                frame_ref.set_return_value(result);
-            }
-            Err(error) => {
-                crate::uart_print(b"[SYSCALL] Error, setting error value\n");
-                frame_ref.set_return_value(error.into());
-            }
+pub unsafe extern "C" fn syscall_handler(frame: *mut SyscallFrame) {
+    crate::uart_print(b"[SYSCALL] Handler called\n");
+    let frame_ref = &mut *frame;
+    crate::uart_print(b"[SYSCALL] About to handle syscall\n");
+    match handle_syscall(frame_ref) {
+        Ok(result) => {
+            crate::uart_print(b"[SYSCALL] Success, setting return value\n");
+            frame_ref.set_return_value(result);
         }
-        crate::uart_print(b"[SYSCALL] Handler returning\n");
+        Err(error) => {
+            crate::uart_print(b"[SYSCALL] Error, setting error value\n");
+            frame_ref.set_return_value(error.into());
+        }
     }
+    crate::uart_print(b"[SYSCALL] Handler returning\n");
 }
