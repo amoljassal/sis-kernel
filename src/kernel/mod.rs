@@ -83,11 +83,11 @@ pub mod boot_recovery;
 pub mod security_framework;
 
 // Phase 5: Production Hardening
-pub mod formal_verification;
-pub mod secure_enclave;
-pub mod mlperf_benchmarking;
-pub mod kernel_testing;
-pub mod performance_validation;
+pub mod production_verification;
+pub mod fault_tolerance;
+pub mod performance_optimization;
+pub mod production_monitoring;
+pub mod production_testing;
 
 // Phase 2: Security Layer
 pub mod capabilities;
@@ -143,11 +143,12 @@ pub fn init_subsystems() -> Result<(), &'static str> {
     // Initialize AI Byzantine Fault Tolerance with HotStuff consensus protocol
     ai_bft::init_ai_bft()?;
     
-    // Initialize comprehensive kernel testing framework with metamorphic AI validation
-    kernel_testing::init_kernel_testing()?;
-    
-    // Initialize performance validation system for <40μs inference and <500ns context switch targets
-    performance_validation::init_performance_validation()?;
+    // Phase 5: Initialize Production Hardening subsystems
+    production_verification::init()?;
+    fault_tolerance::init()?;
+    performance_optimization::init()?;
+    production_monitoring::init()?;
+    production_testing::init()?;
     
     // Phase 3: Initialize AI/ML Runtime subsystems
     ai_runtime::init()?;
