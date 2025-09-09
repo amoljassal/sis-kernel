@@ -122,6 +122,9 @@ pub fn init_late() -> Result<(), &'static str> {
         crate::arch::aarch64::smp_boot::init_smp()?;
     }
     
+    // Initialize security layer (Phase 2)
+    crate::kernel::security::init()?;
+    
     Ok(())
 }
 

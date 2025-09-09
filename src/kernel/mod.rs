@@ -89,6 +89,12 @@ pub mod mlperf_benchmarking;
 pub mod kernel_testing;
 pub mod performance_validation;
 
+// Phase 2: Security Layer
+pub mod capabilities;
+pub mod tpm;
+pub mod security_test;
+pub mod security;
+
 // Provide stable re-exports for callers
 pub use pci::read_id;
 pub use pci::{cfg_read32, cfg_write32, find_first_e1000, PciId};

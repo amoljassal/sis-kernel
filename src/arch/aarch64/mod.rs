@@ -26,6 +26,10 @@ pub mod gicv3;
 pub mod pmu;
 pub mod smp_boot;
 
+// Phase 2 Security modules
+pub mod trustzone;
+pub mod smmu;
+
 #[cfg(feature = "selftests")]
 pub mod vdso_test;
 
