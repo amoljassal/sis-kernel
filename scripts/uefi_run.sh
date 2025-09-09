@@ -67,7 +67,6 @@ qemu-system-aarch64 \
   -cpu cortex-a72 \
   -m 512M \
   -nographic \
-  -serial file:/tmp/sis-kernel.log \
   -bios "$FIRMWARE" \
   -drive if=none,id=esp,format=raw,file=fat:rw:"$ESP_DIR" \
   -device virtio-blk-pci,drive=esp,id=boot-disk,disable-legacy=on \

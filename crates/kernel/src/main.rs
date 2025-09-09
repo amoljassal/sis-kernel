@@ -1,5 +1,9 @@
 #![no_std]
 #![no_main]
+#![feature(alloc_error_handler)]
+
+// Required for heap allocation
+extern crate alloc;
 
 // System call interface module
 pub mod syscall;
@@ -15,6 +19,8 @@ pub mod driver;
 pub mod virtio;
 // VirtIO console driver module
 pub mod virtio_console;
+// Heap allocator module
+pub mod heap;
 
 #[cfg(target_arch = "aarch64")]
 #[link_section = ".text._start"]
@@ -100,7 +106,27 @@ macro_rules! kprintln {
         crate::uart::init();
         super::uart_print(b"UART: READY\n");
 
-        // 5) Initialize GICv3 + timer and enable interrupts  
+        // 5) Initialize heap allocator for dynamic memory management
+        super::uart_print(b"HEAP: INIT\n");
+        if let Err(e) = crate::heap::init_heap() {
+            super::uart_print(b"HEAP: INIT FAILED - ");
+            super::uart_print(e.as_bytes());
+            super::uart_print(b"\n");
+        } else {
+            super::uart_print(b"HEAP: READY\n");
+            
+            // Run heap tests to validate functionality
+            super::uart_print(b"HEAP: TESTING\n");
+            if let Err(e) = crate::heap::test_heap() {
+                super::uart_print(b"HEAP: TEST FAILED - ");
+                super::uart_print(e.as_bytes());
+                super::uart_print(b"\n");
+            } else {
+                super::uart_print(b"HEAP: TESTS PASSED\n");
+            }
+        }
+
+        // 6) Initialize GICv3 + timer and enable interrupts  
         super::uart_print(b"GIC: INIT\n");
         gicv3_init_qemu();
         timer_init_1hz();
