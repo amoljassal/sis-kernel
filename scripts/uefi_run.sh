@@ -63,15 +63,18 @@ if [[ "${DEBUG:-}" != "" ]]; then
 fi
 
 qemu-system-aarch64 \
-  -M virt,gic-version=3,highmem=on \
+  -M virt,gic-version=3,highmem=on,secure=off \
   -cpu cortex-a72 \
-  -m 256M \
+  -m 512M \
   -nographic \
-  -serial mon:stdio \
+  -serial file:/tmp/sis-kernel.log \
   -bios "$FIRMWARE" \
   -drive if=none,id=esp,format=raw,file=fat:rw:"$ESP_DIR" \
-  -device virtio-blk-pci,drive=esp \
-  -device virtio-rng-pci \
-  -device virtio-serial-pci,id=serial0 \
+  -device virtio-blk-pci,drive=esp,id=boot-disk,disable-legacy=on \
+  -device virtio-rng-pci,id=rng0,disable-legacy=on \
+  -device virtio-net-pci,netdev=net0,id=net0,disable-legacy=on \
+  -netdev user,id=net0 \
+  -rtc base=utc \
   -no-reboot \
+  -smp 2 \
   $DEBUG_FLAGS

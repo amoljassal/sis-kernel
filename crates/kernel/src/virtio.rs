@@ -133,12 +133,30 @@ impl VirtIOMMIOTransport {
             // Verify VirtIO magic value
             let magic = ptr::read_volatile((base_addr + VirtIOMMIOOffset::MagicValue as u64) as *const u32);
             if magic != 0x74726976 {
+                // Debug: print the actual magic for troubleshooting
+                if magic != 0x00000000 && magic != 0xFFFFFFFF {
+                    unsafe {
+                        crate::uart_print(b"[VIRTIO-DEBUG] Wrong magic 0x");
+                        crate::virtio::VirtIODiscovery::print_hex(magic as u64);
+                        crate::uart_print(b" at 0x");
+                        crate::virtio::VirtIODiscovery::print_hex(base_addr);
+                        crate::uart_print(b"\n");
+                    }
+                }
                 return Err(DriverError::InvalidDevice);
             }
             
-            // Check version (must be 2+ for VirtIO 1.0)
+            // Check version (accept 1+ for VirtIO 0.9.5+ compatibility)
             let version = ptr::read_volatile((base_addr + VirtIOMMIOOffset::Version as u64) as *const u32);
-            if version < 2 {
+            if version < 1 {
+                // Debug: print the actual version for troubleshooting
+                unsafe {
+                    crate::uart_print(b"[VIRTIO-DEBUG] Found version ");
+                    crate::virtio::VirtIODiscovery::print_number(version);
+                    crate::uart_print(b" at 0x");
+                    crate::virtio::VirtIODiscovery::print_hex(base_addr);
+                    crate::uart_print(b"\n");
+                }
                 return Err(DriverError::NotSupported);
             }
             
@@ -247,6 +265,7 @@ pub struct VirtIODiscovery;
 
 impl VirtIODiscovery {
     /// QEMU ARM64 virt machine VirtIO MMIO addresses
+    /// Based on QEMU virt machine layout: 0x0a000000-0x0a0001ff
     const VIRTIO_MMIO_BASE: u64 = 0x0A000000;
     const VIRTIO_MMIO_SIZE: u64 = 0x200;
     const VIRTIO_MMIO_IRQ_BASE: u32 = 16;
@@ -263,16 +282,38 @@ impl VirtIODiscovery {
         for i in 0..Self::MAX_VIRTIO_DEVICES {
             let base_addr = Self::VIRTIO_MMIO_BASE + (i as u64 * Self::VIRTIO_MMIO_SIZE);
             
+            unsafe {
+                crate::uart_print(b"[VIRTIO] Probing device slot ");
+                Self::print_number(i as u32);
+                crate::uart_print(b" at 0x");
+                Self::print_hex(base_addr);
+                crate::uart_print(b"\n");
+            }
+            
             // Try to create VirtIO transport for this address
-            if let Ok(transport) = VirtIOMMIOTransport::new(
+            match VirtIOMMIOTransport::new(
                 base_addr, 
                 Self::VIRTIO_MMIO_SIZE, 
                 Some(Self::VIRTIO_MMIO_IRQ_BASE + i as u32)
             ) {
+                Ok(transport) => {
                 let device_type = transport.device_type();
+                
+                unsafe {
+                    crate::uart_print(b"[VIRTIO] Found device type ");
+                    Self::print_number(device_type as u32);
+                    crate::uart_print(b" (");
+                    Self::print_device_type_name(device_type);
+                    crate::uart_print(b") at slot ");
+                    Self::print_number(i as u32);
+                    crate::uart_print(b"\n");
+                }
                 
                 // Skip reserved/unknown devices
                 if device_type == VirtIODeviceType::Reserved || device_type == VirtIODeviceType::Unknown {
+                    unsafe {
+                        crate::uart_print(b"[VIRTIO] Skipping reserved/unknown device\n");
+                    }
                     continue;
                 }
                 
@@ -302,6 +343,18 @@ impl VirtIODiscovery {
                 
                 if devices.push(device_info).is_err() {
                     break; // Vec is full
+                }
+                }
+                Err(e) => {
+                    unsafe {
+                        crate::uart_print(b"[VIRTIO] Probe failed: ");
+                        match e {
+                            DriverError::InvalidDevice => crate::uart_print(b"invalid magic/version\n"),
+                            DriverError::NotSupported => crate::uart_print(b"unsupported version\n"),
+                            _ => crate::uart_print(b"unknown error\n"),
+                        }
+                    }
+                    // Continue to next slot
                 }
             }
         }
