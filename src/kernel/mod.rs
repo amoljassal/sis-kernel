@@ -100,6 +100,13 @@ pub mod ai_runtime;
 pub mod ai_scheduler;
 pub mod ai_test;
 
+// Phase 4: Distributed Systems
+pub mod distributed_raft;
+pub mod federated_learning;
+pub mod ai_workload_migration;
+pub mod distributed_scheduler;
+pub mod distributed_ai_test;
+
 // Provide stable re-exports for callers
 pub use pci::read_id;
 pub use pci::{cfg_read32, cfg_write32, find_first_e1000, PciId};
@@ -145,6 +152,10 @@ pub fn init_subsystems() -> Result<(), &'static str> {
     // Phase 3: Initialize AI/ML Runtime subsystems
     ai_runtime::init()?;
     ai_scheduler::init()?;
+    
+    // Phase 4: Initialize Distributed Systems subsystems
+    // Note: Distributed systems require cluster configuration
+    // These will be initialized when cluster information is available
     
     Ok(())
 }
