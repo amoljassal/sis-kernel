@@ -95,6 +95,11 @@ pub mod tpm;
 pub mod security_test;
 pub mod security;
 
+// Phase 3: AI/ML Runtime
+pub mod ai_runtime;
+pub mod ai_scheduler;
+pub mod ai_test;
+
 // Provide stable re-exports for callers
 pub use pci::read_id;
 pub use pci::{cfg_read32, cfg_write32, find_first_e1000, PciId};
@@ -136,6 +141,10 @@ pub fn init_subsystems() -> Result<(), &'static str> {
     
     // Initialize performance validation system for <40μs inference and <500ns context switch targets
     performance_validation::init_performance_validation()?;
+    
+    // Phase 3: Initialize AI/ML Runtime subsystems
+    ai_runtime::init()?;
+    ai_scheduler::init()?;
     
     Ok(())
 }

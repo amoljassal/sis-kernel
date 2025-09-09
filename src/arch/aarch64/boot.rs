@@ -125,6 +125,9 @@ pub fn init_late() -> Result<(), &'static str> {
     // Initialize security layer (Phase 2)
     crate::kernel::security::init()?;
     
+    // Initialize NPU emulation layer (Phase 3)
+    crate::arch::aarch64::npu_emulation::init()?;
+    
     Ok(())
 }
 

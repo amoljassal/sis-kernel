@@ -30,6 +30,9 @@ pub mod smp_boot;
 pub mod trustzone;
 pub mod smmu;
 
+// Phase 3 AI/ML Runtime modules
+pub mod npu_emulation;
+
 #[cfg(feature = "selftests")]
 pub mod vdso_test;
 
