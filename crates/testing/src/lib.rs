@@ -20,7 +20,7 @@ pub mod reporting;
 // Core test result types
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TestResult {
+pub struct TestRecord {
     pub name: String,
     pub category: TestCategory,
     pub status: TestStatus,
@@ -71,7 +71,7 @@ pub struct ValidationReport {
     pub performance_results: Option<performance::PerformanceResults>,
     pub correctness_results: Option<correctness::CorrectnessResults>,
     pub distributed_results: Option<distributed::DistributedResults>,
-    pub security_results: Option<security::SecurityResults>,
+    pub security_results: Option<security::SecurityTestResults>,
     pub ai_results: Option<ai::AIResults>,
     pub test_coverage: TestCoverageReport,
     pub generated_at: chrono::DateTime<chrono::Utc>,
@@ -190,7 +190,7 @@ pub struct SISTestSuite {
     pub performance: performance::PerformanceTestFramework,
     pub correctness: correctness::CorrectnessValidationSuite,
     pub distributed: distributed::DistributedSystemsTestSuite,
-    pub security: security::SecurityValidationFramework,
+    pub security: security::SecurityTestSuite,
     pub ai_validation: ai::AIModelValidationSuite,
     pub reporting: reporting::IndustryReportingEngine,
 }
@@ -226,7 +226,7 @@ impl SISTestSuite {
             performance: performance::PerformanceTestFramework::new(&config),
             correctness: correctness::CorrectnessValidationSuite::new(&config),
             distributed: distributed::DistributedSystemsTestSuite::new(&config),
-            security: security::SecurityValidationFramework::new(&config),
+            security: security::SecurityTestSuite::new(&config),
             ai_validation: ai::AIModelValidationSuite::new(&config),
             reporting: reporting::IndustryReportingEngine::new(&config),
             config,
@@ -277,7 +277,7 @@ impl SISTestSuite {
         perf_results: Option<performance::PerformanceResults>,
         correctness_results: Option<correctness::CorrectnessResults>,
         distributed_results: Option<distributed::DistributedResults>,
-        security_results: Option<security::SecurityResults>,
+        security_results: Option<security::SecurityTestResults>,
         ai_results: Option<ai::AIResults>,
     ) -> anyhow::Result<ValidationReport> {
         let mut validation_results = Vec::new();
@@ -393,7 +393,7 @@ impl SISTestSuite {
         ]
     }
 
-    fn validate_security_claims(&self, results: &security::SecurityResults) -> Vec<ValidationResult> {
+    fn validate_security_claims(&self, results: &security::SecurityTestResults) -> Vec<ValidationResult> {
         vec![
             ValidationResult {
                 claim: "Zero Critical Vulnerabilities".to_string(),

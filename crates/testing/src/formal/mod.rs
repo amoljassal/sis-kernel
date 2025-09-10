@@ -1,7 +1,7 @@
 // SIS Kernel Formal Verification Suite
 // Industry-grade formal verification using Kani and Prusti
 
-use crate::{TestSuiteConfig, TestResult, TestError};
+use crate::{TestSuiteConfig, TestRecord, TestError};
 use serde::{Deserialize, Serialize};
 
 pub mod kani_integration;

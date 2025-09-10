@@ -1,7 +1,7 @@
 // SIS Kernel Distributed Systems Testing
 // Byzantine fault tolerance and consensus validation
 
-use crate::{TestSuiteConfig, TestResult, TestError};
+use crate::{TestSuiteConfig, TestRecord, TestError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

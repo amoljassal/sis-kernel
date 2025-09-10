@@ -348,7 +348,7 @@ impl ByzantineNode {
 
     pub fn make_byzantine(&mut self, fault_type: FaultType) {
         self.is_byzantine = true;
-        self.fault_type = fault_type;
+        self.fault_type = fault_type.clone();
         self.state = match fault_type {
             FaultType::Crash => NodeState::Crashed,
             FaultType::Byzantine => NodeState::Byzantine,

@@ -1,7 +1,7 @@
 // SIS Kernel Performance Testing Framework
 // Comprehensive benchmarking with statistical rigor
 
-use crate::{TestSuiteConfig, StatisticalSummary, TestResult, TestError};
+use crate::{TestSuiteConfig, StatisticalSummary, TestRecord, TestError};
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use tokio::time;

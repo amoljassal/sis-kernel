@@ -2,6 +2,7 @@
 // Custom generators for kernel data structures and operation sequences
 
 use proptest::prelude::*;
+use proptest::strategy::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

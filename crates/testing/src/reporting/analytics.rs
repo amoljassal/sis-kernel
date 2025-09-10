@@ -481,7 +481,7 @@ impl AnalyticsEngine {
                 let timestamp = i * 1000;
                 let base_latency = 2.0;
                 let noise = (i as f64 * 0.2).cos() * 0.5;
-                let trend = -i as f64 * 0.01; // Improving latency over time
+                let trend = -(i as f64) * 0.01; // Improving latency over time
                 (timestamp, (base_latency + noise + trend).max(0.1))
             })
             .collect();
