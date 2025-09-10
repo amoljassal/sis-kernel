@@ -289,6 +289,7 @@ impl ByzantineFaultTestSuite {
     }
 }
 
+#[derive(Clone)]
 pub struct ByzantineNode {
     pub node_id: u32,
     pub is_byzantine: bool,

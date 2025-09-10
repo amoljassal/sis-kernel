@@ -1,7 +1,7 @@
 // SIS Kernel Correctness Validation Suite
 // Memory safety, formal verification, and property-based testing
 
-use crate::{TestSuiteConfig, TestResult, TestError};
+use crate::{TestSuiteConfig, TestError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -3,6 +3,7 @@
 
 use proptest::prelude::*;
 use proptest::strategy::*;
+use proptest::prop_oneof;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,7 +108,7 @@ pub enum FSOperation {
 
 pub fn allocation_sequence() -> impl Strategy<Value = AllocationSequence> {
     prop::collection::vec(
-        prop::oneof![
+        prop_oneof![
             (1usize..=4096).prop_map(AllocOp::Alloc),
             (1u32..=100).prop_map(AllocOp::Dealloc),
         ],
@@ -117,7 +118,7 @@ pub fn allocation_sequence() -> impl Strategy<Value = AllocationSequence> {
 
 pub fn memory_access_sequence() -> impl Strategy<Value = MemoryAccessSequence> {
     prop::collection::vec(
-        prop::oneof![
+        prop_oneof![
             (1usize..=4096).prop_map(MemoryOp::Alloc),
             (1u32..=100).prop_map(MemoryOp::Dealloc),
             (1u32..=100).prop_map(MemoryOp::Access),
@@ -135,7 +136,7 @@ pub fn allocation_pattern() -> impl Strategy<Value = AllocationPattern> {
 
 pub fn process_scheduling_sequence() -> impl Strategy<Value = ProcessSchedulingSequence> {
     prop::collection::vec(
-        prop::oneof![
+        prop_oneof![
             (1u32..=100, 1u8..=10).prop_map(|(pid, priority)| SchedulerEvent::AddProcess(pid, priority)),
             Just(SchedulerEvent::Schedule),
             (1u32..=100).prop_map(SchedulerEvent::RemoveProcess),
@@ -146,7 +147,7 @@ pub fn process_scheduling_sequence() -> impl Strategy<Value = ProcessSchedulingS
 
 pub fn priority_scheduling_sequence() -> impl Strategy<Value = PrioritySchedulingSequence> {
     prop::collection::vec(
-        prop::oneof![
+        prop_oneof![
             (1u32..=50, 1u8..=10).prop_map(|(pid, priority)| PriorityEvent::ScheduleWithPriority(pid, priority)),
             Just(PriorityEvent::CheckInversion),
         ],
@@ -156,7 +157,7 @@ pub fn priority_scheduling_sequence() -> impl Strategy<Value = PrioritySchedulin
 
 pub fn ipc_message_sequence() -> impl Strategy<Value = IPCMessageSequence> {
     prop::collection::vec(
-        prop::oneof![
+        prop_oneof![
             (1u32..=1000).prop_map(IPCOp::Send),
             Just(IPCOp::Receive),
         ],
@@ -167,7 +168,7 @@ pub fn ipc_message_sequence() -> impl Strategy<Value = IPCMessageSequence> {
 pub fn channel_stress_test() -> impl Strategy<Value = ChannelStressTest> {
     (1usize..=100).prop_flat_map(|max_capacity| {
         prop::collection::vec(
-            prop::oneof![
+            prop_oneof![
                 (1u32..=1000).prop_map(ChannelOp::Send),
                 Just(ChannelOp::Receive),
             ],
@@ -181,7 +182,7 @@ pub fn channel_stress_test() -> impl Strategy<Value = ChannelStressTest> {
 
 pub fn concurrent_operation_sequence() -> impl Strategy<Value = ConcurrentOperationSequence> {
     prop::collection::vec(
-        prop::oneof![
+        prop_oneof![
             (1u32..=1000).prop_map(ConcurrentOp::Enqueue),
             Just(ConcurrentOp::Dequeue),
         ],
@@ -191,7 +192,7 @@ pub fn concurrent_operation_sequence() -> impl Strategy<Value = ConcurrentOperat
 
 pub fn filesystem_operation_sequence() -> impl Strategy<Value = FileSystemOperationSequence> {
     prop::collection::vec(
-        prop::oneof![
+        prop_oneof![
             "/(tmp|home|etc|var)/[a-zA-Z0-9_]{1,20}\\.(txt|log|dat|cfg)"
                 .prop_map(FSOperation::Create),
             ("/(tmp|home|etc|var)/[a-zA-Z0-9_]{1,20}\\.(txt|log|dat|cfg)", 

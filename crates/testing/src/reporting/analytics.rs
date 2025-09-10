@@ -787,7 +787,7 @@ impl AnalyticsEngine {
                     
                     row.push(correlation);
                     
-                    if correlation.abs() > 0.5 {
+                    if correlation.abs() > 0.5_f64 {
                         significant_correlations.push(CorrelationPair {
                             metric1: metric1.clone(),
                             metric2: metric2.clone(),

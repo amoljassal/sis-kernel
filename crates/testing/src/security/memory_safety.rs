@@ -12,6 +12,7 @@ pub struct MemorySafetyChecker {
     leak_detector: LeakDetector,
 }
 
+#[derive(Clone)]
 pub struct AllocationTracker {
     allocations: HashMap<u64, AllocationInfo>,
     allocation_id_counter: u64,

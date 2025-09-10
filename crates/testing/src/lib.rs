@@ -2,9 +2,8 @@
 // Core test infrastructure and result types
 
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use serde::{Deserialize, Serialize};
-use tokio::time;
 
 // Re-export modules
 pub mod performance;
@@ -241,7 +240,7 @@ impl SISTestSuite {
                 self.performance.run_full_benchmark_suite(),
                 self.correctness.verify_all_properties(),
                 self.distributed.test_byzantine_consensus(),
-                self.security.run_comprehensive_security_audit(),
+                self.security.run_comprehensive_security_tests(),
                 self.ai_validation.validate_inference_accuracy()
             )?;
 
@@ -259,7 +258,7 @@ impl SISTestSuite {
             let perf_results = self.performance.run_full_benchmark_suite().await?;
             let correctness_results = self.correctness.verify_all_properties().await?;
             let distributed_results = self.distributed.test_byzantine_consensus().await?;
-            let security_results = self.security.run_comprehensive_security_audit().await?;
+            let security_results = self.security.run_comprehensive_security_tests().await?;
             let ai_results = self.ai_validation.validate_inference_accuracy().await?;
 
             self.generate_validation_report(

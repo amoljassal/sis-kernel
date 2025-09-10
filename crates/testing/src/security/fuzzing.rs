@@ -526,7 +526,7 @@ impl FuzzingEngine {
                     }
                     MutationType::Dictionary => {
                         // Use simple dictionary substitution
-                        let dict_words = [b"root", b"admin", b"test", b"null"];
+                        let dict_words = [b"root", b"test", b"null", b"user"];
                         let word = dict_words[(rng_seed as usize) % dict_words.len()];
                         if index + word.len() <= input.len() {
                             input[index..index + word.len()].copy_from_slice(word);

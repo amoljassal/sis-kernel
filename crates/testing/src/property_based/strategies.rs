@@ -2,6 +2,7 @@
 // Advanced testing strategies and property composition
 
 use proptest::prelude::*;
+use proptest::strategy::ValueTree;
 use crate::property_based::generators::*;
 
 pub struct TestingStrategies;
@@ -53,7 +54,7 @@ impl TestingStrategies {
             ipc_message_sequence(),
             prop::collection::vec(0u8..=255, 0..=10000), // fault injection points
             1f64..=100.0, // load multiplier
-            prop::bool(), // enable fault injection
+            any::<bool>(), // enable fault injection
         ).prop_map(|(fs_ops, ipc_ops, fault_points, load, inject_faults)| {
             SystemResilienceScenario {
                 filesystem_operations: fs_ops,
@@ -96,7 +97,7 @@ impl TestingStrategies {
             1u64..=1_000_000, // data size range
             1f64..=100.0, // load factor
             prop::collection::vec(1u32..=10000, 1..=1000), // timing constraints
-            prop::bool(), // enable resource monitoring
+            any::<bool>(), // enable resource monitoring
         ).prop_map(|(ops, data_size, load, timing, monitor)| {
             PerformanceBoundaryScenario {
                 operation_count: ops,
@@ -290,12 +291,22 @@ impl PropertyComposition {
     }
 }
 
-#[derive(Debug, Clone)]
 pub enum TemporalConstraint {
     Always,
     Eventually, 
     Until(Box<dyn Fn(&TestingContext) -> bool>),
     Since(Box<dyn Fn(&TestingContext) -> bool>),
+}
+
+impl std::fmt::Debug for TemporalConstraint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Always => write!(f, "Always"),
+            Self::Eventually => write!(f, "Eventually"),
+            Self::Until(_) => write!(f, "Until(...)"),
+            Self::Since(_) => write!(f, "Since(...)"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -407,7 +418,7 @@ impl AdvancedPropertyTestRunner {
         property: P,
         metamorphic_relation: M,
         test_cases: u32,
-    ) -> TestResult
+    ) -> quickcheck::TestResult
     where
         T: Clone + std::fmt::Debug,
         P: Fn(&T) -> bool,
@@ -430,9 +441,9 @@ impl AdvancedPropertyTestRunner {
         }
         
         if failures > 0 {
-            TestResult::failed()
+            quickcheck::TestResult::failed()
         } else {
-            TestResult::passed()
+            quickcheck::TestResult::passed()
         }
     }
 
@@ -441,7 +452,7 @@ impl AdvancedPropertyTestRunner {
         implementation1: F1,
         implementation2: F2,
         test_cases: u32,
-    ) -> TestResult
+    ) -> quickcheck::TestResult
     where
         T: Clone + std::fmt::Debug,
         F1: Fn(&T) -> String,
@@ -462,9 +473,9 @@ impl AdvancedPropertyTestRunner {
         }
         
         if differences > 0 {
-            TestResult::failed()
+            quickcheck::TestResult::failed()
         } else {
-            TestResult::passed()
+            quickcheck::TestResult::passed()
         }
     }
 }
