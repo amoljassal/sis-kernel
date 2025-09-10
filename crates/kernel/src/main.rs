@@ -22,11 +22,30 @@ pub mod virtio_console;
 // Heap allocator module
 pub mod heap;
 
+// Architecture-specific modules
+#[cfg(target_arch = "aarch64")]
+pub mod arch {
+    // ARM64 implementation would go here
+}
+
+#[cfg(target_arch = "x86_64")]
+pub mod arch {
+    // x86_64 implementation would go here
+}
+
+#[cfg(target_arch = "riscv64")]
+pub mod arch {
+    pub mod riscv64;
+    pub use riscv64::*;
+}
+
 #[cfg(target_arch = "aarch64")]
 #[link_section = ".text._start"]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    unsafe { uart_print(b"KERNEL(U)\n"); }
+    unsafe {
+        uart_print(b"KERNEL(U)\n");
+    }
 
     #[cfg(all(target_arch = "aarch64", feature = "bringup"))]
     unsafe {
@@ -37,7 +56,9 @@ pub extern "C" fn _start() -> ! {
 }
 
 #[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! { loop {} }
+fn panic(_: &core::panic::PanicInfo) -> ! {
+    loop {}
+}
 
 #[inline(always)]
 unsafe fn uart_print(msg: &[u8]) {
@@ -62,13 +83,13 @@ macro_rules! kprintln {
 }
 
 #[cfg(all(target_arch = "aarch64", feature = "bringup"))]
-    mod bringup {
-        use core::arch::asm;
+mod bringup {
+    use core::arch::asm;
 
-        // 64 KiB bootstrap stack (16-byte aligned)
-        #[repr(C, align(16))]
-        struct Stack([u8; 64 * 1024]);
-        static mut BOOT_STACK: Stack = Stack([0; 64 * 1024]);
+    // 64 KiB bootstrap stack (16-byte aligned)
+    #[repr(C, align(16))]
+    struct Stack([u8; 64 * 1024]);
+    static mut BOOT_STACK: Stack = Stack([0; 64 * 1024]);
 
     // Level-1 translation table (4 KiB aligned)
     #[repr(C, align(4096))]
@@ -92,7 +113,8 @@ macro_rules! kprintln {
         super::uart_print(b"VECTORS OK\n");
 
         // 3) Enable MMU (EL1 only). If not EL1, skip with message.
-        let current_el: u64; asm!("mrs {el}, CurrentEL", el = out(reg) current_el);
+        let current_el: u64;
+        asm!("mrs {el}, CurrentEL", el = out(reg) current_el);
         let el = (current_el >> 2) & 0x3;
         if el != 1 {
             super::uart_print(b"MMU SKIP (EL!=1)\n");
@@ -114,7 +136,7 @@ macro_rules! kprintln {
             super::uart_print(b"\n");
         } else {
             super::uart_print(b"HEAP: READY\n");
-            
+
             // Run heap tests to validate functionality
             super::uart_print(b"HEAP: TESTING\n");
             if let Err(e) = crate::heap::test_heap() {
@@ -126,27 +148,29 @@ macro_rules! kprintln {
             }
         }
 
-        // 6) Initialize GICv3 + timer and enable interrupts  
+        // 6) Initialize GICv3 + timer and enable interrupts
         super::uart_print(b"GIC: INIT\n");
         gicv3_init_qemu();
         timer_init_1hz();
         enable_irq();
-        
+
         // 6) Initialize driver framework and discover devices
         super::uart_print(b"DRIVER FRAMEWORK\n");
         if let Err(_) = crate::driver::init_driver_framework() {
             super::uart_print(b"DRIVER: INIT FAILED\n");
         } else {
             super::uart_print(b"DRIVER: INIT OK\n");
-            
+
             // Register VirtIO console driver
             super::uart_print(b"DRIVER: REGISTERING VIRTIO CONSOLE\n");
-            if let Err(_) = crate::driver::register_driver(crate::virtio_console::get_virtio_console_driver()) {
+            if let Err(_) =
+                crate::driver::register_driver(crate::virtio_console::get_virtio_console_driver())
+            {
                 super::uart_print(b"DRIVER: VIRTIO CONSOLE REGISTRATION FAILED\n");
             } else {
                 super::uart_print(b"DRIVER: VIRTIO CONSOLE REGISTERED\n");
             }
-            
+
             if let Some(registry) = crate::driver::get_driver_registry() {
                 match registry.discover_devices() {
                     Ok(count) => {
@@ -160,11 +184,11 @@ macro_rules! kprintln {
                 }
             }
         }
-        
+
         // 7) Test syscall functionality
         super::uart_print(b"SYSCALL TESTS\n");
         crate::userspace_test::run_syscall_tests();
-        
+
         // 8) Launch interactive shell
         super::uart_print(b"LAUNCHING SHELL\n");
         crate::shell::run_shell();
@@ -173,8 +197,9 @@ macro_rules! kprintln {
     unsafe fn install_vectors() {
         let base = &VECTORS as *const u8 as u64;
         // Try EL1 first, else EL2
-        let current_el: u64; asm!("mrs {el}, CurrentEL", el = out(reg) current_el);
-        match (current_el >> 2) & 0x3 { 
+        let current_el: u64;
+        asm!("mrs {el}, CurrentEL", el = out(reg) current_el);
+        match (current_el >> 2) & 0x3 {
             1 => asm!("msr VBAR_EL1, {v}", v = in(reg) base, options(nostack, preserves_flags)),
             2 => asm!("msr VBAR_EL2, {v}", v = in(reg) base, options(nostack, preserves_flags)),
             _ => {}
@@ -192,13 +217,12 @@ macro_rules! kprintln {
         // 39-bit VA (T0SZ=25), 48-bit PA (IPS=5). Correct bit positions:
         // T0SZ[5:0], IRGN0[9:8], ORGN0[11:10], SH0[13:12], TG0[15:14], IPS[34:32]
         let t0sz: u64 = 64 - 39; // 25
-        let tcr =
-            (t0sz & 0x3Fu64) |
+        let tcr = (t0sz & 0x3Fu64) |
             (0b01u64 << 8)  | // IRGN0 = WBWA
             (0b01u64 << 10) | // ORGN0 = WBWA
             (0b11u64 << 12) | // SH0 = Inner Shareable
             (0b00u64 << 14) | // TG0 = 4KB
-            (0b101u64 << 32);  // IPS = 48-bit PA
+            (0b101u64 << 32); // IPS = 48-bit PA
         asm!("msr TCR_EL1, {x}", x = in(reg) tcr, options(nostack, preserves_flags));
         asm!("isb", options(nostack, preserves_flags));
 
@@ -216,7 +240,7 @@ macro_rules! kprintln {
         super::uart_print(b"MMU: SCTLR\n");
         let mut sctlr: u64;
         asm!("mrs {x}, SCTLR_EL1", x = out(reg) sctlr);
-        sctlr |= (1<<0) | (1<<2) | (1<<12); // M, C, I
+        sctlr |= (1 << 0) | (1 << 2) | (1 << 12); // M, C, I
         asm!("msr SCTLR_EL1, {x}", x = in(reg) sctlr);
         asm!("isb", options(nostack, preserves_flags));
     }
@@ -224,7 +248,9 @@ macro_rules! kprintln {
     unsafe fn build_tables() {
         // Clear tables
         let table_ptr = &raw mut L1_TABLE.0 as *mut [u64; 512];
-        for e in (*table_ptr).iter_mut() { *e = 0; }
+        for e in (*table_ptr).iter_mut() {
+            *e = 0;
+        }
 
         // Descriptor helpers
         const DESC_BLOCK: u64 = 1; // bits[1:0]=01 for block
@@ -237,15 +263,10 @@ macro_rules! kprintln {
         // L1[1] = 1GB block for 0x40000000..0x7FFFFFFF as Normal WBWA, InnerShareable
         let l1_idx_kernel = 0x4000_0000u64 >> 30; // 1
         L1_TABLE.0[l1_idx_kernel as usize] =
-            ((0x4000_0000u64 >> 30) << 30) |
-            DESC_BLOCK |
-            AF | SH_INNER | ATTRIDX_NORMAL;
+            ((0x4000_0000u64 >> 30) << 30) | DESC_BLOCK | AF | SH_INNER | ATTRIDX_NORMAL;
 
         // L1[0] = 1GB block for 0x00000000..0x3FFFFFFF as Device-nGnRE (covers UART 0x0900_0000)
-        L1_TABLE.0[0] =
-            (0x0000_0000u64) |
-            DESC_BLOCK |
-            AF | ATTRIDX_DEVICE; // Non-shareable default
+        L1_TABLE.0[0] = (0x0000_0000u64) | DESC_BLOCK | AF | ATTRIDX_DEVICE; // Non-shareable default
     }
 
     core::arch::global_asm!(
@@ -489,23 +510,23 @@ macro_rules! kprintln {
 
     unsafe fn gicv3_init_qemu() {
         super::uart_print(b"GIC: DISTRIBUTOR\n");
-        
+
         // QEMU ARM64 virt machine GICv3 addresses
-        const GICD_BASE: u64 = 0x08000000;  // GIC Distributor  
-        const GICR_BASE: u64 = 0x080A0000;  // GIC Redistributor
+        const GICD_BASE: u64 = 0x08000000; // GIC Distributor
+        const GICR_BASE: u64 = 0x080A0000; // GIC Redistributor
 
         // GIC Distributor registers
         const GICD_CTLR: u64 = 0x0000;
         #[allow(dead_code)] // Complete register set for future use
         const GICD_TYPER: u64 = 0x0004;
-        #[allow(dead_code)] // Complete register set for future use  
+        #[allow(dead_code)] // Complete register set for future use
         const GICD_IGROUPR: u64 = 0x0080;
         #[allow(dead_code)] // Complete register set for future use
         const GICD_ISENABLER: u64 = 0x0100;
         #[allow(dead_code)] // Complete register set for future use
         const GICD_IPRIORITYR: u64 = 0x0400;
-        
-        // GIC Redistributor registers  
+
+        // GIC Redistributor registers
         const GICR_WAKER: u64 = 0x0014;
         const GICR_IGROUPR0: u64 = 0x0080;
         const GICR_ISENABLER0: u64 = 0x0100;
@@ -513,7 +534,7 @@ macro_rules! kprintln {
 
         // 1) Initialize GIC Distributor
         let gicd_ctlr = (GICD_BASE + GICD_CTLR) as *mut u32;
-        
+
         // Check if already enabled
         let ctlr_val = core::ptr::read_volatile(gicd_ctlr);
         if (ctlr_val & 0x3) == 0 {
@@ -529,21 +550,21 @@ macro_rules! kprintln {
         super::uart_print(b"GIC: ACCESSING GICR_WAKER\n");
         let waker = (GICR_BASE + GICR_WAKER) as *mut u32;
         super::uart_print(b"GIC: READING WAKER VALUE\n");
-        
-        // Clear ProcessorSleep bit [1] 
+
+        // Clear ProcessorSleep bit [1]
         let mut w: u32 = core::ptr::read_volatile(waker);
         if (w & (1 << 1)) != 0 {
             super::uart_print(b"GIC: WAKING UP CPU0\n");
             w &= !(1 << 1);
             core::ptr::write_volatile(waker, w);
-            
+
             // Wait for ChildrenAsleep bit [2] to clear with timeout
             let mut timeout = 1000000;
             loop {
                 let v = core::ptr::read_volatile(waker);
-                if (v & (1 << 2)) == 0 { 
+                if (v & (1 << 2)) == 0 {
                     super::uart_print(b"GIC: CPU0 AWAKE\n");
-                    break; 
+                    break;
                 }
                 timeout -= 1;
                 if timeout == 0 {
@@ -575,7 +596,7 @@ macro_rules! kprintln {
         super::uart_print(b"GIC: ENABLE PPI27\n");
         let isenabler0 = (GICR_BASE + GICR_ISENABLER0) as *mut u32;
         core::ptr::write_volatile(isenabler0, 1 << 27);
-        
+
         super::uart_print(b"GIC: READY\n");
 
         // CPU interface via system registers
@@ -587,26 +608,62 @@ macro_rules! kprintln {
         asm!("isb", options(nostack, preserves_flags));
         super::uart_print(b"GIC: DONE\n");
     }
-    
+
     /// Helper function to print numbers
     unsafe fn print_number(mut num: usize) {
         if num == 0 {
             super::uart_print(b"0");
             return;
         }
-        
+
         let mut digits = [0u8; 20];
         let mut i = 0;
-        
+
         while num > 0 {
             digits[i] = b'0' + (num % 10) as u8;
             num /= 10;
             i += 1;
         }
-        
+
         while i > 0 {
             i -= 1;
             super::uart_print(&[digits[i]]);
         }
+    }
+}
+
+/// Common main function for all architectures
+/// This is called from architecture-specific entry points
+pub fn main() -> ! {
+    unsafe {
+        uart_print(b"\n=== SIS Kernel Starting ===\n");
+        
+        #[cfg(target_arch = "aarch64")]
+        uart_print(b"Architecture: ARM64 (AArch64)\n");
+        
+        #[cfg(target_arch = "x86_64")]
+        uart_print(b"Architecture: x86_64\n");
+        
+        #[cfg(target_arch = "riscv64")]
+        uart_print(b"Architecture: RISC-V RV64GC\n");
+        
+        // Initialize heap allocator
+        uart_print(b"HEAP: INIT\n");
+        if let Err(e) = heap::init_heap() {
+            uart_print(b"HEAP: INIT FAILED - ");
+            uart_print(e.as_bytes());
+            uart_print(b"\n");
+        } else {
+            uart_print(b"HEAP: READY\n");
+        }
+        
+        // Start interactive shell
+        uart_print(b"SHELL: STARTING\n");
+        shell::run_shell();
+    }
+    
+    // Should never reach here
+    loop {
+        core::hint::spin_loop();
     }
 }

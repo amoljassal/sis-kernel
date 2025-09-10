@@ -16,6 +16,8 @@ pub mod boards {
     pub mod vikram3201;  // Vikram 3201 processor support
 }
 
+pub mod verification;  // Formal verification with Sailor model checking
+
 // Re-export key types for easier access
 pub use mmu::{VirtAddr, PhysAddr, PageFlags, MmuError};
 pub use interrupts::{InterruptController, InterruptError};
@@ -48,6 +50,12 @@ pub fn init() -> Result<(), ArchError> {
     
     // 7. Enable supervisor mode features
     enable_supervisor_features();
+    
+    // 8. Initialize formal verification framework
+    if let Err(_) = verification::init_global_verifier() {
+        // Verification initialization failed - continue without it for now
+        // In production, this might be a critical error
+    }
     
     Ok(())
 }

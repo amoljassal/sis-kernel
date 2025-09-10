@@ -103,6 +103,7 @@ impl Shell {
                 "dtb" => self.cmd_dtb(),
                 "vector" => self.cmd_vector(),
                 "board" => self.cmd_board(),
+                "verify" => self.cmd_verify(),
                 "clear" => self.cmd_clear(),
                 "exit" => self.cmd_exit(),
                 _ => self.cmd_unknown(parts[0]),
@@ -127,6 +128,7 @@ impl Shell {
             crate::uart_print(b"  dtb      - Show device tree information\n");
             crate::uart_print(b"  vector   - Show vector extension information\n");
             crate::uart_print(b"  board    - Show board-specific information\n");
+            crate::uart_print(b"  verify   - Run comprehensive verification tests (property-based, metamorphic)\n");
             crate::uart_print(b"  clear    - Clear screen\n");
             crate::uart_print(b"  exit     - Exit shell\n");
         }
@@ -338,6 +340,79 @@ impl Shell {
         {
             unsafe {
                 crate::uart_print(b"Board-specific information only supported on RISC-V\n");
+            }
+        }
+    }
+
+    /// Formal verification status command
+    fn cmd_verify(&self) {
+        #[cfg(target_arch = "riscv64")]
+        {
+            crate::arch::riscv64::verification::print_verification_status();
+            
+            unsafe {
+                crate::uart_print(b"\nRunning basic verification check...\n");
+            }
+            
+            if let Some(verifier) = crate::arch::riscv64::verification::get_verifier() {
+                match verifier.check_invariants() {
+                    Ok(_) => unsafe {
+                        crate::uart_print(b"[OK] Basic invariants satisfied\n");
+                    },
+                    Err(_) => unsafe {
+                        crate::uart_print(b"[ERR] Basic invariant violations detected\n");
+                    },
+                }
+            }
+
+            // Run comprehensive property-based testing
+            unsafe {
+                crate::uart_print(b"\nRunning property-based testing suite...\n");
+            }
+            let invariant_tests_passed = crate::arch::riscv64::verification::run_comprehensive_invariant_tests();
+            
+            // Run metamorphic testing
+            let metamorphic_tests_passed = crate::arch::riscv64::verification::run_metamorphic_tests();
+            
+            // Run advanced invariant checking
+            let advanced_tests_passed = crate::arch::riscv64::verification::run_advanced_invariant_checking();
+
+            // Summary
+            unsafe {
+                crate::uart_print(b"\n=== Verification Summary ===\n");
+                crate::uart_print(b"Invariant Tests: ");
+                if invariant_tests_passed {
+                    crate::uart_print(b"[PASS]\n");
+                } else {
+                    crate::uart_print(b"[FAIL]\n");
+                }
+
+                crate::uart_print(b"Metamorphic Tests: ");
+                if metamorphic_tests_passed {
+                    crate::uart_print(b"[PASS]\n");
+                } else {
+                    crate::uart_print(b"[FAIL]\n");
+                }
+
+                crate::uart_print(b"Advanced Tests: ");
+                if advanced_tests_passed {
+                    crate::uart_print(b"[PASS]\n");
+                } else {
+                    crate::uart_print(b"[FAIL]\n");
+                }
+
+                if invariant_tests_passed && metamorphic_tests_passed && advanced_tests_passed {
+                    crate::uart_print(b"\n[OVERALL] All verification tests passed!\n");
+                } else {
+                    crate::uart_print(b"\n[OVERALL] Some verification tests failed.\n");
+                }
+            }
+        }
+        
+        #[cfg(not(target_arch = "riscv64"))]
+        {
+            unsafe {
+                crate::uart_print(b"Formal verification only supported on RISC-V\n");
             }
         }
     }

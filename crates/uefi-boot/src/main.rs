@@ -99,8 +99,10 @@ struct Elf64Sym {
     st_size: u64,
 }
 
-fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infallible, ChainloadError> {
-
+fn chainload_kernel(
+    handle: Handle,
+    mut st: SystemTable<Boot>,
+) -> Result<Infallible, ChainloadError> {
     let _ = st.stdout().write_str("Opening LoadedImage...\r\n");
     st.boot_services().stall(100_000);
     let device = {
@@ -125,10 +127,22 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
     st.boot_services().stall(100_000);
     // Try multiple path variants
     let candidates = [
-        (cstr16!(r"\EFI\SIS\KERNEL.ELF"), r"Trying path1 \EFI\SIS\KERNEL.ELF\r\n"),
-        (cstr16!(r"EFI\SIS\KERNEL.ELF"), r"Trying path2 EFI\SIS\KERNEL.ELF\r\n"),
-        (cstr16!(r"\efi\sis\kernel.elf"), r"Trying path3 \efi\sis\kernel.elf\r\n"),
-        (cstr16!(r"efi\sis\kernel.elf"), r"Trying path4 efi\sis\kernel.elf\r\n"),
+        (
+            cstr16!(r"\EFI\SIS\KERNEL.ELF"),
+            r"Trying path1 \EFI\SIS\KERNEL.ELF\r\n",
+        ),
+        (
+            cstr16!(r"EFI\SIS\KERNEL.ELF"),
+            r"Trying path2 EFI\SIS\KERNEL.ELF\r\n",
+        ),
+        (
+            cstr16!(r"\efi\sis\kernel.elf"),
+            r"Trying path3 \efi\sis\kernel.elf\r\n",
+        ),
+        (
+            cstr16!(r"efi\sis\kernel.elf"),
+            r"Trying path4 efi\sis\kernel.elf\r\n",
+        ),
     ];
     let mut file_opt: Option<RegularFile> = None;
     for (c, label) in candidates {
@@ -143,37 +157,55 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
     }
     // Hierarchical attempt on image device: EFI/efi -> SIS/sis -> KERNEL.ELF/kernel.elf
     if file_opt.is_none() {
-        let _ = st.stdout().write_str("Hierarchical open on image device...\r\n");
+        let _ = st
+            .stdout()
+            .write_str("Hierarchical open on image device...\r\n");
         st.boot_services().stall(50_000);
         let efi_names = [cstr16!(r"EFI"), cstr16!(r"efi")];
         let sis_names = [cstr16!(r"SIS"), cstr16!(r"sis")];
         let file_names = [cstr16!(r"KERNEL.ELF"), cstr16!(r"kernel.elf")];
         for en in &efi_names {
             if let Ok(efi_file) = root.open(*en, FileMode::Read, FileAttribute::empty()) {
-                if let Ok(uefi::proto::media::file::FileType::Dir(mut efi_dir)) = efi_file.into_type() {
+                if let Ok(uefi::proto::media::file::FileType::Dir(mut efi_dir)) =
+                    efi_file.into_type()
+                {
                     for sn in &sis_names {
-                        if let Ok(sis_file) = efi_dir.open(*sn, FileMode::Read, FileAttribute::empty()) {
-                            if let Ok(uefi::proto::media::file::FileType::Dir(mut sis_dir)) = sis_file.into_type() {
+                        if let Ok(sis_file) =
+                            efi_dir.open(*sn, FileMode::Read, FileAttribute::empty())
+                        {
+                            if let Ok(uefi::proto::media::file::FileType::Dir(mut sis_dir)) =
+                                sis_file.into_type()
+                            {
                                 for fnm in &file_names {
-                                    if let Ok(kf) = sis_dir.open(*fnm, FileMode::Read, FileAttribute::empty()) {
-                                        if let Ok(uefi::proto::media::file::FileType::Regular(r)) = kf.into_type() {
+                                    if let Ok(kf) =
+                                        sis_dir.open(*fnm, FileMode::Read, FileAttribute::empty())
+                                    {
+                                        if let Ok(uefi::proto::media::file::FileType::Regular(r)) =
+                                            kf.into_type()
+                                        {
                                             file_opt = Some(r);
                                             break;
                                         }
                                     }
                                 }
-                                if file_opt.is_some() { break; }
+                                if file_opt.is_some() {
+                                    break;
+                                }
                             }
                         }
                     }
-                    if file_opt.is_some() { break; }
+                    if file_opt.is_some() {
+                        break;
+                    }
                 }
             }
         }
     }
     // Scan all SimpleFileSystem handles if not found
     if file_opt.is_none() {
-        let _ = st.stdout().write_str("Scanning all SimpleFileSystem handles...\r\n");
+        let _ = st
+            .stdout()
+            .write_str("Scanning all SimpleFileSystem handles...\r\n");
         st.boot_services().stall(50_000);
         // Collect handles first to avoid borrowing st while logging
         let handles_vec: alloc::vec::Vec<Handle> = {
@@ -182,7 +214,9 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
                 .locate_handle_buffer(SearchType::ByProtocol(&SimpleFileSystem::GUID))
             {
                 let mut v = alloc::vec::Vec::new();
-                for &h in buf.iter() { v.push(h); }
+                for &h in buf.iter() {
+                    v.push(h);
+                }
                 v
             } else {
                 alloc::vec::Vec::new()
@@ -203,7 +237,9 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
                     if let Ok(mut root) = sfs.open_volume() {
                         for (idx, (c, _label)) in candidates.iter().enumerate() {
                             if let Ok(f) = root.open(*c, FileMode::Read, FileAttribute::empty()) {
-                                if let Ok(uefi::proto::media::file::FileType::Regular(r)) = f.into_type() {
+                                if let Ok(uefi::proto::media::file::FileType::Regular(r)) =
+                                    f.into_type()
+                                {
                                     matched_idx = Some(idx);
                                     found_file = Some(r);
                                     break;
@@ -216,13 +252,31 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
                             let sis_names = [cstr16!(r"SIS"), cstr16!(r"sis")];
                             let file_names = [cstr16!(r"KERNEL.ELF"), cstr16!(r"kernel.elf")];
                             for en in &efi_names {
-                                if let Ok(efi_file) = root.open(*en, FileMode::Read, FileAttribute::empty()) {
-                                    if let Ok(uefi::proto::media::file::FileType::Dir(mut efi_dir)) = efi_file.into_type() {
+                                if let Ok(efi_file) =
+                                    root.open(*en, FileMode::Read, FileAttribute::empty())
+                                {
+                                    if let Ok(uefi::proto::media::file::FileType::Dir(
+                                        mut efi_dir,
+                                    )) = efi_file.into_type()
+                                    {
                                         for sn in &sis_names {
-                                            if let Ok(sis_file) = efi_dir.open(*sn, FileMode::Read, FileAttribute::empty()) {
-                                                if let Ok(uefi::proto::media::file::FileType::Dir(mut sis_dir)) = sis_file.into_type() {
+                                            if let Ok(sis_file) = efi_dir.open(
+                                                *sn,
+                                                FileMode::Read,
+                                                FileAttribute::empty(),
+                                            ) {
+                                                if let Ok(
+                                                    uefi::proto::media::file::FileType::Dir(
+                                                        mut sis_dir,
+                                                    ),
+                                                ) = sis_file.into_type()
+                                                {
                                                     for fnm in &file_names {
-                                                        if let Ok(kf) = sis_dir.open(*fnm, FileMode::Read, FileAttribute::empty()) {
+                                                        if let Ok(kf) = sis_dir.open(
+                                                            *fnm,
+                                                            FileMode::Read,
+                                                            FileAttribute::empty(),
+                                                        ) {
                                                             if let Ok(uefi::proto::media::file::FileType::Regular(r)) = kf.into_type() {
                                                                 matched_idx = Some(10);
                                                                 found_file = Some(r);
@@ -230,11 +284,15 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
                                                             }
                                                         }
                                                     }
-                                                    if found_file.is_some() { break; }
+                                                    if found_file.is_some() {
+                                                        break;
+                                                    }
                                                 }
                                             }
                                         }
-                                        if found_file.is_some() { break; }
+                                        if found_file.is_some() {
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -244,9 +302,11 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
             }
             if let Some(r) = found_file {
                 let idx = matched_idx.unwrap_or(0);
-                let _ = st.stdout().write_fmt(
-                    format_args!("Opened on FS handle {} with path{}\r\n", i, idx + 1),
-                );
+                let _ = st.stdout().write_fmt(format_args!(
+                    "Opened on FS handle {} with path{}\r\n",
+                    i,
+                    idx + 1
+                ));
                 st.boot_services().stall(20_000);
                 file_opt = Some(r);
                 break;
@@ -256,7 +316,9 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
     let mut file = match file_opt {
         Some(r) => r,
         None => {
-            let _ = st.stdout().write_str("OpenKernel failed (all candidates, all FS)\r\n");
+            let _ = st
+                .stdout()
+                .write_str("OpenKernel failed (all candidates, all FS)\r\n");
             st.boot_services().stall(500_000);
             loop {}
         }
@@ -277,7 +339,10 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
     let phoff = ehdr.e_phoff as usize;
     let phentsize = ehdr.e_phentsize as usize;
     let phnum = ehdr.e_phnum as usize;
-    let _ = st.stdout().write_fmt(format_args!("PH num: {} ent_size: {} off: 0x{:x}\r\n", phnum, phentsize, phoff));
+    let _ = st.stdout().write_fmt(format_args!(
+        "PH num: {} ent_size: {} off: 0x{:x}\r\n",
+        phnum, phentsize, phoff
+    ));
     st.boot_services().stall(50_000);
     let mut pht = vec![0u8; phentsize * phnum];
     file.set_position(phoff as u64)
@@ -291,8 +356,7 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
     let mut max_vaddr = 0usize;
     for i in 0..phnum {
         let off = i * phentsize;
-        let ph: Elf64Phdr =
-            unsafe { core::ptr::read_unaligned(pht.as_ptr().add(off) as *const _) };
+        let ph: Elf64Phdr = unsafe { core::ptr::read_unaligned(pht.as_ptr().add(off) as *const _) };
         if ph.p_type == PT_LOAD {
             let start = ph.p_vaddr as usize;
             let end = start + ph.p_memsz as usize;
@@ -312,9 +376,11 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
     let map_base: usize = min_vaddr;
     let span = max_vaddr - min_vaddr;
     let pages = ((span + 0xFFF) & !0xFFF) / 0x1000;
-    let _ = st
-        .stdout()
-        .write_fmt(format_args!("Allocating pages at 0x{:x} for PT_LOAD span ({} pages) ...\r\n", map_base, pages.max(1)));
+    let _ = st.stdout().write_fmt(format_args!(
+        "Allocating pages at 0x{:x} for PT_LOAD span ({} pages) ...\r\n",
+        map_base,
+        pages.max(1)
+    ));
     st.boot_services().stall(100_000);
     let _ = st
         .boot_services()
@@ -327,8 +393,7 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
 
     for i in 0..phnum {
         let off = i * phentsize;
-        let ph: Elf64Phdr =
-            unsafe { core::ptr::read_unaligned(pht.as_ptr().add(off) as *const _) };
+        let ph: Elf64Phdr = unsafe { core::ptr::read_unaligned(pht.as_ptr().add(off) as *const _) };
         if ph.p_type != PT_LOAD || ph.p_filesz == 0 {
             continue;
         }
@@ -341,7 +406,8 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
         ));
         st.boot_services().stall(10_000);
 
-        file.set_position(ph.p_offset).map_err(|_| ChainloadError::Read)?;
+        file.set_position(ph.p_offset)
+            .map_err(|_| ChainloadError::Read)?;
         let mut remaining = filesz;
         let mut written = 0usize;
         while remaining > 0 {
@@ -398,7 +464,8 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
                     let mut strtab_size = 0usize;
                     for i in 0..shnum {
                         let off = i * shentsize;
-                        let sh: Elf64Shdr = unsafe { core::ptr::read_unaligned(sht.as_ptr().add(off) as *const _) };
+                        let sh: Elf64Shdr =
+                            unsafe { core::ptr::read_unaligned(sht.as_ptr().add(off) as *const _) };
                         if sh.sh_type == SHT_STRTAB && strtab_off == 0 {
                             // Keep first strtab; a better approach is to match by index, but suffices here
                             strtab_off = sh.sh_offset as usize;
@@ -410,7 +477,10 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
                             symtab_entsize = sh.sh_entsize as usize;
                         }
                     }
-                    if symtab_off > 0 && symtab_entsize >= core::mem::size_of::<Elf64Sym>() && strtab_off > 0 {
+                    if symtab_off > 0
+                        && symtab_entsize >= core::mem::size_of::<Elf64Sym>()
+                        && strtab_off > 0
+                    {
                         // Read strtab
                         let mut strtab = vec![0u8; strtab_size];
                         file.set_position(strtab_off as u64).ok();
@@ -421,8 +491,11 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
                             let off = symtab_off + i * symtab_entsize;
                             let mut buf = [0u8; core::mem::size_of::<Elf64Sym>()];
                             file.set_position(off as u64).ok();
-                            if file.read(&mut buf).ok().unwrap_or(0) < buf.len() { break; }
-                            let sym: Elf64Sym = unsafe { core::ptr::read_unaligned(buf.as_ptr() as *const _) };
+                            if file.read(&mut buf).ok().unwrap_or(0) < buf.len() {
+                                break;
+                            }
+                            let sym: Elf64Sym =
+                                unsafe { core::ptr::read_unaligned(buf.as_ptr() as *const _) };
                             let name_off = sym.st_name as usize;
                             if name_off < strtab.len() {
                                 // Compare with "_start"
@@ -430,7 +503,10 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
                                 let pat = b"_start\0";
                                 if name_off + pat.len() <= strtab.len() {
                                     for j in 0..pat.len() {
-                                        if strtab[name_off + j] != pat[j] { matches = false; break; }
+                                        if strtab[name_off + j] != pat[j] {
+                                            matches = false;
+                                            break;
+                                        }
                                     }
                                 } else {
                                     matches = false;
@@ -439,7 +515,8 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
                                     let sv = sym.st_value as usize;
                                     if sv >= min_vaddr && sv < max_vaddr {
                                         entry_addr = sv;
-                                        let _ = st.stdout().write_str("Resolved _start symbol.\r\n");
+                                        let _ =
+                                            st.stdout().write_str("Resolved _start symbol.\r\n");
                                         break;
                                     }
                                 }
@@ -460,7 +537,9 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
     let mut bytes = [0u8; 16];
     unsafe {
         let src = entry_addr as *const u8;
-        for i in 0..16 { bytes[i] = core::ptr::read_volatile(src.add(i)); }
+        for i in 0..16 {
+            bytes[i] = core::ptr::read_volatile(src.add(i));
+        }
     }
     let _ = st.stdout().write_fmt(format_args!(
         "Entry bytes: {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} \\ \\ {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}\r\n",
@@ -488,7 +567,9 @@ fn chainload_kernel(handle: Handle, mut st: SystemTable<Boot>) -> Result<Infalli
             options(nostack)
         );
         // Small delay
-        for _ in 0..1000 { core::arch::asm!("nop"); }
+        for _ in 0..1000 {
+            core::arch::asm!("nop");
+        }
         // Try a test write to PL011 to see a marker
         let uart = 0x0900_0000 as *mut u8;
         core::ptr::write_volatile(uart, b'!');

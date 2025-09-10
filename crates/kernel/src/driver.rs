@@ -88,39 +88,39 @@ pub type DriverResult<T = ()> = Result<T, DriverError>;
 pub trait Driver {
     /// Get driver information
     fn info(&self) -> DriverInfo;
-    
+
     /// Check if this driver supports the given device
     fn probe(&self, device: &DeviceInfo) -> bool;
-    
+
     /// Initialize the driver for a specific device
     fn init(&mut self, device: &DeviceInfo) -> DriverResult<()>;
-    
+
     /// Start the driver (called after successful init)
     fn start(&mut self) -> DriverResult<()> {
         Ok(())
     }
-    
+
     /// Stop the driver
     fn stop(&mut self) -> DriverResult<()> {
         Ok(())
     }
-    
+
     /// Handle device interrupt (if applicable)
     fn handle_irq(&mut self) -> DriverResult<()> {
         Ok(())
     }
-    
+
     /// Driver-specific I/O operations
     fn read(&mut self, offset: u64, buffer: &mut [u8]) -> DriverResult<usize> {
         let _ = (offset, buffer);
         Err(DriverError::NotSupported)
     }
-    
+
     fn write(&mut self, offset: u64, data: &[u8]) -> DriverResult<usize> {
         let _ = (offset, data);
         Err(DriverError::NotSupported)
     }
-    
+
     /// Device control operations
     fn ioctl(&mut self, cmd: u32, arg: u64) -> DriverResult<u64> {
         let _ = (cmd, arg);
@@ -152,27 +152,27 @@ impl DriverRegistry {
             initialized: false,
         }
     }
-    
+
     /// Initialize the driver registry
     pub fn init(&mut self) -> DriverResult<()> {
         if self.initialized {
             return Ok(());
         }
-        
+
         unsafe {
             crate::uart_print(b"[DRIVER] Initializing driver registry\n");
         }
-        
+
         self.initialized = true;
         Ok(())
     }
-    
+
     /// Register a new driver
     pub fn register_driver(&mut self, driver: &'static mut dyn Driver) -> DriverResult<()> {
         if self.drivers.len() >= MAX_DRIVERS {
             return Err(DriverError::RegistryFull);
         }
-        
+
         let info = driver.info();
         unsafe {
             crate::uart_print(b"[DRIVER] Registering driver: ");
@@ -181,24 +181,26 @@ impl DriverRegistry {
             crate::uart_print(info.version.as_bytes());
             crate::uart_print(b"\n");
         }
-        
-        self.drivers.push(DriverInstance {
-            driver,
-            device: None,
-            active: false,
-        }).map_err(|_| DriverError::RegistryFull)?;
-        
+
+        self.drivers
+            .push(DriverInstance {
+                driver,
+                device: None,
+                active: false,
+            })
+            .map_err(|_| DriverError::RegistryFull)?;
+
         Ok(())
     }
-    
+
     /// Discover and bind drivers to devices using VirtIO
     pub fn discover_devices(&mut self) -> DriverResult<usize> {
         unsafe {
             crate::uart_print(b"[DRIVER] Starting device discovery\n");
         }
-        
+
         let mut bound_count = 0;
-        
+
         // Use VirtIO device discovery
         match crate::virtio::VirtIODiscovery::discover_devices() {
             Ok(devices) => {
@@ -212,7 +214,7 @@ impl DriverRegistry {
                         self.print_hex8(device.id.class);
                         crate::uart_print(b"\n");
                     }
-                    
+
                     if let Ok(_) = self.bind_device(device) {
                         bound_count += 1;
                     }
@@ -220,25 +222,25 @@ impl DriverRegistry {
             }
             Err(_) => {
                 unsafe {
-                    crate::uart_print(b"[DRIVER] VirtIO discovery failed, using fallback devices\n");
+                    crate::uart_print(
+                        b"[DRIVER] VirtIO discovery failed, using fallback devices\n",
+                    );
                 }
-                
+
                 // Fallback to simulated devices for testing
-                let test_devices = [
-                    DeviceInfo {
-                        id: DeviceId {
-                            vendor_id: 0x1AF4, // Red Hat (VirtIO)
-                            device_id: 0x0003, // VirtIO Console
-                            class: 0x07,        // Communication controller
-                            subclass: 0x80,     // Other
-                        },
-                        base_addr: 0x0A000000,
-                        size: 0x200,
-                        irq: Some(16),
-                        device_data: 2, // VirtIO 1.0+ version
+                let test_devices = [DeviceInfo {
+                    id: DeviceId {
+                        vendor_id: 0x1AF4, // Red Hat (VirtIO)
+                        device_id: 0x0003, // VirtIO Console
+                        class: 0x07,       // Communication controller
+                        subclass: 0x80,    // Other
                     },
-                ];
-                
+                    base_addr: 0x0A000000,
+                    size: 0x200,
+                    irq: Some(16),
+                    device_data: 2, // VirtIO 1.0+ version
+                }];
+
                 for device in &test_devices {
                     unsafe {
                         crate::uart_print(b"[DRIVER] Fallback device: vendor=");
@@ -247,23 +249,23 @@ impl DriverRegistry {
                         self.print_hex16(device.id.device_id);
                         crate::uart_print(b"\n");
                     }
-                    
+
                     if let Ok(_) = self.bind_device(device) {
                         bound_count += 1;
                     }
                 }
             }
         }
-        
+
         unsafe {
             crate::uart_print(b"[DRIVER] Device discovery complete, bound ");
             self.print_number(bound_count);
             crate::uart_print(b" devices\n");
         }
-        
+
         Ok(bound_count)
     }
-    
+
     /// Bind a device to an appropriate driver
     pub fn bind_device(&mut self, device: &DeviceInfo) -> DriverResult<()> {
         // Find a driver that supports this device
@@ -274,7 +276,7 @@ impl DriverRegistry {
                     crate::uart_print(instance.driver.info().name.as_bytes());
                     crate::uart_print(b"\n");
                 }
-                
+
                 // Initialize the driver with this device
                 if let Err(e) = instance.driver.init(device) {
                     unsafe {
@@ -282,7 +284,7 @@ impl DriverRegistry {
                     }
                     return Err(e);
                 }
-                
+
                 // Start the driver
                 if let Err(e) = instance.driver.start() {
                     unsafe {
@@ -290,28 +292,28 @@ impl DriverRegistry {
                     }
                     return Err(e);
                 }
-                
+
                 instance.device = Some(*device);
                 instance.active = true;
-                
+
                 unsafe {
                     crate::uart_print(b"[DRIVER] Device binding successful\n");
                 }
                 return Ok(());
             }
         }
-        
+
         unsafe {
             crate::uart_print(b"[DRIVER] No suitable driver found for device\n");
         }
         Err(DriverError::NoDriver)
     }
-    
+
     /// Get active driver count
     pub fn active_driver_count(&self) -> usize {
         self.drivers.iter().filter(|d| d.active).count()
     }
-    
+
     /// Handle interrupt for a specific device
     pub fn handle_device_irq(&mut self, irq: u32) -> DriverResult<()> {
         for instance in &mut self.drivers {
@@ -325,51 +327,51 @@ impl DriverRegistry {
         }
         Err(DriverError::NoDriver)
     }
-    
+
     /// Helper function to print hex numbers
     unsafe fn print_hex16(&self, num: u16) {
         crate::uart_print(b"0x");
         for i in (0..4).rev() {
             let nibble = (num >> (i * 4)) & 0xF;
-            let c = if nibble < 10 { 
-                b'0' + nibble as u8 
-            } else { 
-                b'A' + (nibble - 10) as u8 
+            let c = if nibble < 10 {
+                b'0' + nibble as u8
+            } else {
+                b'A' + (nibble - 10) as u8
             };
             crate::uart_print(&[c]);
         }
     }
-    
+
     /// Helper function to print 8-bit hex numbers
     unsafe fn print_hex8(&self, num: u8) {
         crate::uart_print(b"0x");
         for i in (0..2).rev() {
             let nibble = (num >> (i * 4)) & 0xF;
-            let c = if nibble < 10 { 
-                b'0' + nibble as u8 
-            } else { 
-                b'A' + (nibble - 10) as u8 
+            let c = if nibble < 10 {
+                b'0' + nibble as u8
+            } else {
+                b'A' + (nibble - 10) as u8
             };
             crate::uart_print(&[c]);
         }
     }
-    
+
     /// Helper function to print numbers
     unsafe fn print_number(&self, mut num: usize) {
         if num == 0 {
             crate::uart_print(b"0");
             return;
         }
-        
+
         let mut digits = [0u8; 20];
         let mut i = 0;
-        
+
         while num > 0 {
             digits[i] = b'0' + (num % 10) as u8;
             num /= 10;
             i += 1;
         }
-        
+
         while i > 0 {
             i -= 1;
             crate::uart_print(&[digits[i]]);
@@ -392,7 +394,7 @@ pub fn init_driver_framework() -> DriverResult<()> {
 
 /// Get a mutable reference to the global driver registry
 pub fn get_driver_registry() -> Option<&'static mut DriverRegistry> {
-    unsafe { 
+    unsafe {
         let registry_ptr = &raw mut DRIVER_REGISTRY;
         (*registry_ptr).as_mut()
     }

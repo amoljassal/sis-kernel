@@ -3,8 +3,8 @@
 //! Implements VirtIO console device driver for enhanced I/O performance
 //! Provides character-based I/O through VirtIO virtqueues
 
-use crate::driver::{Driver, DriverInfo, DeviceInfo, DeviceId, DriverResult, DriverError};
-use crate::virtio::{VirtIOMMIOTransport, VirtIOMMIOOffset, VirtIODeviceType};
+use crate::driver::{DeviceId, DeviceInfo, Driver, DriverError, DriverInfo, DriverResult};
+use crate::virtio::{VirtIODeviceType, VirtIOMMIOOffset, VirtIOMMIOTransport};
 
 /// VirtIO Console feature bits
 #[repr(u32)]
@@ -132,7 +132,8 @@ impl VirtQueue {
     unsafe fn new(index: u16, size: u16, desc_addr: u64) -> Self {
         let desc_table = desc_addr as *mut VirtQueueDesc;
         let avail_ring = (desc_addr + (size as u64 * 16)) as *mut VirtQueueAvail;
-        let used_ring = (desc_addr + (size as u64 * 16) + (size as u64 * 2) + 6) as *mut VirtQueueUsed;
+        let used_ring =
+            (desc_addr + (size as u64 * 16) + (size as u64 * 2) + 6) as *mut VirtQueueUsed;
 
         // Initialize descriptor table
         for i in 0..size {
@@ -170,20 +171,20 @@ impl VirtQueue {
 
         let desc_idx = self.next_desc;
         let desc = &mut *self.desc_table.add(desc_idx as usize);
-        
+
         desc.addr = addr;
         desc.len = len;
         desc.flags = flags;
-        
+
         // Add to available ring
         let avail_idx = (*self.avail_ring).idx as usize % self.size as usize;
         (*self.avail_ring).ring[avail_idx] = desc_idx;
-        
+
         // Update available index
         (*self.avail_ring).idx = (*self.avail_ring).idx.wrapping_add(1);
-        
+
         self.next_desc = (self.next_desc + 1) % self.size;
-        
+
         Ok(())
     }
 
@@ -195,7 +196,7 @@ impl VirtQueue {
 
         let used_elem = (*self.used_ring).ring[self.last_used_idx as usize % self.size as usize];
         self.last_used_idx = self.last_used_idx.wrapping_add(1);
-        
+
         Some((used_elem.id, used_elem.len))
     }
 }
@@ -228,7 +229,7 @@ impl VirtIOConsoleDriver {
         // Select queue 0 (receiveq)
         transport.write_reg(VirtIOMMIOOffset::QueueSel, 0);
         let queue0_size = transport.read_reg(VirtIOMMIOOffset::QueueNumMax);
-        
+
         if queue0_size == 0 {
             return Err(DriverError::NotSupported);
         }
@@ -238,15 +239,24 @@ impl VirtIOConsoleDriver {
         self.receiveq = Some(VirtQueue::new(0, queue0_size as u16, queue0_addr));
 
         // Set queue 0 addresses
-        transport.write_reg(VirtIOMMIOOffset::QueueDescLow, (queue0_addr & 0xFFFFFFFF) as u32);
+        transport.write_reg(
+            VirtIOMMIOOffset::QueueDescLow,
+            (queue0_addr & 0xFFFFFFFF) as u32,
+        );
         transport.write_reg(VirtIOMMIOOffset::QueueDescHigh, (queue0_addr >> 32) as u32);
-        
+
         let avail_addr = queue0_addr + (queue0_size as u64 * 16);
-        transport.write_reg(VirtIOMMIOOffset::QueueAvailLow, (avail_addr & 0xFFFFFFFF) as u32);
+        transport.write_reg(
+            VirtIOMMIOOffset::QueueAvailLow,
+            (avail_addr & 0xFFFFFFFF) as u32,
+        );
         transport.write_reg(VirtIOMMIOOffset::QueueAvailHigh, (avail_addr >> 32) as u32);
-        
+
         let used_addr = avail_addr + (queue0_size as u64 * 2) + 6;
-        transport.write_reg(VirtIOMMIOOffset::QueueUsedLow, (used_addr & 0xFFFFFFFF) as u32);
+        transport.write_reg(
+            VirtIOMMIOOffset::QueueUsedLow,
+            (used_addr & 0xFFFFFFFF) as u32,
+        );
         transport.write_reg(VirtIOMMIOOffset::QueueUsedHigh, (used_addr >> 32) as u32);
 
         // Set queue size and enable
@@ -256,21 +266,30 @@ impl VirtIOConsoleDriver {
         // Select queue 1 (transmitq)
         transport.write_reg(VirtIOMMIOOffset::QueueSel, 1);
         let queue1_size = transport.read_reg(VirtIOMMIOOffset::QueueNumMax);
-        
+
         if queue1_size > 0 {
             let queue1_addr = 0x50010000u64;
             self.transmitq = Some(VirtQueue::new(1, queue1_size as u16, queue1_addr));
 
             // Set queue 1 addresses
-            transport.write_reg(VirtIOMMIOOffset::QueueDescLow, (queue1_addr & 0xFFFFFFFF) as u32);
+            transport.write_reg(
+                VirtIOMMIOOffset::QueueDescLow,
+                (queue1_addr & 0xFFFFFFFF) as u32,
+            );
             transport.write_reg(VirtIOMMIOOffset::QueueDescHigh, (queue1_addr >> 32) as u32);
-            
+
             let avail_addr = queue1_addr + (queue1_size as u64 * 16);
-            transport.write_reg(VirtIOMMIOOffset::QueueAvailLow, (avail_addr & 0xFFFFFFFF) as u32);
+            transport.write_reg(
+                VirtIOMMIOOffset::QueueAvailLow,
+                (avail_addr & 0xFFFFFFFF) as u32,
+            );
             transport.write_reg(VirtIOMMIOOffset::QueueAvailHigh, (avail_addr >> 32) as u32);
-            
+
             let used_addr = avail_addr + (queue1_size as u64 * 2) + 6;
-            transport.write_reg(VirtIOMMIOOffset::QueueUsedLow, (used_addr & 0xFFFFFFFF) as u32);
+            transport.write_reg(
+                VirtIOMMIOOffset::QueueUsedLow,
+                (used_addr & 0xFFFFFFFF) as u32,
+            );
             transport.write_reg(VirtIOMMIOOffset::QueueUsedHigh, (used_addr >> 32) as u32);
 
             // Set queue size and enable
@@ -308,7 +327,7 @@ impl VirtIOConsoleDriver {
                 }
                 core::hint::spin_loop();
             }
-            
+
             Ok(len)
         }
     }
@@ -338,21 +357,17 @@ impl Driver for VirtIOConsoleDriver {
         DriverInfo {
             name: "VirtIO Console",
             version: "1.0.0",
-            supported_devices: &[
-                DeviceId {
-                    vendor_id: 0x1AF4, // Red Hat (VirtIO)
-                    device_id: 3,      // Console
-                    class: 0x07,       // Communication controller
-                    subclass: 0x80,    // Other
-                },
-            ],
+            supported_devices: &[DeviceId {
+                vendor_id: 0x1AF4, // Red Hat (VirtIO)
+                device_id: 3,      // Console
+                class: 0x07,       // Communication controller
+                subclass: 0x80,    // Other
+            }],
         }
     }
 
     fn probe(&self, device: &DeviceInfo) -> bool {
-        device.id.vendor_id == 0x1AF4 && 
-        device.id.device_id == 3 &&
-        device.id.class == 0x07
+        device.id.vendor_id == 0x1AF4 && device.id.device_id == 3 && device.id.class == 0x07
     }
 
     fn init(&mut self, device: &DeviceInfo) -> DriverResult<()> {
@@ -361,11 +376,7 @@ impl Driver for VirtIOConsoleDriver {
         }
 
         // Create VirtIO transport
-        let transport = VirtIOMMIOTransport::new(
-            device.base_addr,
-            device.size,
-            device.irq,
-        )?;
+        let transport = VirtIOMMIOTransport::new(device.base_addr, device.size, device.irq)?;
 
         // Verify this is a console device
         if transport.device_type() != VirtIODeviceType::Console {
@@ -384,7 +395,7 @@ impl Driver for VirtIOConsoleDriver {
         }
 
         self.transport = Some(transport);
-        
+
         // Initialize virtqueues
         unsafe {
             self.init_virtqueues(device)?;
@@ -401,13 +412,13 @@ impl Driver for VirtIOConsoleDriver {
         if let Some(transport) = &self.transport {
             // Mark driver as ready
             transport.driver_ready();
-            
+
             unsafe {
                 crate::uart_print(b"[VIRTIO-CONSOLE] Driver marked as ready\n");
             }
-            
+
             self.initialized = true;
-            
+
             // Test basic functionality
             if let Ok(written) = self.write_data(b"VirtIO Console initialized!\n") {
                 unsafe {
@@ -416,7 +427,7 @@ impl Driver for VirtIOConsoleDriver {
                     crate::uart_print(b"\n");
                 }
             }
-            
+
             Ok(())
         } else {
             Err(DriverError::InitFailed)
@@ -431,7 +442,7 @@ impl Driver for VirtIOConsoleDriver {
                 crate::uart_print(b"[VIRTIO-CONSOLE] Device reset\n");
             }
         }
-        
+
         self.initialized = false;
         Ok(())
     }
@@ -442,19 +453,19 @@ impl Driver for VirtIOConsoleDriver {
         }
 
         let transport = self.transport.as_ref().ok_or(DriverError::InitFailed)?;
-        
+
         // Read and acknowledge interrupts
         let int_status = transport.read_reg(VirtIOMMIOOffset::InterruptStatus);
         if int_status != 0 {
             transport.write_reg(VirtIOMMIOOffset::InterruptACK, int_status);
-            
+
             unsafe {
                 crate::uart_print(b"[VIRTIO-CONSOLE] Interrupt handled: ");
                 self.print_hex(int_status);
                 crate::uart_print(b"\n");
             }
         }
-        
+
         Ok(())
     }
 
@@ -474,16 +485,16 @@ impl VirtIOConsoleDriver {
             crate::uart_print(b"0");
             return;
         }
-        
+
         let mut digits = [0u8; 10];
         let mut i = 0;
-        
+
         while num > 0 {
             digits[i] = b'0' + (num % 10) as u8;
             num /= 10;
             i += 1;
         }
-        
+
         while i > 0 {
             i -= 1;
             crate::uart_print(&[digits[i]]);
@@ -495,7 +506,11 @@ impl VirtIOConsoleDriver {
         crate::uart_print(b"0x");
         for i in (0..8).rev() {
             let nibble = (num >> (i * 4)) & 0xF;
-            let c = if nibble < 10 { b'0' + nibble as u8 } else { b'A' + (nibble - 10) as u8 };
+            let c = if nibble < 10 {
+                b'0' + nibble as u8
+            } else {
+                b'A' + (nibble - 10) as u8
+            };
             crate::uart_print(&[c]);
         }
     }
@@ -506,7 +521,7 @@ static mut VIRTIO_CONSOLE_DRIVER: VirtIOConsoleDriver = VirtIOConsoleDriver::new
 
 /// Get reference to global VirtIO console driver
 pub fn get_virtio_console_driver() -> &'static mut VirtIOConsoleDriver {
-    unsafe { 
+    unsafe {
         let driver_ptr = &raw mut VIRTIO_CONSOLE_DRIVER;
         &mut *driver_ptr
     }

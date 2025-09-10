@@ -104,8 +104,9 @@ if [[ "$GDB" != "" ]]; then
     echo "[*]              (gdb) target remote :1234"
 fi
 
-# Add performance monitoring
-QEMU_CMD+=(-enable-kvm 2>/dev/null || true) # Try to enable KVM if available
+# Add performance monitoring (try to enable KVM if available)
+# Note: KVM is not available on macOS, so this will be ignored
+# QEMU_CMD+=(-enable-kvm)
 
 echo "[*] Launching QEMU with $NUM_CPUS CPU cores..."
 echo "[*] Command: ${QEMU_CMD[@]}"

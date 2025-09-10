@@ -222,10 +222,12 @@ check_storage_usb() {
     echo "Available disk space: $AVAILABLE_SPACE"
     
     # Check for external USB devices
-    USB_DEVICES=$(diskutil list | grep -c "external" || echo "0")
+    USB_DEVICES=$(diskutil list 2>/dev/null | grep -c "external" || echo "0")
+    # Ensure USB_DEVICES is a valid number
+    USB_DEVICES=${USB_DEVICES:-0}
     echo "External USB devices detected: $USB_DEVICES"
     
-    if [[ $USB_DEVICES -gt 0 ]]; then
+    if [[ "$USB_DEVICES" -gt 0 ]]; then
         echo "USB devices found:"
         diskutil list | grep "external" | head -5
         

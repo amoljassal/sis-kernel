@@ -7,25 +7,25 @@ use core::ptr;
 
 /// PL011 UART register offsets
 const UART_BASE: usize = 0x0900_0000;
-const UART_DR: usize = UART_BASE + 0x000;      // Data Register
+const UART_DR: usize = UART_BASE + 0x000; // Data Register
 const UART_RSR_ECR: usize = UART_BASE + 0x004; // Receive Status/Error Clear
-const UART_FR: usize = UART_BASE + 0x018;      // Flag Register
+const UART_FR: usize = UART_BASE + 0x018; // Flag Register
 #[allow(dead_code)]
-const UART_ILPR: usize = UART_BASE + 0x020;    // IrDA Low-Power Counter
-const UART_IBRD: usize = UART_BASE + 0x024;    // Integer Baud Rate Divisor
-const UART_FBRD: usize = UART_BASE + 0x028;    // Fractional Baud Rate Divisor
-const UART_LCRH: usize = UART_BASE + 0x02C;    // Line Control Register
-const UART_CR: usize = UART_BASE + 0x030;      // Control Register
+const UART_ILPR: usize = UART_BASE + 0x020; // IrDA Low-Power Counter
+const UART_IBRD: usize = UART_BASE + 0x024; // Integer Baud Rate Divisor
+const UART_FBRD: usize = UART_BASE + 0x028; // Fractional Baud Rate Divisor
+const UART_LCRH: usize = UART_BASE + 0x02C; // Line Control Register
+const UART_CR: usize = UART_BASE + 0x030; // Control Register
 #[allow(dead_code)]
-const UART_IFLS: usize = UART_BASE + 0x034;    // Interrupt FIFO Level Select
+const UART_IFLS: usize = UART_BASE + 0x034; // Interrupt FIFO Level Select
 #[allow(dead_code)]
-const UART_IMSC: usize = UART_BASE + 0x038;    // Interrupt Mask Set/Clear
+const UART_IMSC: usize = UART_BASE + 0x038; // Interrupt Mask Set/Clear
 #[allow(dead_code)]
-const UART_RIS: usize = UART_BASE + 0x03C;     // Raw Interrupt Status
+const UART_RIS: usize = UART_BASE + 0x03C; // Raw Interrupt Status
 #[allow(dead_code)]
-const UART_MIS: usize = UART_BASE + 0x040;     // Masked Interrupt Status
+const UART_MIS: usize = UART_BASE + 0x040; // Masked Interrupt Status
 #[allow(dead_code)]
-const UART_ICR: usize = UART_BASE + 0x044;     // Interrupt Clear Register
+const UART_ICR: usize = UART_BASE + 0x044; // Interrupt Clear Register
 
 /// Flag Register bits
 #[allow(dead_code)]
@@ -39,9 +39,9 @@ const UART_FR_BUSY: u32 = 1 << 3; // UART Busy
 /// Data Register bits
 const UART_DR_OE: u32 = 1 << 11; // Overrun Error
 const UART_DR_BE: u32 = 1 << 10; // Break Error
-const UART_DR_PE: u32 = 1 << 9;  // Parity Error
-const UART_DR_FE: u32 = 1 << 8;  // Framing Error
-const UART_DR_DATA: u32 = 0xFF;  // Data bits mask
+const UART_DR_PE: u32 = 1 << 9; // Parity Error
+const UART_DR_FE: u32 = 1 << 8; // Framing Error
+const UART_DR_DATA: u32 = 0xFF; // Data bits mask
 
 /// Control Register bits
 #[allow(dead_code)]
@@ -49,26 +49,26 @@ const UART_CR_CTSEN: u32 = 1 << 15; // CTS hardware flow control enable
 #[allow(dead_code)]
 const UART_CR_RTSEN: u32 = 1 << 14; // RTS hardware flow control enable
 #[allow(dead_code)]
-const UART_CR_RTS: u32 = 1 << 11;   // Request to Send
-const UART_CR_RXE: u32 = 1 << 9;    // Receive Enable
-const UART_CR_TXE: u32 = 1 << 8;    // Transmit Enable
+const UART_CR_RTS: u32 = 1 << 11; // Request to Send
+const UART_CR_RXE: u32 = 1 << 9; // Receive Enable
+const UART_CR_TXE: u32 = 1 << 8; // Transmit Enable
 #[allow(dead_code)]
-const UART_CR_LBE: u32 = 1 << 7;    // Loopback Enable
+const UART_CR_LBE: u32 = 1 << 7; // Loopback Enable
 const UART_CR_UARTEN: u32 = 1 << 0; // UART Enable
 
 /// Line Control Register bits
 #[allow(dead_code)]
-const UART_LCRH_SPS: u32 = 1 << 7;   // Stick Parity Select
+const UART_LCRH_SPS: u32 = 1 << 7; // Stick Parity Select
 const UART_LCRH_WLEN_8: u32 = 3 << 5; // Word Length 8 bits
-const UART_LCRH_FEN: u32 = 1 << 4;   // Enable FIFOs
+const UART_LCRH_FEN: u32 = 1 << 4; // Enable FIFOs
 #[allow(dead_code)]
-const UART_LCRH_STP2: u32 = 1 << 3;  // Two Stop Bits
+const UART_LCRH_STP2: u32 = 1 << 3; // Two Stop Bits
 #[allow(dead_code)]
-const UART_LCRH_EPS: u32 = 1 << 2;   // Even Parity Select
+const UART_LCRH_EPS: u32 = 1 << 2; // Even Parity Select
 #[allow(dead_code)]
-const UART_LCRH_PEN: u32 = 1 << 1;   // Parity Enable
+const UART_LCRH_PEN: u32 = 1 << 1; // Parity Enable
 #[allow(dead_code)]
-const UART_LCRH_BRK: u32 = 1 << 0;   // Send Break
+const UART_LCRH_BRK: u32 = 1 << 0; // Send Break
 
 /// UART driver structure
 pub struct Uart {
@@ -97,8 +97,10 @@ impl Uart {
         ptr::write_volatile(UART_LCRH as *mut u32, UART_LCRH_WLEN_8 | UART_LCRH_FEN);
 
         // Enable UART, transmit, and receive
-        ptr::write_volatile(UART_CR as *mut u32, 
-            UART_CR_UARTEN | UART_CR_TXE | UART_CR_RXE);
+        ptr::write_volatile(
+            UART_CR as *mut u32,
+            UART_CR_UARTEN | UART_CR_TXE | UART_CR_RXE,
+        );
 
         self.initialized = true;
     }
@@ -109,7 +111,7 @@ impl Uart {
         while ptr::read_volatile(UART_FR as *const u32) & UART_FR_TXFF != 0 {
             core::hint::spin_loop();
         }
-        
+
         ptr::write_volatile(UART_DR as *mut u32, byte as u32);
     }
 
@@ -129,7 +131,7 @@ impl Uart {
         }
 
         let data = ptr::read_volatile(UART_DR as *const u32);
-        
+
         // Check for errors
         if data & (UART_DR_OE | UART_DR_BE | UART_DR_PE | UART_DR_FE) != 0 {
             // Clear error flags
@@ -154,10 +156,10 @@ impl Uart {
     /// Returns the number of bytes read (excluding newline)
     pub unsafe fn read_line(&self, buffer: &mut [u8]) -> usize {
         let mut pos = 0;
-        
+
         loop {
             let byte = self.read_byte_blocking();
-            
+
             match byte {
                 b'\r' | b'\n' => {
                     // Echo newline

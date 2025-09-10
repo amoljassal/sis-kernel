@@ -8,9 +8,9 @@
 //! - Debug support with allocation statistics
 //! - Integration with SIS kernel memory safety framework
 
+use core::alloc::{GlobalAlloc, Layout};
 use linked_list_allocator::LockedHeap;
 use spin::{Mutex, Once};
-use core::alloc::{GlobalAlloc, Layout};
 
 /// Global heap allocator instance
 #[global_allocator]
@@ -47,15 +47,15 @@ pub fn init_heap() -> Result<(), &'static str> {
             // Map the heap memory region
             // In a real implementation, this would need proper page table setup
             let heap_start = HEAP_START as *mut u8;
-            
+
             // For now, we'll use a static array as heap memory
             // This is a simplified approach for demonstration
             static mut HEAP_MEMORY: [u8; HEAP_SIZE] = [0; HEAP_SIZE];
             let heap_start = HEAP_MEMORY.as_mut_ptr();
-            
+
             // Initialize the allocator with our memory region
             ALLOCATOR.lock().init(heap_start, HEAP_SIZE);
-            
+
             // Print initialization message
             crate::uart_print(b"[HEAP] Initialized ");
             print_size(HEAP_SIZE);
@@ -64,7 +64,7 @@ pub fn init_heap() -> Result<(), &'static str> {
             crate::uart_print(b"\n");
         }
     });
-    
+
     Ok(())
 }
 
@@ -74,7 +74,7 @@ pub struct StatsTrackingAllocator;
 unsafe impl GlobalAlloc for StatsTrackingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = ALLOCATOR.alloc(layout);
-        
+
         if !ptr.is_null() {
             let mut stats = HEAP_STATS.lock();
             stats.total_allocations += 1;
@@ -86,13 +86,13 @@ unsafe impl GlobalAlloc for StatsTrackingAllocator {
             let mut stats = HEAP_STATS.lock();
             stats.allocation_failures += 1;
         }
-        
+
         ptr
     }
-    
+
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         ALLOCATOR.dealloc(ptr, layout);
-        
+
         let mut stats = HEAP_STATS.lock();
         stats.total_deallocations += 1;
         stats.current_allocated = stats.current_allocated.saturating_sub(layout.size());
@@ -108,10 +108,10 @@ fn alloc_error_handler(layout: Layout) -> ! {
         crate::uart_print(b" align=");
         print_size(layout.align());
         crate::uart_print(b"\n");
-        
+
         // Print heap statistics for debugging
         print_heap_stats();
-        
+
         panic!("Out of memory");
     }
 }
@@ -119,7 +119,7 @@ fn alloc_error_handler(layout: Layout) -> ! {
 /// Print current heap statistics
 pub fn print_heap_stats() {
     let stats = HEAP_STATS.lock();
-    
+
     unsafe {
         crate::uart_print(b"[HEAP] Stats: allocs=");
         print_number(stats.total_allocations);
@@ -148,8 +148,10 @@ pub fn get_heap_stats() -> HeapStats {
 
 /// Test heap functionality with various allocation patterns
 pub fn test_heap() -> Result<(), &'static str> {
-    unsafe { crate::uart_print(b"[HEAP] Starting heap tests...\n"); }
-    
+    unsafe {
+        crate::uart_print(b"[HEAP] Starting heap tests...\n");
+    }
+
     // Test 1: Basic allocation and deallocation
     unsafe {
         let layout = Layout::from_size_align(1024, 8).unwrap();
@@ -157,12 +159,12 @@ pub fn test_heap() -> Result<(), &'static str> {
         if ptr.is_null() {
             return Err("Failed to allocate 1KB");
         }
-        
+
         // Write test pattern
         for i in 0..1024 {
             *ptr.add(i) = (i % 256) as u8;
         }
-        
+
         // Verify test pattern
         for i in 0..1024 {
             if *ptr.add(i) != (i % 256) as u8 {
@@ -170,20 +172,22 @@ pub fn test_heap() -> Result<(), &'static str> {
                 return Err("Memory corruption detected");
             }
         }
-        
+
         ALLOCATOR.dealloc(ptr, layout);
-        unsafe { crate::uart_print(b"[HEAP] Test 1 passed: basic allocation/deallocation\n"); }
+        unsafe {
+            crate::uart_print(b"[HEAP] Test 1 passed: basic allocation/deallocation\n");
+        }
     }
-    
+
     // Test 2: Multiple allocations
     let mut ptrs = heapless::Vec::<(*mut u8, Layout), 10>::new();
-    
+
     unsafe {
         for i in 0..5 {
             let size = 64 * (i + 1);
             let layout = Layout::from_size_align(size, 8).unwrap();
             let ptr = ALLOCATOR.alloc(layout);
-            
+
             if ptr.is_null() {
                 // Clean up any successful allocations
                 for (ptr, layout) in ptrs.iter() {
@@ -191,41 +195,47 @@ pub fn test_heap() -> Result<(), &'static str> {
                 }
                 return Err("Failed multiple allocation test");
             }
-            
+
             ptrs.push((ptr, layout)).map_err(|_| "Vec full")?;
         }
-        
+
         // Clean up
         for (ptr, layout) in ptrs.iter() {
             ALLOCATOR.dealloc(*ptr, *layout);
         }
-        
-        unsafe { crate::uart_print(b"[HEAP] Test 2 passed: multiple allocations\n"); }
+
+        unsafe {
+            crate::uart_print(b"[HEAP] Test 2 passed: multiple allocations\n");
+        }
     }
-    
+
     // Test 3: Alignment requirements
     unsafe {
         for align in [8, 16, 32, 64].iter() {
             let layout = Layout::from_size_align(128, *align).unwrap();
             let ptr = ALLOCATOR.alloc(layout);
-            
+
             if ptr.is_null() {
                 return Err("Failed alignment test");
             }
-            
+
             // Check alignment
             if (ptr as usize) % align != 0 {
                 ALLOCATOR.dealloc(ptr, layout);
                 return Err("Alignment requirement not met");
             }
-            
+
             ALLOCATOR.dealloc(ptr, layout);
         }
-        
-        unsafe { crate::uart_print(b"[HEAP] Test 3 passed: alignment requirements\n"); }
+
+        unsafe {
+            crate::uart_print(b"[HEAP] Test 3 passed: alignment requirements\n");
+        }
     }
-    
-    unsafe { crate::uart_print(b"[HEAP] All tests passed!\n"); }
+
+    unsafe {
+        crate::uart_print(b"[HEAP] All tests passed!\n");
+    }
     print_heap_stats();
     Ok(())
 }
@@ -237,10 +247,10 @@ unsafe fn print_hex(mut num: usize) {
         crate::uart_print(b"0");
         return;
     }
-    
+
     let mut digits = [0u8; 16];
     let mut i = 0;
-    
+
     while num > 0 {
         let digit = num % 16;
         digits[i] = if digit < 10 {
@@ -251,7 +261,7 @@ unsafe fn print_hex(mut num: usize) {
         num /= 16;
         i += 1;
     }
-    
+
     while i > 0 {
         i -= 1;
         crate::uart_print(&[digits[i]]);
@@ -264,16 +274,16 @@ unsafe fn print_number(mut num: usize) {
         crate::uart_print(b"0");
         return;
     }
-    
+
     let mut digits = [0u8; 20];
     let mut i = 0;
-    
+
     while num > 0 {
         digits[i] = b'0' + (num % 10) as u8;
         num /= 10;
         i += 1;
     }
-    
+
     while i > 0 {
         i -= 1;
         crate::uart_print(&[digits[i]]);
@@ -297,7 +307,7 @@ unsafe fn print_size(size: usize) {
 /// Memory safety: Bounds checking for heap allocations
 pub fn is_valid_heap_ptr(ptr: *const u8, size: usize) -> bool {
     let addr = ptr as usize;
-    
+
     // Check if pointer is within heap bounds
     // Note: In a real implementation, this would check against actual mapped memory
     addr >= HEAP_START && addr.saturating_add(size) <= HEAP_START + HEAP_SIZE
@@ -307,12 +317,12 @@ pub fn is_valid_heap_ptr(ptr: *const u8, size: usize) -> bool {
 pub mod ai_heap {
     use super::*;
     use core::alloc::Layout;
-    
+
     /// Allocate aligned memory for tensor operations
     pub fn alloc_tensor_aligned(size: usize, alignment: usize) -> Result<*mut u8, &'static str> {
-        let layout = Layout::from_size_align(size, alignment)
-            .map_err(|_| "Invalid tensor layout")?;
-        
+        let layout =
+            Layout::from_size_align(size, alignment).map_err(|_| "Invalid tensor layout")?;
+
         unsafe {
             let ptr = ALLOCATOR.alloc(layout);
             if ptr.is_null() {
@@ -326,18 +336,18 @@ pub mod ai_heap {
             }
         }
     }
-    
+
     /// Free tensor-aligned memory
     pub unsafe fn free_tensor_aligned(ptr: *mut u8, size: usize, alignment: usize) {
         let layout = Layout::from_size_align(size, alignment).unwrap();
         ALLOCATOR.dealloc(ptr, layout);
     }
-    
+
     /// Allocate contiguous memory for AI model weights
     pub fn alloc_model_weights(num_weights: usize) -> Result<*mut f32, &'static str> {
         let size = num_weights * core::mem::size_of::<f32>();
         let alignment = core::mem::align_of::<f32>();
-        
+
         let ptr = alloc_tensor_aligned(size, alignment)? as *mut f32;
         Ok(ptr)
     }

@@ -16,7 +16,19 @@ for TEST_NAME in "${TESTS[@]}"; do
     rm -f out/qemu-serial.log
     
     # Run test with longer timeout and capture exit code
-    timeout 15 bash -c "TEST=$TEST_NAME BOOT=bios ./scripts/qemu.sh" || TEST_EXIT=$?
+    # Use gtimeout if available (GNU coreutils), otherwise timeout, with fallback
+    if command -v gtimeout >/dev/null 2>&1; then
+        gtimeout 15 bash -c "TEST=$TEST_NAME BOOT=bios ./scripts/qemu.sh" || TEST_EXIT=$?
+    elif command -v timeout >/dev/null 2>&1; then
+        timeout 15 bash -c "TEST=$TEST_NAME BOOT=bios ./scripts/qemu.sh" || TEST_EXIT=$?
+    else
+        # Manual timeout using background process
+        bash -c "TEST=$TEST_NAME BOOT=bios ./scripts/qemu.sh" &
+        TEST_PID=$!
+        sleep 15
+        kill $TEST_PID 2>/dev/null || true
+        wait $TEST_PID 2>/dev/null || TEST_EXIT=$?
+    fi
     
     echo "Test $TEST_NAME completed with exit code: ${TEST_EXIT:-0}"
     
