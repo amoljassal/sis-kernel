@@ -14,6 +14,7 @@ pub mod security;
 pub mod ai;
 pub mod formal;
 pub mod property_based;
+pub mod byzantine;
 pub mod reporting;
 
 // Core test result types
