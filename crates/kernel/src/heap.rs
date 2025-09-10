@@ -12,6 +12,16 @@ use core::alloc::{GlobalAlloc, Layout};
 use linked_list_allocator::LockedHeap;
 use spin::{Mutex, Once};
 
+/// Cache-aligned array wrapper for heap memory
+#[repr(align(64))] // Align to cache line size for RISC-V
+struct CacheAlignedArray([u8; HEAP_SIZE]);
+
+impl CacheAlignedArray {
+    fn as_mut_ptr(&mut self) -> *mut u8 {
+        self.0.as_mut_ptr()
+    }
+}
+
 /// Global heap allocator instance
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -50,7 +60,8 @@ pub fn init_heap() -> Result<(), &'static str> {
 
             // For now, we'll use a static array as heap memory
             // This is a simplified approach for demonstration
-            static mut HEAP_MEMORY: [u8; HEAP_SIZE] = [0; HEAP_SIZE];
+            // Use cache-aligned heap memory for optimal performance
+            static mut HEAP_MEMORY: CacheAlignedArray = CacheAlignedArray([0; HEAP_SIZE]);
             let heap_start = HEAP_MEMORY.as_mut_ptr();
 
             // Initialize the allocator with our memory region

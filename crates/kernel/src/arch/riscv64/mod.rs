@@ -17,6 +17,7 @@ pub mod boards {
 }
 
 pub mod verification;  // Formal verification with Sailor model checking
+pub mod performance;   // Performance optimization framework with cache-aware algorithms
 
 // Re-export key types for easier access
 pub use mmu::{VirtAddr, PhysAddr, PageFlags, MmuError};
@@ -56,6 +57,9 @@ pub fn init() -> Result<(), ArchError> {
         // Verification initialization failed - continue without it for now
         // In production, this might be a critical error
     }
+    
+    // 9. Initialize performance optimizations
+    performance::init_performance_optimizations();
     
     Ok(())
 }
