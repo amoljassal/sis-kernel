@@ -158,7 +158,7 @@ impl ConsensusTester {
         })
     }
     
-    async fn broadcast_proposal(&self, proposal: &Proposal) -> Result<u32, TestError> {
+    async fn broadcast_proposal(&self, _proposal: &Proposal) -> Result<u32, TestError> {
         // Simulate broadcasting proposal to all nodes
         let message_count = (self.nodes.len() - 1) as u32;
         tokio::time::sleep(std::time::Duration::from_micros(100)).await;
@@ -296,6 +296,12 @@ struct LogEntry {
     digest: Vec<u8>,
 }
 
+impl Default for PBFTProtocol {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PBFTProtocol {
     pub fn new() -> Self {
         Self {
@@ -375,6 +381,12 @@ struct RaftLogEntry {
     term: u64,
     index: u64,
     command: Vec<u8>,
+}
+
+impl Default for RaftConsensus {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RaftConsensus {

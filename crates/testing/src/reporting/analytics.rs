@@ -321,6 +321,12 @@ pub enum Priority {
     Low,
 }
 
+impl Default for AnalyticsEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnalyticsEngine {
     pub fn new() -> Self {
         Self {
@@ -650,8 +656,8 @@ impl AnalyticsEngine {
         let sum_xy: f64 = data.iter().map(|(t, v)| (*t as f64) * v).sum();
         let sum_x2: f64 = data.iter().map(|(t, _)| (*t as f64).powi(2)).sum();
         
-        let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x.powi(2));
-        slope
+        
+        (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x.powi(2))
     }
 
     async fn generate_predictions(&self, time_series_data: &HashMap<String, Vec<(u64, f64)>>) -> Result<PredictionResults, TestError> {

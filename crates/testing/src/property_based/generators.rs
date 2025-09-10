@@ -220,6 +220,12 @@ pub struct MockHeapAllocator {
     total_freed: usize,
 }
 
+impl Default for MockHeapAllocator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockHeapAllocator {
     pub fn new() -> Self {
         Self {
@@ -266,6 +272,12 @@ pub struct MockScheduler {
     processes: std::collections::HashMap<u32, u8>, // PID -> priority
     last_scheduled: Option<u32>,
     schedule_count: usize,
+}
+
+impl Default for MockScheduler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockScheduler {
@@ -318,6 +330,12 @@ pub struct MockIPCChannel {
     capacity: Option<usize>,
 }
 
+impl Default for MockIPCChannel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockIPCChannel {
     pub fn new() -> Self {
         Self {
@@ -364,6 +382,12 @@ pub struct MockLockFreeQueue {
     queue: std::sync::Mutex<std::collections::VecDeque<u32>>,
 }
 
+impl Default for MockLockFreeQueue {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockLockFreeQueue {
     pub fn new() -> Self {
         Self {
@@ -389,6 +413,12 @@ impl MockLockFreeQueue {
 pub struct MockFileSystem {
     files: std::collections::HashMap<String, Vec<u8>>,
     crashed: bool,
+}
+
+impl Default for MockFileSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockFileSystem {

@@ -233,10 +233,10 @@ impl KernelInvariants {
         ]
     }
     
-    pub fn get_invariants_by_category(category: InvariantCategory) -> Vec<SystemInvariant> {
+    pub fn get_invariants_by_category(_category: InvariantCategory) -> Vec<SystemInvariant> {
         Self::get_all_invariants()
             .into_iter()
-            .filter(|inv| matches!(&inv.category, category))
+            .filter(|inv| matches!(&inv.category, _category))
             .collect()
     }
     
@@ -247,10 +247,10 @@ impl KernelInvariants {
             .collect()
     }
     
-    pub fn get_invariants_for_verification(method: VerificationMethod) -> Vec<SystemInvariant> {
+    pub fn get_invariants_for_verification(_method: VerificationMethod) -> Vec<SystemInvariant> {
         Self::get_all_invariants()
             .into_iter()
-            .filter(|inv| matches!(&inv.verification_method, method))
+            .filter(|inv| matches!(&inv.verification_method, _method))
             .collect()
     }
 }

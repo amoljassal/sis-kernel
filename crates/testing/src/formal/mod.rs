@@ -161,8 +161,7 @@ impl FormalVerificationSuite {
         log::info!("Verifying system-level properties and invariants");
         
         // Critical system invariants
-        let invariants = vec![
-            "Memory allocator maintains heap consistency",
+        let invariants = ["Memory allocator maintains heap consistency",
             "Scheduler preserves process isolation", 
             "Interrupt handlers maintain system state",
             "Virtual memory mappings remain consistent",
@@ -171,8 +170,7 @@ impl FormalVerificationSuite {
             "Device drivers maintain exclusive access",
             "Timer subsystem maintains temporal ordering",
             "File system maintains metadata consistency",
-            "Network stack preserves packet ordering"
-        ];
+            "Network stack preserves packet ordering"];
         
         let mut verified_count = 0;
         let mut failures = Vec::new();

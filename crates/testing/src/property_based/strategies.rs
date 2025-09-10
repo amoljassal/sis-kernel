@@ -237,10 +237,10 @@ impl PropertyComposition {
         move |contexts: &[TestingContext]| {
             match &temporal_constraint {
                 TemporalConstraint::Always => {
-                    contexts.iter().all(|ctx| base_property(ctx))
+                    contexts.iter().all(&base_property)
                 }
                 TemporalConstraint::Eventually => {
-                    contexts.iter().any(|ctx| base_property(ctx))
+                    contexts.iter().any(&base_property)
                 }
                 TemporalConstraint::Until(condition) => {
                     let mut satisfied = true;

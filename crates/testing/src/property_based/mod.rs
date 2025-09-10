@@ -346,7 +346,7 @@ impl PropertyBasedTestSuite {
                 
                 // Check that no process was starved (not scheduled for > 100 time units)
                 let max_starvation_time = 100;
-                for (_, &last_time) in &last_scheduled {
+                for &last_time in last_scheduled.values() {
                     if test_case.events.len() - last_time > max_starvation_time {
                         return false;
                     }
@@ -555,7 +555,7 @@ impl PropertyTestRunner {
         name: &str, 
         _description: &str,
         test_cases: u32,
-        property: F
+        _property: F
     ) -> Result<PropertyTestCase, TestError>
     where
         T: std::fmt::Debug + Clone,

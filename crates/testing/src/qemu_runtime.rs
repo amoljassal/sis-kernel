@@ -32,6 +32,26 @@ pub struct QEMURuntimeManager {
 }
 
 impl QEMURuntimeManager {
+    /// Detect if running on Apple Silicon for HVF acceleration
+    async fn is_apple_silicon() -> bool {
+        if cfg!(target_os = "macos") {
+            // Check if we're on Apple Silicon by looking for the "Apple" brand in CPU info
+            match Command::new("sysctl")
+                .args(["-n", "machdep.cpu.brand_string"])
+                .output()
+                .await
+            {
+                Ok(output) => {
+                    let cpu_info = String::from_utf8_lossy(&output.stdout);
+                    cpu_info.contains("Apple")
+                }
+                Err(_) => false,
+            }
+        } else {
+            false
+        }
+    }
+
     pub fn new(config: &TestSuiteConfig) -> Self {
         let base_port = 7000;
         let instances = (0..config.qemu_nodes)
@@ -60,15 +80,16 @@ impl QEMURuntimeManager {
     pub async fn build_kernel(&self) -> Result<(), TestError> {
         log::info!("Building SIS kernel for QEMU testing");
         
-        // Build the kernel - run from workspace root
+        // Build the kernel in release mode for accurate performance testing
         let output = Command::new("cargo")
             .args([
                 "+nightly",
                 "build",
+                "--release",  // Use release mode for production-like performance
                 "-p", "sis_kernel",
                 "-Z", "build-std=core,alloc",
                 "--target", "aarch64-unknown-none",
-                "--features", "bringup"
+                "--features", "bringup,neon-optimized"  // Enable NEON optimizations
             ])
             .current_dir("../../")  // Go to workspace root
             .env("RUSTFLAGS", "-C link-arg=-Tsrc/arch/aarch64/aarch64-qemu.ld")
@@ -134,7 +155,7 @@ impl QEMURuntimeManager {
 
             // Copy UEFI and kernel binaries
             let uefi_source = "../../target/aarch64-unknown-uefi/release/uefi-boot.efi";
-            let kernel_source = "../../target/aarch64-unknown-none/debug/sis_kernel";
+            let kernel_source = "../../target/aarch64-unknown-none/release/sis_kernel";  // Use release build
             let uefi_dest = format!("{}/BOOTAA64.EFI", efi_boot_dir);
             let kernel_dest = format!("{}/KERNEL.ELF", efi_sis_dir);
 
@@ -170,29 +191,58 @@ impl QEMURuntimeManager {
         log::info!("Launching QEMU instance {} on ports {}/{}/{}", 
                   instance.node_id, instance.serial_port, instance.monitor_port, instance.network_port);
         
-        // Log the full QEMU command for debugging
+        // Detect if running on Apple Silicon Mac for HVF acceleration
+        let use_hvf = Self::is_apple_silicon().await;
+        let cpu_type = if use_hvf {
+            "host"  // Use host CPU for better Apple Silicon emulation
+        } else {
+            "max"   // Use maximum features on other platforms
+        };
+        
+        // Optimize QEMU configuration for Apple Silicon development
         let firmware_path = "/opt/homebrew/share/qemu/edk2-aarch64-code.fd";
-        log::debug!("QEMU command: qemu-system-aarch64 -name sis-node{} -M virt,gic-version=3,highmem=off,secure=off -cpu cortex-a72 -smp 1 -m 256M -nographic -serial tcp:localhost:{},server,nowait -monitor tcp:localhost:{},server,nowait -bios {} -drive if=none,id=esp,format=raw,file=fat:rw:{} -device virtio-blk-pci,drive=esp -device virtio-rng-pci -no-reboot -append 'console=ttyAMA0,115200 earlycon=pl011,0x09000000' -d unimp,guest_errors", 
-                  instance.node_id, instance.serial_port, instance.monitor_port, firmware_path, instance.esp_directory);
+        
+        let mut qemu_args = vec![
+            "-name".to_string(), format!("sis-node{}", instance.node_id),
+            "-M".to_string(), "virt,gic-version=3,highmem=on,secure=off".to_string(),  // Enable highmem for M-series simulation
+            "-cpu".to_string(), cpu_type.to_string(),
+            "-smp".to_string(), "4".to_string(),  // Multi-core for realistic M-series behavior
+            "-m".to_string(), "1G".to_string(),  // Increased memory for better performance
+            "-nographic".to_string(),
+            "-serial".to_string(), format!("tcp:localhost:{},server,nowait", instance.serial_port),
+            "-monitor".to_string(), format!("tcp:localhost:{},server,nowait", instance.monitor_port),
+            "-bios".to_string(), firmware_path.to_string(),
+            "-drive".to_string(), format!("if=none,id=esp,format=raw,file=fat:rw:{}", instance.esp_directory),
+            "-device".to_string(), "virtio-blk-pci,drive=esp".to_string(),
+            "-device".to_string(), "virtio-rng-pci".to_string(),
+            "-no-reboot".to_string(),
+            "-append".to_string(), "console=ttyAMA0,115200 earlycon=pl011,0x09000000".to_string(),
+            "-d".to_string(), "unimp,guest_errors".to_string(),
+        ];
+        
+        // Add HVF acceleration if on Apple Silicon
+        if use_hvf {
+            qemu_args.extend(["-accel".to_string(), "hvf".to_string()]);
+            log::info!("Using HVF acceleration on Apple Silicon for instance {}", instance.node_id);
+        }
+        
+        // Add cycle-accurate simulation for performance measurement
+        qemu_args.extend([
+            "-icount".to_string(), "shift=0".to_string(),  // Cycle-accurate for benchmarking
+            "-object".to_string(), "memory-backend-ram,id=ram,size=1G,prealloc=on".to_string(),  // Preallocate memory
+            "-numa".to_string(), "node,memdev=ram".to_string(),  // NUMA awareness for M-series simulation
+        ]);
+        
+        // Add network device for distributed testing
+        qemu_args.extend([
+            "-netdev".to_string(), format!("user,id=net0,hostfwd=tcp::{}-:22", instance.network_port),
+            "-device".to_string(), "virtio-net-pci,netdev=net0".to_string(),
+        ]);
+        
+        log::debug!("QEMU command: qemu-system-aarch64 {}", qemu_args.join(" "));
         
         let qemu_process = Command::new("qemu-system-aarch64")
-            .args([
-                "-name", &format!("sis-node{}", instance.node_id),
-                "-M", "virt,gic-version=3,highmem=off,secure=off",  // Disable highmem and secure boot for stability
-                "-cpu", "cortex-a72",
-                "-smp", "1",  // Single CPU to minimize complexity
-                "-m", "256M",  // Reduced memory to minimize resource usage
-                "-nographic",
-                "-serial", &format!("tcp:localhost:{},server,nowait", instance.serial_port),
-                "-monitor", &format!("tcp:localhost:{},server,nowait", instance.monitor_port),
-                "-bios", firmware_path,
-                "-drive", &format!("if=none,id=esp,format=raw,file=fat:rw:{}", instance.esp_directory),
-                "-device", "virtio-blk-pci,drive=esp",
-                "-device", "virtio-rng-pci",
-                "-no-reboot",
-                "-append", "console=ttyAMA0,115200 earlycon=pl011,0x09000000",  // Add kernel console args
-                "-d", "unimp,guest_errors"  // Enable debugging for UEFI issues
-            ])
+            .args(qemu_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()

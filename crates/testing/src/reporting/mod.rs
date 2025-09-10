@@ -60,7 +60,7 @@ impl IndustryReportingEngine {
         Ok(())
     }
     
-    async fn generate_interactive_dashboard(&self, report: &ValidationReport, analytics: &AnalyticsReport) -> Result<(), TestError> {
+    async fn generate_interactive_dashboard(&self, report: &ValidationReport, _analytics: &AnalyticsReport) -> Result<(), TestError> {
         let dashboard_path = self.output_dir.join("interactive_dashboard.html");
         let dashboard_content = self.visualization_engine.generate_interactive_dashboard(report).await?;
         

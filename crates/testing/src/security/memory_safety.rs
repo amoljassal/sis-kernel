@@ -438,6 +438,12 @@ impl MemorySafetyChecker {
     }
 }
 
+impl Default for AllocationTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AllocationTracker {
     pub fn new() -> Self {
         Self {
@@ -515,6 +521,12 @@ impl AllocationTracker {
     }
 }
 
+impl Default for ProtectionAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProtectionAnalyzer {
     pub fn new() -> Self {
         Self {
@@ -524,6 +536,12 @@ impl ProtectionAnalyzer {
             control_flow_integrity: true,
             stack_canaries: true,
         }
+    }
+}
+
+impl Default for LeakDetector {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

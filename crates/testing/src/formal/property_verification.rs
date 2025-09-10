@@ -276,7 +276,7 @@ impl PropertyVerificationEngine {
         let mut report = String::new();
         
         report.push_str("# SIS Kernel Property Verification Report\n\n");
-        report.push_str(&format!("## Executive Summary\n"));
+        report.push_str(&"## Executive Summary\n".to_string());
         report.push_str(&format!("- Total Properties: {}\n", results.total_properties));
         report.push_str(&format!("- Verified Properties: {}\n", results.verified_properties));
         report.push_str(&format!("- Verification Rate: {:.1}%\n", 
@@ -288,7 +288,7 @@ impl PropertyVerificationEngine {
             let rate = (*verified as f64 / *total as f64) * 100.0;
             report.push_str(&format!("- {}: {}/{} verified ({:.1}%)\n", category, verified, total, rate));
         }
-        report.push_str("\n");
+        report.push('\n');
         
         if !results.failed_properties.is_empty() {
             report.push_str("## Failed Properties\n");

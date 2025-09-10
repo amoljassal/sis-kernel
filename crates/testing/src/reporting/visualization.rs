@@ -66,6 +66,12 @@ pub struct ChartMetadata {
     pub units: Option<String>,
 }
 
+impl Default for VisualizationEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VisualizationEngine {
     pub fn new() -> Self {
         Self {
