@@ -100,6 +100,7 @@ impl Shell {
                 "overhead" => self.cmd_overhead(),
                 "mem" => self.cmd_mem(),
                 "regs" => self.cmd_regs(),
+                "dtb" => self.cmd_dtb(),
                 "clear" => self.cmd_clear(),
                 "exit" => self.cmd_exit(),
                 _ => self.cmd_unknown(parts[0]),
@@ -121,6 +122,7 @@ impl Shell {
             crate::uart_print(b"  overhead - Measure syscall overhead\n");
             crate::uart_print(b"  mem      - Show memory information\n");
             crate::uart_print(b"  regs     - Show system registers\n");
+            crate::uart_print(b"  dtb      - Show device tree information\n");
             crate::uart_print(b"  clear    - Clear screen\n");
             crate::uart_print(b"  exit     - Exit shell\n");
         }
@@ -288,6 +290,21 @@ impl Shell {
                 self.print_hex(reg_val);
             }
             crate::uart_print(b"\n");
+        }
+    }
+
+    /// Device tree information command  
+    fn cmd_dtb(&self) {
+        #[cfg(target_arch = "riscv64")]
+        {
+            crate::arch::riscv64::dtb::print_dtb_info();
+        }
+        
+        #[cfg(not(target_arch = "riscv64"))]
+        {
+            unsafe {
+                crate::uart_print(b"Device tree parsing only supported on RISC-V\n");
+            }
         }
     }
 

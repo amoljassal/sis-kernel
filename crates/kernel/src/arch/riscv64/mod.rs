@@ -24,16 +24,19 @@ use core::arch::asm;
 
 /// RISC-V architecture initialization
 pub fn init() -> Result<(), ArchError> {
-    // 1. Initialize MMU with identity mapping
+    // 1. Initialize device tree parsing
+    dtb::init_device_tree().map_err(|_| ArchError::DtbInitFailed)?;
+    
+    // 2. Initialize MMU with identity mapping
     mmu::init_mmu().map_err(|_| ArchError::MmuInitFailed)?;
     
-    // 2. Initialize interrupt controller  
+    // 3. Initialize interrupt controller  
     interrupts::init_interrupt_controller().map_err(|_| ArchError::InterruptInitFailed)?;
     
-    // 3. Set up trap vector
+    // 4. Set up trap vector
     setup_trap_vector();
     
-    // 4. Enable supervisor mode features
+    // 5. Enable supervisor mode features
     enable_supervisor_features();
     
     Ok(())
@@ -44,6 +47,7 @@ pub fn init() -> Result<(), ArchError> {
 pub enum ArchError {
     MmuInitFailed,
     InterruptInitFailed,
+    DtbInitFailed,
     InvalidHartId,
     UnsupportedFeature,
 }
@@ -293,6 +297,9 @@ pub mod constants {
     /// Page size (4KB standard)
     pub const PAGE_SIZE: usize = 4096;
     
+    /// Device tree base address (passed by bootloader)
+    pub const DTB_BASE_ADDR: usize = 0x8200_0000;
+    
     /// Device tree maximum size
     pub const DTB_MAX_SIZE: usize = 64 * 1024; // 64KB
 }
@@ -323,8 +330,11 @@ pub extern "C" fn riscv64_main(hart_id: usize, dtb_ptr: usize) -> ! {
     
     // Parse device tree
     if dtb_ptr != 0 {
-        // Device tree parsing would go here
-        // dtb::parse_device_tree(dtb_ptr);
+        // Update DTB base address and reinitialize
+        // Note: Real implementation would update constants dynamically
+        if let Err(_) = dtb::parse_device_tree(dtb_ptr) {
+            // Continue without DTB if parsing fails
+        }
     }
     
     // Jump to main kernel initialization
