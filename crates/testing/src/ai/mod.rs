@@ -4,6 +4,11 @@
 use crate::{TestSuiteConfig, TestResult, TestError};
 use serde::{Deserialize, Serialize};
 
+pub mod benchmark_suite;
+pub mod benchmark_report;
+pub use benchmark_suite::*;
+pub use benchmark_report::*;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AIResults {
     pub inference_accuracy: f64,
@@ -11,25 +16,32 @@ pub struct AIResults {
     pub inference_samples: u64,
     pub max_deviation: f64,
     pub neural_engine_utilization: f64,
+    pub benchmark_results: Option<AIBenchmarkResults>,
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 pub struct AIModelValidationSuite {
     config: TestSuiteConfig,
+    benchmark_suite: AIBenchmarkSuite,
 }
 
 impl AIModelValidationSuite {
     pub fn new(config: &TestSuiteConfig) -> Self {
         Self {
             config: config.clone(),
+            benchmark_suite: AIBenchmarkSuite::new(config),
         }
     }
     
     pub async fn validate_inference_accuracy(&self) -> Result<AIResults, TestError> {
-        log::info!("Starting AI inference accuracy validation");
+        log::info!("Starting comprehensive AI inference validation");
         
+        // Run basic accuracy validation
         let accuracy_results = self.test_inference_accuracy().await?;
         let utilization = self.measure_neural_engine_utilization().await?;
+        
+        // Run comprehensive benchmarks
+        let benchmark_results = self.benchmark_suite.run_comprehensive_ai_benchmarks().await?;
         
         Ok(AIResults {
             inference_accuracy: accuracy_results.0,
@@ -37,8 +49,14 @@ impl AIModelValidationSuite {
             inference_samples: accuracy_results.1,
             max_deviation: accuracy_results.2,
             neural_engine_utilization: utilization,
+            benchmark_results: Some(benchmark_results),
             timestamp: chrono::Utc::now(),
         })
+    }
+    
+    pub async fn run_industry_benchmarks(&self) -> Result<AIBenchmarkResults, TestError> {
+        log::info!("Running industry-grade AI benchmarks");
+        self.benchmark_suite.run_comprehensive_ai_benchmarks().await
     }
     
     async fn test_inference_accuracy(&self) -> Result<(f64, u64, f64), TestError> {

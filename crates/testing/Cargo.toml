@@ -10,6 +10,14 @@ license = "MIT OR Apache-2.0"
 name = "sis-test-runner"
 path = "src/bin/main.rs"
 
+[[bin]]
+name = "ai-benchmark-runner"
+path = "src/bin/ai_benchmark_runner.rs"
+
+[[bin]]
+name = "formal-verification-runner"
+path = "src/bin/formal_verification_runner.rs"
+
 [dependencies]
 # Async runtime
 tokio = { version = "1.35", features = ["full"] }
@@ -64,6 +72,9 @@ nalgebra = "0.32"
 # Formal verification (optional)
 kani = { version = "0.0.1", optional = true }
 
+# Prusti contracts for verification (optional)
+prusti-contracts = { version = "0.1.0", optional = true }
+
 [dev-dependencies]
 
 # Testing utilities
@@ -81,7 +92,7 @@ security-tests = []
 ai-tests = []
 
 # Formal verification support
-formal-verification = ["dep:kani"]
+formal-verification = ["dep:kani", "dep:prusti-contracts"]
 
 # Integration with existing kernel
 kernel-integration = []
