@@ -112,6 +112,7 @@ impl Shell {
                 "board" => self.cmd_board(),
                 "verify" => self.cmd_verify(),
                 "perf_test" => self.cmd_perf_test(),
+                "ai_bench" => self.cmd_ai_bench(),
                 "clear" => self.cmd_clear(),
                 "exit" => self.cmd_exit(),
                 _ => self.cmd_unknown(parts[0]),
@@ -138,6 +139,7 @@ impl Shell {
             crate::uart_print(b"  board    - Show board-specific information\n");
             crate::uart_print(b"  verify   - Run comprehensive verification tests (property-based, metamorphic)\n");
             crate::uart_print(b"  perf_test- Run RISC-V performance optimization tests\n");
+            crate::uart_print(b"  ai_bench - Run AI/ML benchmarks (AI mode only)\n");
             crate::uart_print(b"  clear    - Clear screen\n");
             crate::uart_print(b"  exit     - Exit shell\n");
         }
@@ -212,6 +214,25 @@ impl Shell {
         crate::userspace_test::measure_syscall_overhead();
     }
 
+    /// AI benchmark command
+    fn cmd_ai_bench(&self) {
+        #[cfg(feature = "arm64-ai")]
+        {
+            unsafe {
+                crate::uart_print(b"Running AI/ML benchmarks...\n");
+            }
+            crate::ai_benchmark::run_ai_benchmarks();
+        }
+        
+        #[cfg(not(feature = "arm64-ai"))]
+        {
+            unsafe {
+                crate::uart_print(b"AI benchmarks are only available when AI features are enabled.\n");
+                crate::uart_print(b"Run with AI=1 environment variable to enable AI features.\n");
+            }
+        }
+    }
+    
     /// Exit command
     fn cmd_exit(&mut self) {
         unsafe {

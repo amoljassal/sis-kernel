@@ -28,9 +28,24 @@ cp "$UEFI_APP" "$EFI_BOOT_DIR/BOOTAA64.EFI"
 echo "[*] Building kernel (aarch64-unknown-none)..."
 rustup target add aarch64-unknown-none >/dev/null 2>&1 || true
 export RUSTFLAGS="-C link-arg=-T$ROOT_DIR/src/arch/aarch64/aarch64-qemu.ld"
+
+# Build features based on environment variables
+FEATURES=""
 if [[ "${BRINGUP:-}" != "" ]]; then
   echo "[*] Enabling bringup feature (STACK/VECTORS/MMU)"
-  cargo +nightly build -p sis_kernel -Z build-std=core,alloc --target aarch64-unknown-none --features bringup
+  FEATURES="${FEATURES},bringup"
+fi
+if [[ "${AI:-}" != "" ]]; then
+  echo "[*] Enabling AI features (formal-verification,vector,aia)"
+  FEATURES="${FEATURES},arm64-ai,formal-verification"
+fi
+
+# Remove leading comma if present
+FEATURES="${FEATURES#,}"
+
+if [[ -n "$FEATURES" ]]; then
+  echo "[*] Building with features: $FEATURES"
+  cargo +nightly build -p sis_kernel -Z build-std=core,alloc --target aarch64-unknown-none --features "$FEATURES"
 else
   cargo +nightly build -p sis_kernel -Z build-std=core,alloc --target aarch64-unknown-none
 fi
