@@ -101,6 +101,8 @@ impl Shell {
                 "mem" => self.cmd_mem(),
                 "regs" => self.cmd_regs(),
                 "dtb" => self.cmd_dtb(),
+                "vector" => self.cmd_vector(),
+                "board" => self.cmd_board(),
                 "clear" => self.cmd_clear(),
                 "exit" => self.cmd_exit(),
                 _ => self.cmd_unknown(parts[0]),
@@ -123,6 +125,8 @@ impl Shell {
             crate::uart_print(b"  mem      - Show memory information\n");
             crate::uart_print(b"  regs     - Show system registers\n");
             crate::uart_print(b"  dtb      - Show device tree information\n");
+            crate::uart_print(b"  vector   - Show vector extension information\n");
+            crate::uart_print(b"  board    - Show board-specific information\n");
             crate::uart_print(b"  clear    - Clear screen\n");
             crate::uart_print(b"  exit     - Exit shell\n");
         }
@@ -304,6 +308,36 @@ impl Shell {
         {
             unsafe {
                 crate::uart_print(b"Device tree parsing only supported on RISC-V\n");
+            }
+        }
+    }
+
+    /// Vector extension information command  
+    fn cmd_vector(&self) {
+        #[cfg(target_arch = "riscv64")]
+        {
+            crate::arch::riscv64::vector::print_vector_info();
+        }
+        
+        #[cfg(not(target_arch = "riscv64"))]
+        {
+            unsafe {
+                crate::uart_print(b"Vector extension only supported on RISC-V\n");
+            }
+        }
+    }
+
+    /// Board information command
+    fn cmd_board(&self) {
+        #[cfg(target_arch = "riscv64")]
+        {
+            crate::arch::riscv64::boards::vikram3201::print_board_info();
+        }
+        
+        #[cfg(not(target_arch = "riscv64"))]
+        {
+            unsafe {
+                crate::uart_print(b"Board-specific information only supported on RISC-V\n");
             }
         }
     }

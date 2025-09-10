@@ -33,10 +33,20 @@ pub fn init() -> Result<(), ArchError> {
     // 3. Initialize interrupt controller  
     interrupts::init_interrupt_controller().map_err(|_| ArchError::InterruptInitFailed)?;
     
-    // 4. Set up trap vector
+    // 4. Initialize board support package
+    if boards::vikram3201::detect_vikram3201() {
+        boards::vikram3201::init_global_board().map_err(|_| ArchError::BoardInitFailed)?;
+    }
+    
+    // 5. Initialize vector extension (if available)
+    if let Err(_) = vector::init_vector_extension() {
+        // Vector extension not available - continue without it
+    }
+    
+    // 6. Set up trap vector
     setup_trap_vector();
     
-    // 5. Enable supervisor mode features
+    // 7. Enable supervisor mode features
     enable_supervisor_features();
     
     Ok(())
@@ -48,6 +58,7 @@ pub enum ArchError {
     MmuInitFailed,
     InterruptInitFailed,
     DtbInitFailed,
+    BoardInitFailed,
     InvalidHartId,
     UnsupportedFeature,
 }
@@ -69,11 +80,7 @@ fn enable_supervisor_features() {
         // Enable floating-point unit
         asm!("csrs sstatus, {}", in(reg) (1 << 13)); // FS = Initial
         
-        // Enable vector extension if available (will be detected at runtime)
-        #[cfg(feature = "vector")]
-        {
-            asm!("csrs sstatus, {}", in(reg) (1 << 9)); // VS = Initial  
-        }
+        // Vector extension is enabled in vector::init_vector_extension() if available
     }
 }
 
