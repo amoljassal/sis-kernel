@@ -73,6 +73,13 @@ pub struct StatsTrackingAllocator;
 
 unsafe impl GlobalAlloc for StatsTrackingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        // Runtime verification hook for memory allocation
+        #[cfg(target_arch = "riscv64")]
+        {
+            use crate::arch::riscv64::verification::CriticalOperation;
+            crate::verify_lightweight!(CriticalOperation::MemoryAllocation, "heap_alloc");
+        }
+
         let ptr = ALLOCATOR.alloc(layout);
 
         if !ptr.is_null() {
@@ -82,15 +89,53 @@ unsafe impl GlobalAlloc for StatsTrackingAllocator {
             if stats.current_allocated > stats.peak_allocated {
                 stats.peak_allocated = stats.current_allocated;
             }
+
+            // Verify allocation result
+            #[cfg(target_arch = "riscv64")]
+            {
+                // Check alignment
+                if (ptr as usize) % layout.align() != 0 {
+                    crate::uart_print(b"[HEAP] Alignment violation in allocation\n");
+                }
+                // Check bounds (simplified)
+                if (ptr as usize) < 0x4444_4440_0000 {
+                    crate::uart_print(b"[HEAP] Allocation outside heap bounds\n");
+                }
+            }
         } else {
             let mut stats = HEAP_STATS.lock();
             stats.allocation_failures += 1;
+
+            // Log allocation failure for verification
+            #[cfg(target_arch = "riscv64")]
+            {
+                crate::uart_print(b"[VERIFY] Memory allocation failed\n");
+            }
         }
 
         ptr
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        // Runtime verification hook for memory deallocation
+        #[cfg(target_arch = "riscv64")]
+        {
+            use crate::arch::riscv64::verification::CriticalOperation;
+            crate::verify_lightweight!(CriticalOperation::MemoryDeallocation, "heap_dealloc");
+
+            // Verify pointer validity before deallocation
+            if ptr.is_null() {
+                crate::uart_print(b"[VERIFY] Attempt to deallocate null pointer\n");
+                return;
+            }
+
+            // Basic bounds check
+            if (ptr as usize) < 0x4444_4440_0000 {
+                crate::uart_print(b"[VERIFY] Deallocation outside heap bounds\n");
+                return;
+            }
+        }
+
         ALLOCATOR.dealloc(ptr, layout);
 
         let mut stats = HEAP_STATS.lock();

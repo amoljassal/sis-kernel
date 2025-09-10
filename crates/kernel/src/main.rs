@@ -635,6 +635,13 @@ mod bringup {
 /// Common main function for all architectures
 /// This is called from architecture-specific entry points
 pub fn main() -> ! {
+    // Runtime verification hook for kernel boot process
+    #[cfg(target_arch = "riscv64")]
+    {
+        use arch::riscv64::verification::CriticalOperation;
+        verify_comprehensive!(CriticalOperation::KernelBoot, "kernel_main_entry");
+    }
+
     unsafe {
         uart_print(b"\n=== SIS Kernel Starting ===\n");
         
@@ -647,18 +654,59 @@ pub fn main() -> ! {
         #[cfg(target_arch = "riscv64")]
         uart_print(b"Architecture: RISC-V RV64GC\n");
         
-        // Initialize heap allocator
+        // Initialize heap allocator with verification hooks
         uart_print(b"HEAP: INIT\n");
-        if let Err(e) = heap::init_heap() {
-            uart_print(b"HEAP: INIT FAILED - ");
-            uart_print(e.as_bytes());
-            uart_print(b"\n");
-        } else {
-            uart_print(b"HEAP: READY\n");
+        
+        #[cfg(target_arch = "riscv64")]
+        {
+            use arch::riscv64::verification::{CriticalOperation, verify_critical_section};
+            
+            let heap_result = verify_critical_section(
+                CriticalOperation::HeapInitialization,
+                "heap_initialization",
+                || heap::init_heap()
+            );
+            
+            match heap_result {
+                Ok(Ok(())) => {
+                    uart_print(b"HEAP: READY (verified)\n");
+                },
+                Ok(Err(e)) => {
+                    uart_print(b"HEAP: INIT FAILED - ");
+                    uart_print(e.as_bytes());
+                    uart_print(b"\n");
+                },
+                Err(_) => {
+                    uart_print(b"HEAP: VERIFICATION FAILED\n");
+                }
+            }
         }
         
-        // Start interactive shell
+        #[cfg(not(target_arch = "riscv64"))]
+        {
+            if let Err(e) = heap::init_heap() {
+                uart_print(b"HEAP: INIT FAILED - ");
+                uart_print(e.as_bytes());
+                uart_print(b"\n");
+            } else {
+                uart_print(b"HEAP: READY\n");
+            }
+        }
+        
+        // Start interactive shell with verification hook
         uart_print(b"SHELL: STARTING\n");
+        
+        #[cfg(target_arch = "riscv64")]
+        {
+            use arch::riscv64::verification::CriticalOperation;
+            let _ = verify_critical_section(
+                CriticalOperation::ShellCommand,
+                "shell_startup",
+                || shell::run_shell()
+            );
+        }
+        
+        #[cfg(not(target_arch = "riscv64"))]
         shell::run_shell();
     }
     

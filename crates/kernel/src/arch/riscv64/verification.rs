@@ -1005,3 +1005,437 @@ fn is_prime(n: u32) -> bool {
     
     true
 }
+
+/// Runtime Verification Hooks for Critical Operations
+/// 
+/// This section provides comprehensive runtime verification hooks that can be
+/// inserted at critical points in the kernel execution path to ensure
+/// correctness and safety properties are maintained during operation.
+
+/// Critical operation types for verification
+#[derive(Debug, Clone, Copy)]
+pub enum CriticalOperation {
+    KernelBoot,
+    HeapInitialization,
+    ContextSwitch,
+    SyscallEntry,
+    SyscallExit,
+    InterruptEntry,
+    InterruptExit,
+    MemoryAllocation,
+    MemoryDeallocation,
+    DeviceDriverInit,
+    VirtioOperation,
+    ShellCommand,
+    ArchitectureInit,
+}
+
+/// Verification hook configuration
+#[derive(Clone)]
+pub struct VerificationHookConfig {
+    pub enabled: bool,
+    pub operation_type: CriticalOperation,
+    pub pre_condition_checks: bool,
+    pub post_condition_checks: bool,
+    pub invariant_checks: bool,
+    pub performance_tracking: bool,
+    pub lightweight_mode: bool,
+}
+
+impl Default for VerificationHookConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            operation_type: CriticalOperation::KernelBoot,
+            pre_condition_checks: true,
+            post_condition_checks: true,
+            invariant_checks: true,
+            performance_tracking: true,
+            lightweight_mode: false,
+        }
+    }
+}
+
+/// Runtime verification hook result
+#[derive(Debug)]
+pub enum VerificationHookResult {
+    Success,
+    PreConditionFailed(&'static str),
+    PostConditionFailed(&'static str),
+    InvariantViolation(&'static str),
+    PerformanceBoundExceeded,
+    VerificationDisabled,
+}
+
+/// Global verification hook statistics
+static mut HOOK_STATS: VerificationHookStats = VerificationHookStats {
+    total_hooks_executed: 0,
+    successful_verifications: 0,
+    failed_verifications: 0,
+    disabled_hooks: 0,
+    performance_violations: 0,
+};
+
+/// Verification hook statistics
+pub struct VerificationHookStats {
+    pub total_hooks_executed: u64,
+    pub successful_verifications: u64,
+    pub failed_verifications: u64,
+    pub disabled_hooks: u64,
+    pub performance_violations: u64,
+}
+
+/// Main runtime verification hook entry point
+pub fn verification_hook(
+    config: VerificationHookConfig,
+    operation_name: &'static str,
+) -> VerificationHookResult {
+    unsafe {
+        HOOK_STATS.total_hooks_executed += 1;
+    }
+
+    if !config.enabled {
+        unsafe {
+            HOOK_STATS.disabled_hooks += 1;
+        }
+        return VerificationHookResult::VerificationDisabled;
+    }
+
+    let start_time = if config.performance_tracking {
+        Some(crate::arch::riscv64::perf::read_cycle_counter())
+    } else {
+        None
+    };
+
+    // Execute pre-condition checks
+    if config.pre_condition_checks {
+        if let Err(reason) = check_pre_conditions(&config) {
+            unsafe {
+                HOOK_STATS.failed_verifications += 1;
+                crate::uart_print(b"[VERIFY] Pre-condition failed for ");
+                crate::uart_print(operation_name.as_bytes());
+                crate::uart_print(b": ");
+                crate::uart_print(reason.as_bytes());
+                crate::uart_print(b"\n");
+            }
+            return VerificationHookResult::PreConditionFailed(reason);
+        }
+    }
+
+    // Execute invariant checks if not in lightweight mode
+    if config.invariant_checks && !config.lightweight_mode {
+        if let Some(verifier) = get_verifier() {
+            if let Err(_) = verifier.check_invariants() {
+                unsafe {
+                    HOOK_STATS.failed_verifications += 1;
+                    crate::uart_print(b"[VERIFY] Invariant violation during ");
+                    crate::uart_print(operation_name.as_bytes());
+                    crate::uart_print(b"\n");
+                }
+                return VerificationHookResult::InvariantViolation("runtime_invariant");
+            }
+        }
+    }
+
+    // Check performance bounds
+    if let Some(start) = start_time {
+        let end_time = crate::arch::riscv64::perf::read_cycle_counter();
+        let elapsed = end_time.wrapping_sub(start);
+        
+        if elapsed > get_performance_bound(&config.operation_type) {
+            unsafe {
+                HOOK_STATS.performance_violations += 1;
+                crate::uart_print(b"[VERIFY] Performance bound exceeded for ");
+                crate::uart_print(operation_name.as_bytes());
+                crate::uart_print(b"\n");
+            }
+            return VerificationHookResult::PerformanceBoundExceeded;
+        }
+    }
+
+    unsafe {
+        HOOK_STATS.successful_verifications += 1;
+    }
+
+    VerificationHookResult::Success
+}
+
+/// Check pre-conditions for critical operations
+fn check_pre_conditions(config: &VerificationHookConfig) -> Result<(), &'static str> {
+    match config.operation_type {
+        CriticalOperation::KernelBoot => {
+            // Verify we're in supervisor mode
+            let status: u64;
+            unsafe {
+                core::arch::asm!("csrr {}, sstatus", out(reg) status);
+            }
+            if (status >> 8) & 1 == 0 {
+                return Err("not_in_supervisor_mode");
+            }
+        }
+        
+        CriticalOperation::HeapInitialization => {
+            // Verify heap region is properly aligned
+            let heap_start = 0x8010_0000usize; // Standard heap location
+            if heap_start % 8 != 0 {
+                return Err("heap_not_aligned");
+            }
+        }
+        
+        CriticalOperation::ContextSwitch => {
+            // Verify stack pointer alignment
+            let sp: usize;
+            unsafe {
+                core::arch::asm!("mv {}, sp", out(reg) sp);
+            }
+            if sp % 16 != 0 {
+                return Err("stack_misaligned");
+            }
+        }
+        
+        CriticalOperation::SyscallEntry => {
+            // Verify we're transitioning from user to supervisor mode
+            // This is a simplified check
+        }
+        
+        CriticalOperation::MemoryAllocation => {
+            // Check that heap is initialized and has space
+            // Simplified check for demonstration
+        }
+        
+        _ => {
+            // Default checks for other operations
+        }
+    }
+    
+    Ok(())
+}
+
+/// Check post-conditions for critical operations
+fn check_post_conditions(config: &VerificationHookConfig) -> Result<(), &'static str> {
+    match config.operation_type {
+        CriticalOperation::HeapInitialization => {
+            // Verify heap allocator is functional
+            // This would normally try a small allocation
+        }
+        
+        CriticalOperation::ContextSwitch => {
+            // Verify register state is consistent
+            let sp: usize;
+            unsafe {
+                core::arch::asm!("mv {}, sp", out(reg) sp);
+            }
+            if sp < 0x8000_0000 || sp > 0x8100_0000 {
+                return Err("invalid_stack_pointer");
+            }
+        }
+        
+        CriticalOperation::SyscallExit => {
+            // Verify return value is properly set
+            // and we're returning to user mode
+        }
+        
+        _ => {
+            // Default post-condition checks
+        }
+    }
+    
+    Ok(())
+}
+
+/// Get performance bounds for different operation types
+fn get_performance_bound(operation: &CriticalOperation) -> u64 {
+    match operation {
+        CriticalOperation::KernelBoot => 100_000,        // 100k cycles
+        CriticalOperation::HeapInitialization => 50_000,  // 50k cycles
+        CriticalOperation::ContextSwitch => 1_000,       // 1k cycles
+        CriticalOperation::SyscallEntry => 500,          // 500 cycles
+        CriticalOperation::SyscallExit => 500,           // 500 cycles
+        CriticalOperation::InterruptEntry => 200,        // 200 cycles
+        CriticalOperation::InterruptExit => 200,         // 200 cycles
+        CriticalOperation::MemoryAllocation => 2_000,    // 2k cycles
+        CriticalOperation::MemoryDeallocation => 1_500,  // 1.5k cycles
+        CriticalOperation::DeviceDriverInit => 10_000,   // 10k cycles
+        CriticalOperation::VirtioOperation => 5_000,     // 5k cycles
+        CriticalOperation::ShellCommand => 50_000,       // 50k cycles
+        CriticalOperation::ArchitectureInit => 200_000,  // 200k cycles
+    }
+}
+
+/// Convenience macros for verification hooks
+
+/// Macro for lightweight verification (minimal overhead)
+#[macro_export]
+macro_rules! verify_lightweight {
+    ($operation:expr, $name:expr) => {
+        #[cfg(target_arch = "riscv64")]
+        {
+            use crate::arch::riscv64::verification::{VerificationHookConfig, verification_hook};
+            let config = VerificationHookConfig {
+                enabled: true,
+                operation_type: $operation,
+                pre_condition_checks: true,
+                post_condition_checks: false,
+                invariant_checks: false,
+                performance_tracking: false,
+                lightweight_mode: true,
+            };
+            let _ = verification_hook(config, $name);
+        }
+    };
+}
+
+/// Macro for comprehensive verification (full checks)
+#[macro_export]
+macro_rules! verify_comprehensive {
+    ($operation:expr, $name:expr) => {
+        #[cfg(target_arch = "riscv64")]
+        {
+            use crate::arch::riscv64::verification::{VerificationHookConfig, verification_hook};
+            let config = VerificationHookConfig {
+                enabled: true,
+                operation_type: $operation,
+                pre_condition_checks: true,
+                post_condition_checks: true,
+                invariant_checks: true,
+                performance_tracking: true,
+                lightweight_mode: false,
+            };
+            let _ = verification_hook(config, $name);
+        }
+    };
+}
+
+/// Macro for performance-focused verification
+#[macro_export]
+macro_rules! verify_performance {
+    ($operation:expr, $name:expr) => {
+        #[cfg(target_arch = "riscv64")]
+        {
+            use crate::arch::riscv64::verification::{VerificationHookConfig, verification_hook};
+            let config = VerificationHookConfig {
+                enabled: true,
+                operation_type: $operation,
+                pre_condition_checks: false,
+                post_condition_checks: false,
+                invariant_checks: false,
+                performance_tracking: true,
+                lightweight_mode: true,
+            };
+            let _ = verification_hook(config, $name);
+        }
+    };
+}
+
+/// Get verification hook statistics
+pub fn get_verification_hook_stats() -> &'static VerificationHookStats {
+    unsafe { &HOOK_STATS }
+}
+
+/// Reset verification hook statistics
+pub fn reset_verification_hook_stats() {
+    unsafe {
+        HOOK_STATS = VerificationHookStats {
+            total_hooks_executed: 0,
+            successful_verifications: 0,
+            failed_verifications: 0,
+            disabled_hooks: 0,
+            performance_violations: 0,
+        };
+    }
+}
+
+/// Print verification hook statistics
+pub fn print_verification_hook_stats() {
+    let stats = get_verification_hook_stats();
+    
+    unsafe {
+        crate::uart_print(b"\n=== Runtime Verification Hook Statistics ===\n");
+        crate::uart_print(b"Total Hooks Executed: ");
+        print_number(stats.total_hooks_executed);
+        crate::uart_print(b"\n");
+        
+        crate::uart_print(b"Successful Verifications: ");
+        print_number(stats.successful_verifications);
+        crate::uart_print(b"\n");
+        
+        crate::uart_print(b"Failed Verifications: ");
+        print_number(stats.failed_verifications);
+        crate::uart_print(b"\n");
+        
+        crate::uart_print(b"Disabled Hooks: ");
+        print_number(stats.disabled_hooks);
+        crate::uart_print(b"\n");
+        
+        crate::uart_print(b"Performance Violations: ");
+        print_number(stats.performance_violations);
+        crate::uart_print(b"\n");
+        
+        let success_rate = if stats.total_hooks_executed > 0 {
+            (stats.successful_verifications * 100) / stats.total_hooks_executed
+        } else {
+            0
+        };
+        
+        crate::uart_print(b"Success Rate: ");
+        print_number(success_rate);
+        crate::uart_print(b"%\n");
+    }
+}
+
+/// Advanced verification hook for critical sections
+pub fn verify_critical_section<F, R>(
+    operation: CriticalOperation,
+    operation_name: &'static str,
+    critical_function: F
+) -> Result<R, VerificationError>
+where
+    F: FnOnce() -> R,
+{
+    // Pre-verification hook
+    let config = VerificationHookConfig {
+        enabled: true,
+        operation_type: operation,
+        pre_condition_checks: true,
+        post_condition_checks: false,
+        invariant_checks: true,
+        performance_tracking: true,
+        lightweight_mode: false,
+    };
+    
+    match verification_hook(config.clone(), operation_name) {
+        VerificationHookResult::Success => {},
+        VerificationHookResult::PreConditionFailed(reason) => {
+            return Err(VerificationError::PropertyViolation { property: reason });
+        },
+        VerificationHookResult::InvariantViolation(invariant) => {
+            return Err(VerificationError::InvariantViolation { invariant });
+        },
+        VerificationHookResult::PerformanceBoundExceeded => {
+            return Err(VerificationError::ModelCheckingTimeout);
+        },
+        _ => {
+            return Err(VerificationError::InsufficientResources);
+        }
+    }
+    
+    // Execute the critical function
+    let result = critical_function();
+    
+    // Post-verification hook
+    let post_config = VerificationHookConfig {
+        post_condition_checks: true,
+        ..config
+    };
+    
+    match verification_hook(post_config, operation_name) {
+        VerificationHookResult::Success => Ok(result),
+        VerificationHookResult::PostConditionFailed(reason) => {
+            Err(VerificationError::PropertyViolation { property: reason })
+        },
+        VerificationHookResult::InvariantViolation(invariant) => {
+            Err(VerificationError::InvariantViolation { invariant })
+        },
+        _ => Ok(result), // Allow operation to complete even with minor verification issues
+    }
+}

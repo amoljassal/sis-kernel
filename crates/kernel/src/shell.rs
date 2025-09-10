@@ -81,6 +81,13 @@ impl Shell {
             return;
         }
 
+        // Runtime verification hook for shell command processing
+        #[cfg(target_arch = "riscv64")]
+        {
+            use crate::arch::riscv64::verification::CriticalOperation;
+            crate::verify_lightweight!(CriticalOperation::ShellCommand, "shell_command_process");
+        }
+
         unsafe {
             let cmd_str = core::str::from_utf8_unchecked(&CMD_BUFFER[..cmd_len]);
             let parts: heapless::Vec<&str, 8> = cmd_str.split_whitespace().collect();
@@ -376,6 +383,9 @@ impl Shell {
             
             // Run advanced invariant checking
             let advanced_tests_passed = crate::arch::riscv64::verification::run_advanced_invariant_checking();
+
+            // Display runtime verification hook statistics
+            crate::arch::riscv64::verification::print_verification_hook_stats();
 
             // Summary
             unsafe {
