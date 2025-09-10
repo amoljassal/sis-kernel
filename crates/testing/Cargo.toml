@@ -1,0 +1,97 @@
+[package]
+name = "sis-testing"
+version = "0.1.0"
+edition = "2021"
+description = "Comprehensive industry-grade test suite for SIS Kernel"
+authors = ["SIS Kernel Team"]
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "sis-test-runner"
+path = "src/bin/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Performance benchmarking
+criterion = { version = "0.5", features = ["html_reports"] }
+
+# Property-based testing
+proptest = "1.4"
+quickcheck = "1.0"
+
+# Concurrency testing
+loom = "0.7"
+
+# Statistical analysis
+statistical = "1.0"
+
+# Reporting and visualization
+tabled = "0.15"
+plotters = "0.3"
+
+# Date and time
+chrono = { version = "0.4", features = ["serde"] }
+
+# System interaction
+libc = "0.2"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# Networking for distributed tests
+reqwest = { version = "0.11", features = ["json"] }
+
+# Process management
+subprocess = "0.2"
+
+# Random number generation
+rand = "0.8"
+
+# Math and statistics
+nalgebra = "0.32"
+
+# Formal verification (optional)
+kani = { version = "0.0.1", optional = true }
+
+[dev-dependencies]
+
+# Testing utilities
+tempfile = "3.8"
+
+[features]
+default = ["qemu-tests", "performance-tests", "correctness-tests"]
+
+# Test categories
+qemu-tests = []
+performance-tests = []
+correctness-tests = []
+distributed-tests = []
+security-tests = []
+ai-tests = []
+
+# Formal verification support
+formal-verification = ["dep:kani"]
+
+# Integration with existing kernel
+kernel-integration = []
+
+# Extended test suites
+comprehensive-suite = [
+    "qemu-tests",
+    "performance-tests", 
+    "correctness-tests",
+    "distributed-tests",
+    "security-tests",
+    "ai-tests"
+]
