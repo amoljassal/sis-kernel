@@ -401,16 +401,19 @@ fn uart_write_bytes(buf: *const u8, count: usize) -> Result<usize, SyscallError>
     Ok(count)
 }
 
-/// Read ARM64 cycle counter for performance measurement
+/// Read cycle counter for performance measurement
 #[inline(always)]
 pub fn read_cycle_counter() -> u64 {
     unsafe {
-        let mut count: u64;
+        let mut count: u64 = 0;
         #[cfg(target_arch = "aarch64")]
         asm!("mrs {}, cntvct_el0", out(reg) count);
 
         #[cfg(target_arch = "x86_64")]
         asm!("rdtsc", "shl rdx, 32", "or rax, rdx", out("rax") count, out("rdx") _);
+
+        #[cfg(target_arch = "riscv64")]
+        asm!("rdcycle {}", out(reg) count);
 
         count
     }

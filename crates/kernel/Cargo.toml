@@ -24,6 +24,10 @@ pic8259 = { version = "0.10.1", default-features = false }
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 
+[target.'cfg(target_arch = "riscv64")'.dependencies]
+riscv = { version = "0.11", default-features = false }
+riscv-rt = { version = "0.12", default-features = false, optional = true }
+
 [features]
 default = []
 firewall = []
@@ -44,6 +48,10 @@ scheduler = []
 selftests = []
 ci-lint-min = []
 bringup = []
+riscv64 = []
+aia = ["riscv64"]  # Advanced Interrupt Architecture for RISC-V
+vector = ["riscv64"]  # RISC-V Vector Extension support
+formal-verification = ["riscv64"]  # Sailor validation hooks
 
 [build-dependencies]
 bootloader = { version = "=0.11.11", default-features = false, features = ["bios"] }

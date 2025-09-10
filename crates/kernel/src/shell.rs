@@ -222,36 +222,71 @@ impl Shell {
         use core::arch::asm;
 
         unsafe {
-            crate::uart_print(b"ARM64 System Registers:\n");
+            #[cfg(target_arch = "aarch64")]
+            {
+                crate::uart_print(b"ARM64 System Registers:\n");
 
-            let mut reg_val: u64;
+                let mut reg_val: u64;
 
-            // Current Exception Level
-            asm!("mrs {}, CurrentEL", out(reg) reg_val);
-            crate::uart_print(b"  CurrentEL: ");
-            self.print_hex(reg_val);
-            crate::uart_print(b" (EL");
-            self.print_number((reg_val >> 2) & 0x3);
-            crate::uart_print(b")\n");
+                // Current Exception Level
+                asm!("mrs {}, CurrentEL", out(reg) reg_val);
+                crate::uart_print(b"  CurrentEL: ");
+                self.print_hex(reg_val);
+                crate::uart_print(b" (EL");
+                self.print_number((reg_val >> 2) & 0x3);
+                crate::uart_print(b")\n");
 
-            // Main ID Register
-            asm!("mrs {}, MIDR_EL1", out(reg) reg_val);
-            crate::uart_print(b"  MIDR_EL1:  ");
-            self.print_hex(reg_val);
-            crate::uart_print(b"\n");
+                // Main ID Register
+                asm!("mrs {}, MIDR_EL1", out(reg) reg_val);
+                crate::uart_print(b"  MIDR_EL1:  ");
+                self.print_hex(reg_val);
+                crate::uart_print(b"\n");
 
-            // System Control Register
-            asm!("mrs {}, SCTLR_EL1", out(reg) reg_val);
-            crate::uart_print(b"  SCTLR_EL1: ");
-            self.print_hex(reg_val);
-            crate::uart_print(b" (MMU=");
-            self.print_number(reg_val & 1);
-            crate::uart_print(b")\n");
+                // System Control Register
+                asm!("mrs {}, SCTLR_EL1", out(reg) reg_val);
+                crate::uart_print(b"  SCTLR_EL1: ");
+                self.print_hex(reg_val);
+                crate::uart_print(b" (MMU=");
+                self.print_number(reg_val & 1);
+                crate::uart_print(b")\n");
 
-            // Translation Control Register
-            asm!("mrs {}, TCR_EL1", out(reg) reg_val);
-            crate::uart_print(b"  TCR_EL1:   ");
-            self.print_hex(reg_val);
+                // Translation Control Register
+                asm!("mrs {}, TCR_EL1", out(reg) reg_val);
+                crate::uart_print(b"  TCR_EL1:   ");
+                self.print_hex(reg_val);
+            }
+
+            #[cfg(target_arch = "riscv64")]
+            {
+                crate::uart_print(b"RISC-V System Registers:\n");
+
+                let mut reg_val: u64;
+
+                // Machine Status Register
+                asm!("csrr {}, sstatus", out(reg) reg_val);
+                crate::uart_print(b"  sstatus:   ");
+                self.print_hex(reg_val);
+                crate::uart_print(b"\n");
+
+                // Supervisor Trap Vector
+                asm!("csrr {}, stvec", out(reg) reg_val);
+                crate::uart_print(b"  stvec:     ");
+                self.print_hex(reg_val);
+                crate::uart_print(b"\n");
+
+                // Supervisor Address Translation and Protection
+                asm!("csrr {}, satp", out(reg) reg_val);
+                crate::uart_print(b"  satp:      ");
+                self.print_hex(reg_val);
+                crate::uart_print(b" (MMU=");
+                self.print_number((reg_val >> 60) & 0xF);
+                crate::uart_print(b")\n");
+
+                // Hart ID (if available)
+                asm!("csrr {}, mhartid", out(reg) reg_val);
+                crate::uart_print(b"  mhartid:   ");
+                self.print_hex(reg_val);
+            }
             crate::uart_print(b"\n");
         }
     }
@@ -338,7 +373,7 @@ impl Shell {
 
     /// Get PID syscall wrapper
     fn syscall_getpid(&self) -> Result<u32, SyscallError> {
-        let result: i64;
+        let mut result: i64 = 0;
         unsafe {
             #[cfg(target_arch = "aarch64")]
             asm!(
@@ -359,6 +394,17 @@ impl Shell {
                 syscall_num = in(reg) SyscallNumber::GetPid as u64,
                 result = out(reg) result,
                 out("rax") _,
+            );
+
+            #[cfg(target_arch = "riscv64")]
+            asm!(
+                "mv a7, {syscall_num}",
+                "ecall",
+                "mv {result}, a0",
+                syscall_num = in(reg) SyscallNumber::GetPid as u64,
+                result = out(reg) result,
+                out("a7") _,
+                out("a0") _,
             );
         }
 

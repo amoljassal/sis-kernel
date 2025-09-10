@@ -14,6 +14,15 @@ rustflags = [
     "-C", "relocation-model=static",
 ]
 
+# RISC-V 64-bit configuration
+[target.riscv64gc-unknown-none-elf]
+rustflags = [
+    "-C", "link-arg=-Tcrates/kernel/src/arch/riscv64/linker.ld",
+    "-C", "code-model=medium",
+    "-C", "target-feature=+m,+a,+f,+d,+c",
+    "-C", "relocation-model=static",
+]
+
 [unstable]
 build-std = ["core", "alloc"]
 build-std-features = ["compiler-builtins-mem"]
