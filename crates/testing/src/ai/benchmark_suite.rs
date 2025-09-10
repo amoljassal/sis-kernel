@@ -1,7 +1,7 @@
 // SIS Kernel AI Inference Benchmark Suite
 // Industry-grade AI performance validation against established baselines
 
-use crate::{TestSuiteConfig, StatisticalSummary, TestResult, TestError};
+use crate::{TestSuiteConfig, StatisticalSummary, TestError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

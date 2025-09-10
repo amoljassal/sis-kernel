@@ -2,7 +2,7 @@
 // Advanced memory safety analysis and leak detection
 
 use crate::{TestSuiteConfig, TestError};
-use crate::security::{MemorySafetyResults, MemoryLeakResults, LeakLocation};
+use crate::security::{MemoryLeakResults, LeakLocation};
 use std::collections::HashMap;
 
 pub struct MemorySafetyChecker {

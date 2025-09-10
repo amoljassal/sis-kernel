@@ -2,7 +2,6 @@
 // Professional visualization and report generation
 
 use crate::{ValidationReport, TestSuiteConfig, TestError};
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub mod visualization;

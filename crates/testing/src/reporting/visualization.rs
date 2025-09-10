@@ -3,7 +3,6 @@
 
 use crate::{ValidationReport, TestError};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 pub struct VisualizationEngine {
     chart_generators: Vec<ChartGenerator>,

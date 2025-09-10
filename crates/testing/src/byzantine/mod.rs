@@ -1,9 +1,8 @@
 // SIS Kernel Byzantine Fault Tolerance Testing
 // Testing consensus, fault tolerance, and distributed system resilience
 
-use crate::{TestSuiteConfig, TestResult, TestError};
+use crate::{TestSuiteConfig, TestError};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 pub mod consensus_testing;
 pub mod fault_injection;

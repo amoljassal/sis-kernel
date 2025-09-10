@@ -778,7 +778,7 @@ impl AnalyticsEngine {
                     row.push(1.0);
                 } else {
                     // Simplified correlation calculation
-                    let correlation = if (metric1 == "throughput" && metric2 == "latency") ||
+                    let correlation: f64 = if (metric1 == "throughput" && metric2 == "latency") ||
                                         (metric1 == "latency" && metric2 == "throughput") {
                         -0.75 // Negative correlation between throughput and latency
                     } else {

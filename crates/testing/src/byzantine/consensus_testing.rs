@@ -2,7 +2,7 @@
 // Testing consensus protocols under Byzantine conditions
 
 use crate::{TestSuiteConfig, TestError};
-use crate::byzantine::{MessageRound, ByzantineNode, FaultType, MessageType, Message};
+use crate::byzantine::{MessageRound, ByzantineNode, FaultType};
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 

@@ -1,9 +1,8 @@
 // SIS Kernel Property-Based Testing Suite
 // Correctness validation using property-based testing
 
-use crate::{TestSuiteConfig, TestResult, TestError};
+use crate::{TestSuiteConfig, TestError};
 use serde::{Deserialize, Serialize};
-use proptest::prelude::*;
 
 pub mod generators;
 pub mod invariants;
@@ -94,7 +93,14 @@ impl PropertyBasedTestSuite {
             if result.passed {
                 passed_properties += 1;
             } else {
-                failed_properties.push(result);
+                failed_properties.push(PropertyTestFailure {
+                    property_name: result.property_name,
+                    failure_description: "Property test failed".to_string(),
+                    counterexample: result.shrunk_counterexample.clone().unwrap_or("No counterexample".to_string()),
+                    shrunk_counterexample: result.shrunk_counterexample,
+                    test_case_count: result.test_case_count,
+                    shrinking_iterations: result.shrinking_iterations,
+                });
             }
         }
 
@@ -106,7 +112,14 @@ impl PropertyBasedTestSuite {
             if result.passed {
                 passed_properties += 1;
             } else {
-                failed_properties.push(result);
+                failed_properties.push(PropertyTestFailure {
+                    property_name: result.property_name,
+                    failure_description: "Property test failed".to_string(),
+                    counterexample: result.shrunk_counterexample.clone().unwrap_or("No counterexample".to_string()),
+                    shrunk_counterexample: result.shrunk_counterexample,
+                    test_case_count: result.test_case_count,
+                    shrinking_iterations: result.shrinking_iterations,
+                });
             }
         }
 
@@ -118,7 +131,14 @@ impl PropertyBasedTestSuite {
             if result.passed {
                 passed_properties += 1;
             } else {
-                failed_properties.push(result);
+                failed_properties.push(PropertyTestFailure {
+                    property_name: result.property_name,
+                    failure_description: "Property test failed".to_string(),
+                    counterexample: result.shrunk_counterexample.clone().unwrap_or("No counterexample".to_string()),
+                    shrunk_counterexample: result.shrunk_counterexample,
+                    test_case_count: result.test_case_count,
+                    shrinking_iterations: result.shrinking_iterations,
+                });
             }
         }
 
@@ -135,7 +155,14 @@ impl PropertyBasedTestSuite {
             if result.passed {
                 passed_properties += 1;
             } else {
-                failed_properties.push(result);
+                failed_properties.push(PropertyTestFailure {
+                    property_name: result.property_name,
+                    failure_description: "Property test failed".to_string(),
+                    counterexample: result.shrunk_counterexample.clone().unwrap_or("No counterexample".to_string()),
+                    shrunk_counterexample: result.shrunk_counterexample,
+                    test_case_count: result.test_case_count,
+                    shrinking_iterations: result.shrinking_iterations,
+                });
             }
         }
 
@@ -147,7 +174,14 @@ impl PropertyBasedTestSuite {
             if result.passed {
                 passed_properties += 1;
             } else {
-                failed_properties.push(result);
+                failed_properties.push(PropertyTestFailure {
+                    property_name: result.property_name,
+                    failure_description: "Property test failed".to_string(),
+                    counterexample: result.shrunk_counterexample.clone().unwrap_or("No counterexample".to_string()),
+                    shrunk_counterexample: result.shrunk_counterexample,
+                    test_case_count: result.test_case_count,
+                    shrinking_iterations: result.shrinking_iterations,
+                });
             }
         }
 

@@ -168,8 +168,8 @@ impl PropertyVerificationEngine {
                     } else {
                         failed_properties.push(PropertyFailure {
                             property_name: property.name.clone(),
-                            failure_reason: result.failure_reason.unwrap_or("Unknown failure".to_string()),
-                            counterexample: result.counterexample,
+                            failure_reason: result.failure_reason.clone().unwrap_or("Unknown failure".to_string()),
+                            counterexample: result.counterexample.clone(),
                             location: format!("{:?} property", property.category),
                             severity: match property.criticality {
                                 PropertyCriticality::Critical => PropertySeverity::Critical,
@@ -214,15 +214,17 @@ impl PropertyVerificationEngine {
             }
         }
         
+        let overall_time: f64 = verification_results.iter()
+            .map(|r| r.verification_time_seconds)
+            .sum();
+            
         Ok(PropertyVerificationResults {
             total_properties: self.system_properties.len() as u32,
             verified_properties,
             failed_properties,
             verification_results,
             category_statistics: category_stats,
-            overall_verification_time_seconds: verification_results.iter()
-                .map(|r| r.verification_time_seconds)
-                .sum(),
+            overall_verification_time_seconds: overall_time,
         })
     }
     

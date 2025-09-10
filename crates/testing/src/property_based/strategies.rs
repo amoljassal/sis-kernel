@@ -235,7 +235,7 @@ impl PropertyComposition {
         P: Fn(&TestingContext) -> bool,
     {
         move |contexts: &[TestingContext]| {
-            match temporal_constraint {
+            match &temporal_constraint {
                 TemporalConstraint::Always => {
                     contexts.iter().all(|ctx| base_property(ctx))
                 }

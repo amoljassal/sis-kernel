@@ -1,7 +1,7 @@
 // SIS Kernel AI Validation Suite
 // AI inference accuracy and model validation
 
-use crate::{TestSuiteConfig, TestResult, TestError};
+use crate::{TestSuiteConfig, TestError};
 use serde::{Deserialize, Serialize};
 
 pub mod benchmark_suite;

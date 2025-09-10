@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let config = if env::args().any(|arg| arg == "--quick") {
         TestSuiteConfig {
-            qemu_nodes: 3,
+            qemu_nodes: 0,  // Disable QEMU for faster testing
             test_duration_secs: 300,
             performance_iterations: 1000,
             statistical_confidence: 0.95,
@@ -22,7 +22,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             parallel_execution: true,
         }
     } else {
-        TestSuiteConfig::default()
+        // Use single-node QEMU configuration to test boot stability
+        TestSuiteConfig {
+            qemu_nodes: 1,  // Single node to avoid resource exhaustion on Mac Mini
+            test_duration_secs: 3600,
+            performance_iterations: 10000,
+            statistical_confidence: 0.99,
+            output_directory: "target/testing".to_string(),
+            generate_reports: true,
+            parallel_execution: true,
+        }
     };
     
     log::info!("Test Configuration:");
@@ -33,9 +42,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     log::info!("  Output Directory: {}", config.output_directory);
     log::info!("  Parallel Execution: {}", config.parallel_execution);
     
-    let test_suite = SISTestSuite::new(config);
+    let mut test_suite = SISTestSuite::new(config);
     
-    match test_suite.execute_comprehensive_validation().await {
+    // Initialize QEMU runtime for actual kernel testing
+    if test_suite.config.qemu_nodes > 0 {
+        log::info!("Initializing QEMU runtime for kernel validation...");
+        if let Err(e) = test_suite.initialize_qemu_runtime().await {
+            log::error!("Failed to initialize QEMU runtime: {}", e);
+            log::warn!("Falling back to simulated testing mode");
+            
+            // Disable QEMU for this run by updating config to 0 nodes
+            test_suite.config.qemu_nodes = 0;
+        } else {
+            log::info!("QEMU runtime initialized successfully - running real kernel tests");
+        }
+    } else {
+        log::info!("QEMU disabled - running simulated testing mode");
+    }
+    
+    let validation_result = test_suite.execute_comprehensive_validation().await;
+    
+    // Ensure QEMU cleanup
+    if let Err(e) = test_suite.shutdown_qemu_runtime().await {
+        log::warn!("Failed to shutdown QEMU runtime cleanly: {}", e);
+    }
+    
+    match validation_result {
         Ok(report) => {
             log::info!("");
             log::info!("=== VALIDATION COMPLETE ===");

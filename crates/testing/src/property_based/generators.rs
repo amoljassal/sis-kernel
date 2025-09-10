@@ -2,7 +2,6 @@
 // Custom generators for kernel data structures and operation sequences
 
 use proptest::prelude::*;
-use proptest::strategy::*;
 use proptest::prop_oneof;
 use serde::{Deserialize, Serialize};
 
