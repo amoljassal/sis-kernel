@@ -36,8 +36,12 @@ if [[ "${BRINGUP:-}" != "" ]]; then
   FEATURES="${FEATURES},bringup"
 fi
 if [[ "${AI:-}" != "" ]]; then
-  echo "[*] Enabling AI features (formal-verification,vector,aia)"
-  FEATURES="${FEATURES},arm64-ai,formal-verification"
+  echo "[*] Enabling AI features (NEON, formal-verification)"
+  FEATURES="${FEATURES},arm64-ai,formal-verification,neon-optimized"
+fi
+if [[ "${NEON:-}" != "" ]]; then
+  echo "[*] Forcing NEON-optimized benchmarks"
+  FEATURES="${FEATURES},neon-optimized"
 fi
 
 # Remove leading comma if present
@@ -70,6 +74,7 @@ if [[ ! -f "$FIRMWARE" ]]; then
 fi
 
 echo "[*] Launching QEMU (UEFI) with GICv3, highmem, and VirtIO devices ..."
+echo "[i] Quit: Ctrl+a, then x (monitor on stdio)"
 # Add debugging for VirtIO discovery if DEBUG env var is set
 DEBUG_FLAGS=""
 if [[ "${DEBUG:-}" != "" ]]; then
@@ -79,7 +84,7 @@ fi
 
 qemu-system-aarch64 \
   -M virt,gic-version=3,highmem=on,secure=off \
-  -cpu cortex-a72 \
+  -cpu cortex-a72,pmu=on \
   -m 512M \
   -nographic \
   -bios "$FIRMWARE" \

@@ -25,6 +25,7 @@ pub fn neural_network_benchmark() {
         ];
         
         let start_cycles = read_cycle_counter();
+        let t0 = read_cntvct();
         
         // Perform matrix multiplication using NEON SIMD
         let mut output = [0.0f32; 4];
@@ -50,11 +51,18 @@ pub fn neural_network_benchmark() {
         }
         
         let end_cycles = read_cycle_counter();
+        let t1 = read_cntvct();
         let cycles_used = end_cycles - start_cycles;
         
         crate::uart_print(b"[AI] Neural network layer computed in ");
         print_number(cycles_used as usize);
         crate::uart_print(b" cycles\n");
+
+        // Emit METRIC in microseconds using CNTVCT/FRQ
+        let dt_us = cntvct_delta_us(t0, t1);
+        crate::uart_print(b"METRIC ai_inference_us=");
+        print_number(dt_us as usize);
+        crate::uart_print(b"\n");
         
         // Show output
         crate::uart_print(b"[AI] Output: [");
@@ -69,6 +77,7 @@ pub fn neural_network_benchmark() {
         // Compare with non-SIMD version
         let start_cycles_scalar = read_cycle_counter();
         let mut output_scalar = [0.0f32; 4];
+        let t0s = read_cntvct();
         
         for i in 0..4 {
             let mut sum = 0.0f32;
@@ -79,11 +88,17 @@ pub fn neural_network_benchmark() {
         }
         
         let end_cycles_scalar = read_cycle_counter();
+        let t1s = read_cntvct();
         let cycles_scalar = end_cycles_scalar - start_cycles_scalar;
         
         crate::uart_print(b"[AI] Scalar version took ");
         print_number(cycles_scalar as usize);
         crate::uart_print(b" cycles\n");
+
+        let scalar_us = cntvct_delta_us(t0s, t1s);
+        crate::uart_print(b"METRIC ai_inference_scalar_us=");
+        print_number(scalar_us as usize);
+        crate::uart_print(b"\n");
         
         // Calculate speedup
         if cycles_scalar > 0 && cycles_used > 0 {
@@ -242,6 +257,7 @@ pub fn neon_optimized_matrix_multiply() {
         }
         
         let start_cycles = read_cycle_counter();
+        let t0 = read_cntvct();
         
         // Optimized NEON matrix multiplication using 4x4 blocks
         for i in (0..SIZE).step_by(4) {
@@ -323,11 +339,17 @@ pub fn neon_optimized_matrix_multiply() {
         }
         
         let end_cycles = read_cycle_counter();
+        let t1 = read_cntvct();
         let cycles_used = end_cycles - start_cycles;
         
         crate::uart_print(b"[NEON] 16x16 matrix multiplication completed in ");
         print_number(cycles_used as usize);
         crate::uart_print(b" cycles\n");
+
+        let us = cntvct_delta_us(t0, t1);
+        crate::uart_print(b"METRIC neon_matmul_us=");
+        print_number(us as usize);
+        crate::uart_print(b"\n");
         
         // Estimate performance
         let operations = SIZE * SIZE * SIZE * 2; // multiply-add operations
@@ -376,6 +398,29 @@ unsafe fn read_cycle_counter() -> u64 {
     let cycles: u64;
     asm!("mrs {}, PMCCNTR_EL0", out(reg) cycles);
     cycles
+}
+
+#[inline(always)]
+unsafe fn read_cntvct() -> u64 {
+    let v: u64;
+    asm!("mrs {}, CNTVCT_EL0", out(reg) v);
+    v
+}
+
+#[inline(always)]
+unsafe fn read_cntfrq() -> u64 {
+    let f: u64;
+    asm!("mrs {}, CNTFRQ_EL0", out(reg) f);
+    f
+}
+
+#[inline(always)]
+unsafe fn cntvct_delta_us(t0: u64, t1: u64) -> u64 {
+    let freq = read_cntfrq();
+    if freq == 0 { return 0; }
+    let delta = t1.wrapping_sub(t0);
+    // Convert ticks to microseconds: delta * 1_000_000 / freq
+    (delta.saturating_mul(1_000_000)) / freq
 }
 
 unsafe fn print_number(num: usize) {

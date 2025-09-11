@@ -1,0 +1,10 @@
+#!/usr/bin/expect -f
+set timeout 30
+spawn ./scripts/uefi_run.sh
+expect "sis>"
+send "ai_bench\r"
+expect "sis>"
+send "help\r"
+expect "sis>"
+send "exit\r"
+expect eof

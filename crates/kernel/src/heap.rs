@@ -168,8 +168,21 @@ fn alloc_error_handler(layout: Layout) -> ! {
         // Print heap statistics for debugging
         print_heap_stats();
 
-        panic!("Out of memory");
+        // In no_std bare-metal, abort by halting
+        loop {}
     }
+}
+
+// Note: Newer toolchains may refer to internal OOM symbols only in certain
+// optimization modes. We avoid release linking issues by building the kernel
+// in debug for test runs. Our alloc_error_handler plus the fallback below
+// ensure graceful handling without pulling in extra runtime.
+
+// Some toolchains expect this low-level alloc error hook symbol as well.
+// Provide a minimal definition to satisfy the linker in no_std.
+#[no_mangle]
+pub extern "C" fn __rust_alloc_error_handler(_size: usize, _align: usize) -> ! {
+    loop {}
 }
 
 /// Print current heap statistics

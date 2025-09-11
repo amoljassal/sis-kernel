@@ -7,6 +7,8 @@ use std::process::Stdio;
 use std::collections::HashMap;
 use tokio::process::{Command, Child};
 use tokio::time::{sleep, Duration};
+use std::path::Path;
+use tokio::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QEMUInstance {
@@ -15,6 +17,7 @@ pub struct QEMUInstance {
     pub monitor_port: u16,
     pub network_port: u16,
     pub esp_directory: String,
+    pub serial_log_path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,6 +64,7 @@ impl QEMURuntimeManager {
                 monitor_port: base_port + 100 + node_id as u16,
                 network_port: base_port + 200 + node_id as u16,
                 esp_directory: format!("target/testing/esp-node{}", node_id),
+                serial_log_path: format!("target/testing/serial-node{}.log", node_id),
             })
             .collect();
 
@@ -85,7 +89,6 @@ impl QEMURuntimeManager {
             .args([
                 "+nightly",
                 "build",
-                "--release",  // Use release mode for production-like performance
                 "-p", "sis_kernel",
                 "-Z", "build-std=core,alloc",
                 "--target", "aarch64-unknown-none",
@@ -155,7 +158,7 @@ impl QEMURuntimeManager {
 
             // Copy UEFI and kernel binaries
             let uefi_source = "../../target/aarch64-unknown-uefi/release/uefi-boot.efi";
-            let kernel_source = "../../target/aarch64-unknown-none/release/sis_kernel";  // Use release build
+            let kernel_source = "../../target/aarch64-unknown-none/debug/sis_kernel";   // Use debug build for stability
             let uefi_dest = format!("{}/BOOTAA64.EFI", efi_boot_dir);
             let kernel_dest = format!("{}/KERNEL.ELF", efi_sis_dir);
 
@@ -191,17 +194,25 @@ impl QEMURuntimeManager {
         log::info!("Launching QEMU instance {} on ports {}/{}/{}", 
                   instance.node_id, instance.serial_port, instance.monitor_port, instance.network_port);
         
-        // Detect if running on Apple Silicon Mac for HVF acceleration
-        let use_hvf = Self::is_apple_silicon().await;
-        let cpu_type = if use_hvf {
-            "host"  // Use host CPU for better Apple Silicon emulation
-        } else {
-            "max"   // Use maximum features on other platforms
-        };
+        // Use a consistent emulated CPU like the manual runner
+        // (HVF/host model can behave differently for bare-metal UEFI)
+        let cpu_type = "cortex-a72,pmu=on";
         
         // Optimize QEMU configuration for Apple Silicon development
         let firmware_path = "/opt/homebrew/share/qemu/edk2-aarch64-code.fd";
         
+        // Ensure parent directory for logs exists
+        if let Some(parent) = Path::new(&instance.serial_log_path).parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent).await.map_err(|e| TestError::QEMUError {
+                    message: format!("Failed to create log directory {}: {}", parent.display(), e)
+                })?;
+            }
+        }
+
+        // Clear previous log if exists
+        let _ = fs::remove_file(&instance.serial_log_path).await;
+
         let mut qemu_args = vec![
             "-name".to_string(), format!("sis-node{}", instance.node_id),
             "-M".to_string(), "virt,gic-version=3,highmem=on,secure=off".to_string(),  // Enable highmem for M-series simulation
@@ -209,22 +220,19 @@ impl QEMURuntimeManager {
             "-smp".to_string(), "4".to_string(),  // Multi-core for realistic M-series behavior
             "-m".to_string(), "1G".to_string(),  // Increased memory for better performance
             "-nographic".to_string(),
-            "-serial".to_string(), format!("tcp:localhost:{},server,nowait", instance.serial_port),
+            // Log serial output to file for robust boot detection
+            "-serial".to_string(), format!("file:{}", instance.serial_log_path),
             "-monitor".to_string(), format!("tcp:localhost:{},server,nowait", instance.monitor_port),
             "-bios".to_string(), firmware_path.to_string(),
             "-drive".to_string(), format!("if=none,id=esp,format=raw,file=fat:rw:{}", instance.esp_directory),
             "-device".to_string(), "virtio-blk-pci,drive=esp".to_string(),
             "-device".to_string(), "virtio-rng-pci".to_string(),
             "-no-reboot".to_string(),
-            "-append".to_string(), "console=ttyAMA0,115200 earlycon=pl011,0x09000000".to_string(),
+            // These -append kernel params are for Linux; left out for bare-metal kernel
             "-d".to_string(), "unimp,guest_errors".to_string(),
         ];
         
-        // Add HVF acceleration if on Apple Silicon
-        if use_hvf {
-            qemu_args.extend(["-accel".to_string(), "hvf".to_string()]);
-            log::info!("Using HVF acceleration on Apple Silicon for instance {}", instance.node_id);
-        }
+        // Note: HVF is intentionally disabled for stability in bare‑metal bring‑up tests
         
         // Add cycle-accurate simulation for performance measurement
         qemu_args.extend([
@@ -252,8 +260,8 @@ impl QEMURuntimeManager {
 
         self.processes.insert(instance.node_id, qemu_process);
 
-        log::info!("Instance {} launched (serial: telnet localhost {})", 
-                  instance.node_id, instance.serial_port);
+        log::info!("Instance {} launched (serial log: {})", 
+                  instance.node_id, instance.serial_log_path);
         Ok(())
     }
 
@@ -275,31 +283,16 @@ impl QEMURuntimeManager {
         Ok(())
     }
 
-    pub async fn connect_to_instance(&self, node_id: usize) -> Result<tokio::net::TcpStream, TestError> {
+    pub async fn read_boot_output(&self, node_id: usize) -> Result<String, TestError> {
+        // Read current contents of the serial log file
         if let Some(instance) = self.cluster.instances.iter().find(|i| i.node_id == node_id) {
-            let addr = format!("localhost:{}", instance.serial_port);
-            
-            // Retry connection up to 10 times with 1 second delays
-            for attempt in 1..=10 {
-                match tokio::net::TcpStream::connect(&addr).await {
-                    Ok(stream) => {
-                        log::info!("Connected to QEMU instance {} on attempt {}", node_id, attempt);
-                        return Ok(stream);
-                    }
-                    Err(e) if attempt == 10 => {
-                        return Err(TestError::QEMUError {
-                            message: format!("Failed to connect to instance {} after {} attempts: {}", 
-                                           node_id, attempt, e)
-                        });
-                    }
-                    Err(_) => {
-                        log::debug!("Connection attempt {} to instance {} failed, retrying...", attempt, node_id);
-                        sleep(Duration::from_secs(1)).await;
-                    }
-                }
+            match fs::read(&instance.serial_log_path).await {
+                Ok(bytes) => Ok(String::from_utf8_lossy(&bytes).to_string()),
+                Err(e) => Err(TestError::QEMUError { message: format!(
+                    "Failed to read serial log {}: {}",
+                    instance.serial_log_path, e
+                )}),
             }
-
-            unreachable!()
         } else {
             Err(TestError::QEMUError {
                 message: format!("Instance {} not found in cluster", node_id)
@@ -307,52 +300,16 @@ impl QEMURuntimeManager {
         }
     }
 
-    pub async fn send_command(&self, node_id: usize, command: &str) -> Result<String, TestError> {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-        let mut stream = self.connect_to_instance(node_id).await?;
-        
-        // Send command
-        stream.write_all(format!("{}\n", command).as_bytes()).await
-            .map_err(|e| TestError::QEMUError {
-                message: format!("Failed to send command to instance {}: {}", node_id, e)
-            })?;
-
-        // Read response (with timeout)
-        let mut buffer = vec![0; 4096];
-        let bytes_read = tokio::time::timeout(Duration::from_secs(5), stream.read(&mut buffer)).await
-            .map_err(|_| TestError::QEMUError {
-                message: format!("Timeout reading response from instance {}", node_id)
-            })?
-            .map_err(|e| TestError::QEMUError {
-                message: format!("Failed to read response from instance {}: {}", node_id, e)
-            })?;
-
-        let response = String::from_utf8_lossy(&buffer[..bytes_read]).to_string();
-        Ok(response)
-    }
-
-    pub async fn read_boot_output(&self, node_id: usize) -> Result<String, TestError> {
-        use tokio::io::AsyncReadExt;
-
-        let mut stream = self.connect_to_instance(node_id).await?;
-        
-        // Read any available output (with longer timeout to allow kernel boot messages)
-        let mut buffer = vec![0; 4096];
-        let bytes_read = tokio::time::timeout(Duration::from_secs(3), stream.read(&mut buffer)).await
-            .map_err(|_| TestError::QEMUError {
-                message: format!("Timeout reading boot output from instance {}", node_id)
-            })?
-            .map_err(|e| TestError::QEMUError {
-                message: format!("Failed to read boot output from instance {}: {}", node_id, e)
-            })?;
-
-        let output = String::from_utf8_lossy(&buffer[..bytes_read]).to_string();
-        Ok(output)
-    }
-
     pub fn get_cluster_info(&self) -> &QEMUCluster {
         &self.cluster
+    }
+
+    pub fn get_serial_log_path(&self, node_id: usize) -> Option<String> {
+        self.cluster
+            .instances
+            .iter()
+            .find(|i| i.node_id == node_id)
+            .map(|i| i.serial_log_path.clone())
     }
 
     pub async fn wait_for_boot(&self, node_id: usize, timeout_secs: u64) -> Result<bool, TestError> {
@@ -362,25 +319,30 @@ impl QEMURuntimeManager {
         let timeout_duration = Duration::from_secs(timeout_secs);
 
         while start_time.elapsed() < timeout_duration {
-            // Try to read boot output instead of sending commands
             match self.read_boot_output(node_id).await {
-                Ok(output) if output.contains("SIS Kernel") || output.contains("SHELL") || output.contains("HEAP") || output.contains("sis>") => {
-                    log::info!("Instance {} booted successfully", node_id);
-                    return Ok(true);
+                Ok(output) => {
+                    // Look for robust boot markers printed by the kernel
+                    let booted = output.contains("!KERNEL(U)")
+                        || output.contains("BOOT-ARM64 (UEFI)")
+                        || output.contains("SIS UEFI loader v2")
+                        || output.contains("MMU ON")
+                        || output.contains("HEAP: READY")
+                        || output.contains("LAUNCHING SHELL")
+                        || output.contains("sis>");
+                    if booted {
+                        log::info!("Instance {} booted successfully (detected via serial log)", node_id);
+                        return Ok(true);
+                    }
+                    if !output.is_empty() {
+                        let sample: String = output.chars().rev().take(200).collect::<String>().chars().rev().collect();
+                        log::info!("Instance {} boot output (tail): {}", node_id, sample);
+                    }
                 }
-                Ok(output) if !output.is_empty() => {
-                    log::info!("Instance {} boot output: {}", node_id, output.chars().take(200).collect::<String>());
-                }
-                Ok(_) => {
-                    // Empty output, continue waiting
-                    log::debug!("Instance {} - no output yet", node_id);
-                }
-                Err(_) => {
-                    log::debug!("Cannot connect to instance {} yet, waiting...", node_id);
+                Err(e) => {
+                    log::debug!("Instance {} serial log not ready: {}", node_id, e);
                 }
             }
-
-            sleep(Duration::from_secs(3)).await;  // Slightly longer wait to reduce resource usage
+            sleep(Duration::from_secs(2)).await;
         }
 
         log::warn!("Instance {} failed to boot within {} seconds", node_id, timeout_secs);

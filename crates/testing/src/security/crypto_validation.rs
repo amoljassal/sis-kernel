@@ -272,7 +272,7 @@ impl CryptoValidator {
             power_analysis_resistance: power_resistance,
             cache_timing_resistance: cache_resistance,
             electromagnetic_resistance: em_resistance,
-            acoustic_resistance: acoustic_resistance,
+            acoustic_resistance,
         })
     }
 
@@ -481,6 +481,12 @@ impl CryptoValidator {
     }
 }
 
+impl Default for CryptoTestVectors {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CryptoTestVectors {
     pub fn new() -> Self {
         Self {
@@ -488,6 +494,12 @@ impl CryptoTestVectors {
             hash_vectors: Vec::new(),
             signature_vectors: Vec::new(),
         }
+    }
+}
+
+impl Default for StatisticalTestSuite {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -526,6 +538,12 @@ impl StatisticalTestSuite {
             },
             custom_tests: Vec::new(),
         }
+    }
+}
+
+impl Default for ComplianceChecker {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

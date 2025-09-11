@@ -4,6 +4,8 @@
 use crate::{TestSuiteConfig, StatisticalSummary, TestError};
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
 
 #[derive(Debug, Clone)]
 struct NEONWorkloadResult {
@@ -42,7 +44,86 @@ impl PerformanceTestFramework {
             hybrid_mode: false,
         }
     }
-    
+
+    /// Try to parse real metrics from a serial log file
+    pub fn load_from_serial_log<P: AsRef<Path>>(path: P) -> Result<Option<PerformanceResults>, TestError> {
+        let path_ref = path.as_ref();
+        let data = match fs::read_to_string(path_ref) {
+            Ok(s) => s,
+            Err(e) => {
+                return Err(TestError::QEMUError { message: format!(
+                    "Failed to read serial log {}: {}", path_ref.display(), e)
+                });
+            }
+        };
+
+        let mut ai_us: Vec<f64> = Vec::new();
+        let mut ctx_ns: Vec<f64> = Vec::new();
+        let mut mem_ns: Vec<f64> = Vec::new();
+
+        for line in data.lines() {
+            // Parse lines like: METRIC ai_inference_us=1234
+            if let Some(rest) = line.strip_prefix("METRIC ") {
+                if let Some((k, v)) = rest.split_once('=') {
+                    if let Ok(val) = v.trim().parse::<f64>() {
+                        match k.trim() {
+                            "ai_inference_us" => ai_us.push(val),
+                            "ctx_switch_ns" => ctx_ns.push(val),
+                            "memory_alloc_ns" => mem_ns.push(val),
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        if ai_us.is_empty() && ctx_ns.is_empty() && mem_ns.is_empty() {
+            // No usable metrics present
+            return Ok(None);
+        }
+
+        // Helper percentile
+        fn pct(samples: &[f64], p: u8) -> f64 {
+            if samples.is_empty() { return 0.0; }
+            let mut v = samples.to_vec();
+            v.sort_by(|a,b| a.partial_cmp(b).unwrap());
+            let idx = ((p as f64 / 100.0) * ((v.len()-1) as f64)) as usize;
+            v[idx]
+        }
+
+        let ai_p99 = pct(&ai_us, 99);
+        let ai_mean = if ai_us.is_empty() { 0.0 } else { ai_us.iter().sum::<f64>() / ai_us.len() as f64 };
+        let ai_std = if ai_us.len() < 2 { 0.0 } else {
+            let m = ai_mean;
+            (ai_us.iter().map(|x| (x - m)*(x - m)).sum::<f64>() / ai_us.len() as f64).sqrt()
+        };
+
+        let ctx_p95 = pct(&ctx_ns, 95);
+        let ctx_mean = if ctx_ns.is_empty() { 0.0 } else { ctx_ns.iter().sum::<f64>() / ctx_ns.len() as f64 };
+        let mem_p99 = pct(&mem_ns, 99);
+
+        let combined: Vec<f64> = ai_us.iter().copied().chain(ctx_ns.iter().copied()).chain(mem_ns.iter().copied()).collect();
+        let latency_summary = StatisticalSummary::from_samples(&combined);
+
+        let perf = PerformanceResults {
+            ai_inference_p99_us: ai_p99,
+            ai_inference_mean_us: ai_mean,
+            ai_inference_std_us: ai_std,
+            ai_inference_samples: ai_us.len(),
+
+            context_switch_p95_ns: ctx_p95,
+            context_switch_mean_ns: ctx_mean,
+            context_switch_samples: ctx_ns.len(),
+
+            memory_allocation_p99_ns: mem_p99,
+            throughput_ops_per_sec: 0.0,
+            latency_summary,
+            timestamp: chrono::Utc::now(),
+        };
+
+        Ok(Some(perf))
+    }
+
     pub fn enable_hybrid_mode(&mut self) {
         self.hybrid_mode = true;
         log::info!("Performance framework enabled in hybrid real/simulated mode");

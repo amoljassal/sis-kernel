@@ -126,6 +126,11 @@ mod bringup {
         enable_mmu_el1();
         super::uart_print(b"MMU ON\n");
 
+        // Enable Performance Monitoring Unit for cycle counts
+        super::uart_print(b"PMU: INIT\n");
+        pmu_enable();
+        super::uart_print(b"PMU: READY\n");
+
         // 4) Initialize UART for interactive I/O
         super::uart_print(b"UART: INIT\n");
         crate::uart::init();
@@ -201,6 +206,9 @@ mod bringup {
             crate::ai_benchmark::run_ai_benchmarks();
         }
 
+        // 7.5) Emit kernel METRICs for test suite (ctx switch proxy + alloc)
+        crate::userspace_test::emit_kernel_metrics();
+
         // 8) Test syscall functionality
         super::uart_print(b"SYSCALL TESTS\n");
         crate::userspace_test::run_syscall_tests();
@@ -258,6 +266,23 @@ mod bringup {
         asm!("mrs {x}, SCTLR_EL1", x = out(reg) sctlr);
         sctlr |= (1 << 0) | (1 << 2) | (1 << 12); // M, C, I
         asm!("msr SCTLR_EL1, {x}", x = in(reg) sctlr);
+        asm!("isb", options(nostack, preserves_flags));
+    }
+
+    #[inline(never)]
+    unsafe fn pmu_enable() {
+        // PMCR_EL0: E=1 (enable), P=1 (reset event counters), C=1 (reset cycle counter)
+        let pmcr: u64 = (1 << 0) | (1 << 1) | (1 << 2);
+        asm!("msr PMCR_EL0, {x}", x = in(reg) pmcr, options(nostack, preserves_flags));
+
+        // Enable cycle counter in PMCNTENSET_EL0 (bit 31)
+        let pmcntenset: u64 = 1u64 << 31;
+        asm!("msr PMCNTENSET_EL0, {x}", x = in(reg) pmcntenset, options(nostack, preserves_flags));
+
+        // Allow EL0 reads (future use); harmless at EL1
+        let pmuserenr: u64 = 1; // EN=1
+        asm!("msr PMUSERENR_EL0, {x}", x = in(reg) pmuserenr, options(nostack, preserves_flags));
+
         asm!("isb", options(nostack, preserves_flags));
     }
 

@@ -3,7 +3,7 @@
 
 use sis_testing::{
     TestSuiteConfig,
-    formal::{FormalVerificationSuite, FormalVerificationResults, VerificationStatus},
+    formal::{FormalVerificationSuite, VerificationStatus},
     setup_logging
 };
 use std::path::Path;

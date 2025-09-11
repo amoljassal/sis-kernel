@@ -4,6 +4,9 @@
 //! the system call interface without requiring a separate userspace binary.
 
 use crate::syscall::SyscallError;
+extern crate alloc;
+use alloc::vec::Vec;
+use core::arch::asm;
 
 /// Test the write syscall by calling the handler directly (from kernel mode)
 pub fn test_write_syscall() {
@@ -289,3 +292,91 @@ pub fn measure_syscall_overhead() {
 
 // Note: These tests call the syscall handler directly from kernel mode
 // In a real system, userspace would use `svc #0` to invoke syscalls
+
+/// Emit METRIC lines for context-switch proxy (syscall) and memory allocation timings
+pub fn emit_kernel_metrics() {
+    unsafe {
+        crate::uart_print(b"[METRIC] Emitting kernel performance metrics (CNTVCT-based)\n");
+    }
+
+    // 1) Context-switch proxy: measure minimal syscall (getpid) using CNTVCT
+    for _ in 0..32 {
+        // Prepare frame for getpid
+        let mut frame = crate::syscall::SyscallFrame {
+            gpr: [0; 31],
+            sp_el0: 0,
+            elr_el1: 0,
+            spsr_el1: 0,
+        };
+        frame.gpr[8] = crate::syscall::SyscallNumber::GetPid as u64;
+
+        let t0 = unsafe { read_cntvct() };
+        let _ = crate::syscall::handle_syscall(&mut frame);
+        let t1 = unsafe { read_cntvct() };
+        let ns = unsafe { cntvct_delta_ns(t0, t1) };
+        unsafe {
+            crate::uart_print(b"METRIC ctx_switch_ns=");
+            print_number(ns as usize);
+            crate::uart_print(b"\n");
+        }
+    }
+
+    // 2) Memory allocation microbench: allocate and drop a small Vec
+    for _ in 0..64 {
+        let t0 = unsafe { read_cntvct() };
+        {
+            let mut v: Vec<u8> = Vec::with_capacity(1024);
+            // Touch a few bytes to force backing
+            for i in 0..16 { v.push(i as u8); }
+        }
+        let t1 = unsafe { read_cntvct() };
+        let ns = unsafe { cntvct_delta_ns(t0, t1) };
+        unsafe {
+            crate::uart_print(b"METRIC memory_alloc_ns=");
+            print_number(ns as usize);
+            crate::uart_print(b"\n");
+        }
+    }
+}
+
+#[inline(always)]
+unsafe fn read_cntvct() -> u64 {
+    let v: u64;
+    asm!("mrs {}, CNTVCT_EL0", out(reg) v);
+    v
+}
+
+#[inline(always)]
+unsafe fn read_cntfrq() -> u64 {
+    let f: u64;
+    asm!("mrs {}, CNTFRQ_EL0", out(reg) f);
+    f
+}
+
+#[inline(always)]
+unsafe fn cntvct_delta_ns(t0: u64, t1: u64) -> u64 {
+    let freq = read_cntfrq();
+    if freq == 0 { return 0; }
+    let delta = t1.wrapping_sub(t0);
+    // Convert ticks to nanoseconds: delta * 1_000_000_000 / freq
+    (delta.saturating_mul(1_000_000_000)) / freq
+}
+
+unsafe fn print_number(num: usize) {
+    if num == 0 {
+        crate::uart_print(b"0");
+        return;
+    }
+    let mut buf = [0u8; 20];
+    let mut i = 0;
+    let mut n = num;
+    while n > 0 {
+        buf[i] = b'0' + (n % 10) as u8;
+        n /= 10;
+        i += 1;
+    }
+    while i > 0 {
+        i -= 1;
+        crate::uart_print(&buf[i..i+1]);
+    }
+}
