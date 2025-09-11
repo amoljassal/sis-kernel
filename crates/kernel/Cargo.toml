@@ -39,6 +39,7 @@ iommu = []
 vfio = ["iommu"]
 ai = ["smp", "apic"]
 arm64-ai = ["ai"]
+neon-optimized = ["arm64-ai"]  # NEON SIMD optimization for Apple Silicon
 idt-selftest = []
 qemu-intel-iommu-sim = []
 affinity = ["smp","scheduler"]

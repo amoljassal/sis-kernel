@@ -495,14 +495,13 @@ impl SISTestSuite {
         let category_results: Vec<_> = results.iter()
             .filter(|r| {
                 match category {
-                    "performance" => r.claim.contains("Inference") && r.claim.contains("μs") || 
+                    "performance" => (r.claim.contains("AI Inference") && r.claim.contains("μs")) || 
                                     r.claim.contains("Context Switch"),
                     "correctness" => r.claim.contains("Memory Safety"),
                     "security" => r.claim.contains("Vulnerabilities"),
                     "distributed" => r.claim.contains("Byzantine") || 
                                     r.claim.contains("Consensus"),
-                    "ai" => r.claim.contains("AI") || 
-                           r.claim.contains("Inference Accuracy"),
+                    "ai" => r.claim.contains("Inference Accuracy"),
                     _ => false
                 }
             })

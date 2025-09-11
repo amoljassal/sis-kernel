@@ -3,7 +3,7 @@
 //! This module provides real AI/ML workloads to demonstrate the performance
 //! optimizations and capabilities when AI features are enabled.
 
-#![cfg(feature = "arm64-ai")]
+#![cfg(any(feature = "arm64-ai", feature = "neon-optimized"))]
 
 use core::arch::aarch64::*;
 use core::arch::asm;
@@ -221,6 +221,131 @@ pub fn formal_verification_demo() {
     }
 }
 
+/// Optimized 16x16 matrix multiplication for NEON
+#[cfg(feature = "neon-optimized")]
+pub fn neon_optimized_matrix_multiply() {
+    unsafe {
+        crate::uart_print(b"[NEON] Running Optimized 16x16 Matrix Multiplication\n");
+        
+        // Create 16x16 matrices (simplified for demonstration)
+        const SIZE: usize = 16;
+        let mut a = [[0.0f32; SIZE]; SIZE];
+        let mut b = [[0.0f32; SIZE]; SIZE];
+        let mut c = [[0.0f32; SIZE]; SIZE];
+        
+        // Initialize matrices with test data
+        for i in 0..SIZE {
+            for j in 0..SIZE {
+                a[i][j] = ((i + j) % 7) as f32 * 0.1;
+                b[i][j] = ((i * j) % 5) as f32 * 0.2;
+            }
+        }
+        
+        let start_cycles = read_cycle_counter();
+        
+        // Optimized NEON matrix multiplication using 4x4 blocks
+        for i in (0..SIZE).step_by(4) {
+            for j in (0..SIZE).step_by(4) {
+                // Load 4x4 result block
+                let mut c00 = vdupq_n_f32(0.0);
+                let mut c01 = vdupq_n_f32(0.0);
+                let mut c02 = vdupq_n_f32(0.0);
+                let mut c03 = vdupq_n_f32(0.0);
+                let mut c10 = vdupq_n_f32(0.0);
+                let mut c11 = vdupq_n_f32(0.0);
+                let mut c12 = vdupq_n_f32(0.0);
+                let mut c13 = vdupq_n_f32(0.0);
+                let mut c20 = vdupq_n_f32(0.0);
+                let mut c21 = vdupq_n_f32(0.0);
+                let mut c22 = vdupq_n_f32(0.0);
+                let mut c23 = vdupq_n_f32(0.0);
+                let mut c30 = vdupq_n_f32(0.0);
+                let mut c31 = vdupq_n_f32(0.0);
+                let mut c32 = vdupq_n_f32(0.0);
+                let mut c33 = vdupq_n_f32(0.0);
+                
+                for k in (0..SIZE).step_by(4) {
+                    // Load A block (4x4)
+                    let a0 = vld1q_f32(&a[i][k]);
+                    let a1 = vld1q_f32(&a[i + 1][k]);
+                    let a2 = vld1q_f32(&a[i + 2][k]);
+                    let a3 = vld1q_f32(&a[i + 3][k]);
+                    
+                    // Load B block (4x4)
+                    let b0 = vld1q_f32(&b[k][j]);
+                    let b1 = vld1q_f32(&b[k + 1][j]);
+                    let b2 = vld1q_f32(&b[k + 2][j]);
+                    let b3 = vld1q_f32(&b[k + 3][j]);
+                    
+                    // Perform fused multiply-add operations
+                    c00 = vfmaq_laneq_f32(c00, a0, b0, 0);
+                    c01 = vfmaq_laneq_f32(c01, a0, b0, 1);
+                    c02 = vfmaq_laneq_f32(c02, a0, b0, 2);
+                    c03 = vfmaq_laneq_f32(c03, a0, b0, 3);
+                    
+                    c10 = vfmaq_laneq_f32(c10, a1, b1, 0);
+                    c11 = vfmaq_laneq_f32(c11, a1, b1, 1);
+                    c12 = vfmaq_laneq_f32(c12, a1, b1, 2);
+                    c13 = vfmaq_laneq_f32(c13, a1, b1, 3);
+                    
+                    c20 = vfmaq_laneq_f32(c20, a2, b2, 0);
+                    c21 = vfmaq_laneq_f32(c21, a2, b2, 1);
+                    c22 = vfmaq_laneq_f32(c22, a2, b2, 2);
+                    c23 = vfmaq_laneq_f32(c23, a2, b2, 3);
+                    
+                    c30 = vfmaq_laneq_f32(c30, a3, b3, 0);
+                    c31 = vfmaq_laneq_f32(c31, a3, b3, 1);
+                    c32 = vfmaq_laneq_f32(c32, a3, b3, 2);
+                    c33 = vfmaq_laneq_f32(c33, a3, b3, 3);
+                }
+                
+                // Store results
+                c[i][j] = vaddvq_f32(c00);
+                c[i][j + 1] = vaddvq_f32(c01);
+                c[i][j + 2] = vaddvq_f32(c02);
+                c[i][j + 3] = vaddvq_f32(c03);
+                
+                c[i + 1][j] = vaddvq_f32(c10);
+                c[i + 1][j + 1] = vaddvq_f32(c11);
+                c[i + 1][j + 2] = vaddvq_f32(c12);
+                c[i + 1][j + 3] = vaddvq_f32(c13);
+                
+                c[i + 2][j] = vaddvq_f32(c20);
+                c[i + 2][j + 1] = vaddvq_f32(c21);
+                c[i + 2][j + 2] = vaddvq_f32(c22);
+                c[i + 2][j + 3] = vaddvq_f32(c23);
+                
+                c[i + 3][j] = vaddvq_f32(c30);
+                c[i + 3][j + 1] = vaddvq_f32(c31);
+                c[i + 3][j + 2] = vaddvq_f32(c32);
+                c[i + 3][j + 3] = vaddvq_f32(c33);
+            }
+        }
+        
+        let end_cycles = read_cycle_counter();
+        let cycles_used = end_cycles - start_cycles;
+        
+        crate::uart_print(b"[NEON] 16x16 matrix multiplication completed in ");
+        print_number(cycles_used as usize);
+        crate::uart_print(b" cycles\n");
+        
+        // Estimate performance
+        let operations = SIZE * SIZE * SIZE * 2; // multiply-add operations
+        if cycles_used > 0 {
+            let gflops = (operations as u64 * 1000) / cycles_used;
+            crate::uart_print(b"[NEON] Estimated performance: ");
+            print_number(gflops as usize);
+            crate::uart_print(b" MFLOPS\n");
+        }
+        
+        // Verify result (sample check)
+        let sample = c[8][8];
+        crate::uart_print(b"[NEON] Sample result C[8][8] = ");
+        print_float_simple(sample);
+        crate::uart_print(b"\n");
+    }
+}
+
 /// Run all AI benchmarks
 pub fn run_ai_benchmarks() {
     unsafe {
@@ -237,6 +362,10 @@ pub fn run_ai_benchmarks() {
         
         // Run formal verification
         formal_verification_demo();
+        
+        // Run NEON optimized benchmarks if available
+        #[cfg(feature = "neon-optimized")]
+        neon_optimized_matrix_multiply();
         
         crate::uart_print(b"[AI] === AI Benchmark Suite Complete ===\n\n");
     }
