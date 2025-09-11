@@ -16,14 +16,12 @@ pub struct CorrectnessResults {
 }
 
 pub struct CorrectnessValidationSuite {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
 }
 
 impl CorrectnessValidationSuite {
     pub fn new(config: &TestSuiteConfig) -> Self {
-        Self {
-            config: config.clone(),
-        }
+        Self { _config: config.clone() }
     }
     
     pub async fn verify_all_properties(&self) -> Result<CorrectnessResults, TestError> {

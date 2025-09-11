@@ -152,7 +152,7 @@ pub struct SecureEnclave {
 #### Week 1: Foundation with Formal Verification
 **Days 1-2: Boot Infrastructure + Verification**
 ```rust
-// src/arch/riscv64/boot.S - OpenSBI integration
+// crates/kernel/src/arch/riscv64/boot.S - OpenSBI integration
 .section .text.boot
 .global _start
 _start:
@@ -168,7 +168,7 @@ _start:
 
 **Days 3-4: Memory Management + Sailor Validation**
 ```rust
-// src/arch/riscv64/mmu.rs - Sv48 with Sv57 abstraction
+// crates/kernel/src/arch/riscv64/mmu.rs - Sv48 with Sv57 abstraction
 pub trait PageTableImpl {
     const LEVELS: usize;
     fn map_page(&mut self, vaddr: VirtAddr, paddr: PhysAddr, flags: PageFlags);
@@ -185,7 +185,7 @@ impl PageTableImpl for Sv48PageTable {
 
 **Days 5-7: AIA Interrupt Handling**
 ```rust
-// src/arch/riscv64/interrupts.rs - AIA-first with PLIC fallback
+// crates/kernel/src/arch/riscv64/interrupts.rs - AIA-first with PLIC fallback
 #[cfg(feature = "aia")]
 pub fn init_interrupt_controller() -> Result<(), InterruptError> {
     let aplic = AdvancedPLIC::new(dtb_get_aplic_base()?);
@@ -205,7 +205,7 @@ pub fn init_interrupt_controller() -> Result<(), InterruptError> {
 #### Week 2: System Integration + Performance
 **Days 8-10: System Calls + FastPath Optimization**
 ```rust
-// src/arch/riscv64/syscall.rs - seL4-inspired fastpath
+// crates/kernel/src/arch/riscv64/syscall.rs - seL4-inspired fastpath
 #[no_mangle]
 pub unsafe extern "C" fn syscall_handler(frame: *mut TrapFrame) {
     let frame = &mut *frame;
@@ -223,7 +223,7 @@ pub unsafe extern "C" fn syscall_handler(frame: *mut TrapFrame) {
 
 **Days 11-12: Context Switching + Sailor Verification**
 ```rust
-// src/arch/riscv64/context.rs - Sailor-validated state management
+// crates/kernel/src/arch/riscv64/context.rs - Sailor-validated state management
 pub struct RiscvContext {
     // Architecturally-required state (validated by Sailor)
     general_regs: [usize; 32],
@@ -244,7 +244,7 @@ fn validate_context_completeness() {
 
 **Days 13-14: Device Discovery + Testing**
 ```rust
-// src/arch/riscv64/dtb.rs - Device tree parsing with validation
+// crates/kernel/src/arch/riscv64/dtb.rs - Device tree parsing with validation
 pub struct DeviceTreeParser {
     dtb_base: *const u8,
     validated_nodes: HashMap<String, DeviceNode>,
@@ -268,7 +268,7 @@ impl DeviceTreeParser {
 #### Week 3: Vector Extensions + AI Acceleration
 **Days 15-17: RISC-V Vector Extension Integration**
 ```rust
-// src/arch/riscv64/vector.rs - V extension for AI workloads
+// crates/kernel/src/arch/riscv64/vector.rs - V extension for AI workloads
 pub struct VectorProcessor {
     vlen: usize,              // Vector length from hardware
     elen: usize,              // Element width
@@ -314,7 +314,7 @@ impl CacheAwareScheduler {
 #### Week 4: Advanced Features + Hardware Validation
 **Days 20-21: IOMMU Integration**
 ```rust
-// src/arch/riscv64/iommu.rs - Secure DMA management
+// crates/kernel/src/arch/riscv64/iommu.rs - Secure DMA management
 pub struct RiscvIOMMU {
     base_address: PhysAddr,
     translation_tables: IOMMUPageTables,
@@ -337,7 +337,7 @@ impl RiscvIOMMU {
 
 **Days 22-28: Vikram 3201 Board Support + Hardware Validation**
 ```rust
-// src/arch/riscv64/boards/vikram3201.rs
+// crates/kernel/src/arch/riscv64/boards/vikram3201.rs
 pub struct Vikram3201Board {
     cpu_frequency: u64,
     memory_layout: MemoryLayout,
@@ -617,7 +617,7 @@ impl IndigenousProcessorEcosystem {
 
 #### 2. **Board Support Package Architecture**
 ```rust
-// src/arch/riscv64/boards/vikram3201/
+// crates/kernel/src/arch/riscv64/boards/vikram3201/
 pub mod vikram3201 {
     use super::*;
     

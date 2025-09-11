@@ -102,7 +102,7 @@ sudo apt-get install gcc-riscv64-linux-gnu
 
 #### Day 1-2: Boot Infrastructure
 ```rust
-// Create: src/arch/riscv64/boot.S
+// Create: crates/kernel/src/arch/riscv64/boot.S
 .section .text.boot
 .global _start
 _start:
@@ -119,7 +119,7 @@ _start:
 
 #### Day 3-4: Memory Management
 ```rust
-// Create: src/arch/riscv64/mmu.rs
+// Create: crates/kernel/src/arch/riscv64/mmu.rs
 pub struct PageTable {
     entries: [PageTableEntry; 512],
 }
@@ -133,7 +133,7 @@ impl PageTable {
 
 #### Day 5-7: Interrupt Handling
 ```rust
-// Create: src/arch/riscv64/interrupts.rs
+// Create: crates/kernel/src/arch/riscv64/interrupts.rs
 pub fn init_plic() {
     // Initialize Platform-Level Interrupt Controller
 }
@@ -148,7 +148,7 @@ pub fn init_clint() {
 
 #### Day 8-10: System Call Interface
 ```rust
-// Create: src/arch/riscv64/syscall.rs
+// Create: crates/kernel/src/arch/riscv64/syscall.rs
 #[no_mangle]
 pub extern "C" fn syscall_handler(frame: &mut TrapFrame) {
     match frame.a7 { // syscall number in a7
@@ -161,7 +161,7 @@ pub extern "C" fn syscall_handler(frame: &mut TrapFrame) {
 
 #### Day 11-12: Context Switching
 ```rust
-// Create: src/arch/riscv64/context.rs
+// Create: crates/kernel/src/arch/riscv64/context.rs
 pub struct Context {
     ra: usize,  // Return address
     sp: usize,  // Stack pointer
@@ -183,7 +183,7 @@ pub unsafe fn switch_context(old: *mut Context, new: *const Context) {
 
 #### Day 15-17: Device Support
 ```rust
-// Create: src/arch/riscv64/devices.rs
+// Create: crates/kernel/src/arch/riscv64/devices.rs
 pub fn init_virtio_mmio() {
     // VirtIO MMIO device initialization
 }
@@ -195,7 +195,7 @@ pub fn init_uart_16550() {
 
 #### Day 18-19: SMP Support
 ```rust
-// Create: src/arch/riscv64/smp.rs
+// Create: crates/kernel/src/arch/riscv64/smp.rs
 pub fn boot_secondary_harts() {
     // Multi-core initialization
 }
@@ -211,7 +211,7 @@ pub fn boot_secondary_harts() {
 
 #### Day 22-24: Board Support Package
 ```rust
-// Create: src/arch/riscv64/boards/vikram3201.rs
+// Create: crates/kernel/src/arch/riscv64/boards/vikram3201.rs
 pub struct Vikram3201Board {
     // Board-specific configuration
 }
@@ -246,14 +246,14 @@ impl Board for Vikram3201Board {
 # Add to Cargo.toml
 [target.riscv64gc-unknown-none-elf]
 rustflags = [
-    "-C", "link-arg=-Tsrc/arch/riscv64/linker.ld",
+    "-C", "link-arg=-Tcrates/kernel/src/arch/riscv64/linker.ld",
     "-C", "code-model=medium",
 ]
 ```
 
 ### Linker Script
 ```ld
-/* Create: src/arch/riscv64/linker.ld */
+/* Create: crates/kernel/src/arch/riscv64/linker.ld */
 OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
@@ -289,7 +289,7 @@ SECTIONS {
 
 ### New Files to Create
 ```
-src/arch/riscv64/
+crates/kernel/src/arch/riscv64/
 ├── boot.S              # Boot assembly (~100 lines)
 ├── vectors.S           # Exception vectors (~150 lines)
 ├── mod.rs             # Architecture module (~50 lines)
@@ -310,13 +310,13 @@ scripts/
 
 ### Files to Modify
 ```rust
-// src/main.rs - Add RISC-V entry point
+// crates/kernel/src/main.rs - Add RISC-V entry point
 #[cfg(target_arch = "riscv64")]
 mod arch {
     pub use crate::arch::riscv64::*;
 }
 
-// src/lib.rs - Add architecture detection
+// crates/kernel/src/lib.rs - Add architecture detection (if applicable)
 #[cfg(target_arch = "riscv64")]
 pub const ARCH: &str = "riscv64";
 
@@ -449,7 +449,7 @@ git checkout -b feature/riscv-support
 rustup target add riscv64gc-unknown-none-elf
 
 # 3. Create directory structure
-mkdir -p src/arch/riscv64/boards
+mkdir -p crates/kernel/src/arch/riscv64/boards
 mkdir -p scripts/riscv64
 
 # 4. Start implementation

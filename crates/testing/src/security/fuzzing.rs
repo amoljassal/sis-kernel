@@ -5,9 +5,9 @@ use crate::{TestSuiteConfig, TestError};
 use std::collections::HashMap;
 
 pub struct FuzzingEngine {
-    config: TestSuiteConfig,
-    input_generators: Vec<InputGenerator>,
-    mutation_strategies: Vec<MutationStrategy>,
+    _config: TestSuiteConfig,
+    _input_generators: Vec<InputGenerator>,
+    _mutation_strategies: Vec<MutationStrategy>,
     coverage_tracker: CoverageTracker,
 }
 
@@ -67,9 +67,9 @@ pub struct CoverageTracker {
 impl FuzzingEngine {
     pub fn new(config: &TestSuiteConfig) -> Self {
         Self {
-            config: config.clone(),
-            input_generators: Self::create_input_generators(),
-            mutation_strategies: Self::create_mutation_strategies(),
+            _config: config.clone(),
+            _input_generators: Self::create_input_generators(),
+            _mutation_strategies: Self::create_mutation_strategies(),
             coverage_tracker: CoverageTracker::new(),
         }
     }

@@ -13,6 +13,7 @@ pub mod distributed;
 pub mod security;
 pub mod ai;
 pub mod formal;
+#[cfg(feature = "property-based-tests")]
 pub mod property_based;
 pub mod byzantine;
 pub mod reporting;
@@ -267,6 +268,9 @@ impl SISTestSuite {
 
         self.qemu_runtime = Some(qemu_manager);
         self.qemu_all_booted = all_booted;
+        // When QEMU is in use, default to QEMU-aware thresholds unless overridden
+        // This keeps CI thresholds realistic under emulation.
+        std::env::set_var("SIS_CI_ENV", "qemu");
         if all_booted {
             log::info!("QEMU runtime initialized with {} node(s); boot detected via serial log", self.config.qemu_nodes);
         } else {
@@ -294,6 +298,7 @@ impl SISTestSuite {
 
         // Attempt to load real performance results from serial log if available
         let mut real_perf: Option<performance::PerformanceResults> = None;
+        let mut metrics_dump: Option<performance::ParsedMetrics> = None;
         if self.qemu_all_booted {
             if let Some(ref mgr) = self.qemu_runtime {
                 if let Some(log_path) = mgr.get_serial_log_path(0) {
@@ -302,13 +307,14 @@ impl SISTestSuite {
                     let mut loaded = false;
                     loop {
                         match performance::PerformanceTestFramework::load_from_serial_log(&log_path) {
-                            Ok(Some(perf)) => {
+                            Ok((Some(perf), dump)) => {
                                 log::info!("Loaded real performance metrics from {}", log_path);
                                 real_perf = Some(perf);
+                                metrics_dump = dump;
                                 loaded = true;
                                 break;
                             }
-                            Ok(None) => {
+                            Ok((None, _)) => {
                                 if std::time::Instant::now() >= deadline { break; }
                                 tokio::time::sleep(std::time::Duration::from_millis(800)).await;
                             }
@@ -322,6 +328,21 @@ impl SISTestSuite {
                         log::info!("No METRIC lines found in {}; falling back to benchmark suite", log_path);
                     }
                 }
+            }
+        }
+
+        // Persist metrics dump if available
+        if let (Some(ref dump), true) = (&metrics_dump, self.config.generate_reports) {
+            let out_dir = &self.config.output_directory;
+            let _ = std::fs::create_dir_all(out_dir);
+            let out_file = format!("{}/metrics_dump.json", out_dir);
+            match serde_json::to_string_pretty(dump) {
+                Ok(s) => {
+                    if let Err(e) = std::fs::write(&out_file, s) {
+                        log::warn!("Failed to write metrics dump {}: {}", out_file, e);
+                    }
+                }
+                Err(e) => log::warn!("Failed to serialize metrics dump: {}", e),
             }
         }
 

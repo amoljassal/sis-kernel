@@ -295,12 +295,19 @@ pub fn measure_syscall_overhead() {
 
 /// Emit METRIC lines for context-switch proxy (syscall) and memory allocation timings
 pub fn emit_kernel_metrics() {
-    unsafe {
-        crate::uart_print(b"[METRIC] Emitting kernel performance metrics (CNTVCT-based)\n");
+    #[cfg(feature = "perf-verbose")]
+    unsafe { crate::uart_print(b"[METRIC] Emitting kernel performance metrics (CNTVCT-based)\n"); }
+
+    // Warm-up syscall path
+    for _ in 0..16 {
+        let mut frame = crate::syscall::SyscallFrame { gpr: [0;31], sp_el0:0, elr_el1:0, spsr_el1:0 };
+        frame.gpr[8] = crate::syscall::SyscallNumber::GetPid as u64;
+        let _ = crate::syscall::handle_syscall(&mut frame);
     }
 
     // 1) Context-switch proxy: measure minimal syscall (getpid) using CNTVCT
-    for _ in 0..32 {
+    let mut ctx_samples: Vec<u64> = Vec::with_capacity(128);
+    for _ in 0..128 {
         // Prepare frame for getpid
         let mut frame = crate::syscall::SyscallFrame {
             gpr: [0; 31],
@@ -319,10 +326,27 @@ pub fn emit_kernel_metrics() {
             print_number(ns as usize);
             crate::uart_print(b"\n");
         }
+        ctx_samples.push(ns);
+    }
+
+    // Summary for ctx_switch_ns
+    if let Some((p50, p95, p99)) = percentiles(&mut ctx_samples) {
+        unsafe {
+            crate::uart_print(b"[SUMMARY] ctx_switch_ns: P50="); print_number(p50 as usize);
+            crate::uart_print(b" ns, P95="); print_number(p95 as usize);
+            crate::uart_print(b" ns, P99="); print_number(p99 as usize); crate::uart_print(b" ns\n");
+        }
+    }
+
+    // Warm-up allocator path
+    for _ in 0..8 {
+        let mut v: Vec<u8> = Vec::with_capacity(256);
+        for i in 0..16 { v.push(i as u8); }
     }
 
     // 2) Memory allocation microbench: allocate and drop a small Vec
-    for _ in 0..64 {
+    let mut alloc_samples: Vec<u64> = Vec::with_capacity(128);
+    for _ in 0..128 {
         let t0 = unsafe { read_cntvct() };
         {
             let mut v: Vec<u8> = Vec::with_capacity(1024);
@@ -335,6 +359,73 @@ pub fn emit_kernel_metrics() {
             crate::uart_print(b"METRIC memory_alloc_ns=");
             print_number(ns as usize);
             crate::uart_print(b"\n");
+        }
+        alloc_samples.push(ns);
+    }
+
+    // Summary for memory_alloc_ns
+    if let Some((p50, p95, p99)) = percentiles(&mut alloc_samples) {
+        unsafe {
+            crate::uart_print(b"[SUMMARY] memory_alloc_ns: P50="); print_number(p50 as usize);
+            crate::uart_print(b" ns, P95="); print_number(p95 as usize);
+            crate::uart_print(b" ns, P99="); print_number(p99 as usize); crate::uart_print(b" ns\n");
+        }
+    }
+}
+
+/// Measure a real cooperative context switch using a minimal AArch64 context
+/// switch routine. Emits METRIC real_ctx_switch_ns=<ns> for multiple samples.
+#[cfg(target_arch = "aarch64")]
+pub fn bench_real_context_switch() {
+    unsafe {
+        crate::uart_print(b"[PERF] Real context-switch benchmark (AArch64)\n");
+    }
+
+    use crate::aarch64_context::{A64Context, aarch64_context_switch, init_context};
+
+    #[repr(C, align(16))]
+    struct AlignedStack([u8; 4096]);
+    static mut A_STACK: AlignedStack = AlignedStack([0; 4096]);
+    static mut CTX_MAIN: A64Context = A64Context::new();
+    static mut CTX_A: A64Context = A64Context::new();
+
+    // Shared timing state between main and task A
+    static mut T0: u64 = 0;
+    static mut REMAIN: u32 = 0;
+
+    extern "C" fn task_a_entry() -> ! {
+        loop {
+            let t1 = unsafe { read_cntvct() };
+            let ns = unsafe { cntvct_delta_ns(T0, t1) };
+            unsafe {
+                crate::uart_print(b"METRIC real_ctx_switch_ns=");
+                print_number(ns as usize);
+                crate::uart_print(b"\n");
+            }
+            // Switch back to main
+            unsafe { aarch64_context_switch(&raw mut CTX_A, &raw const CTX_MAIN); }
+        }
+    }
+
+    unsafe {
+        init_context(
+            &raw mut CTX_A,
+            (&raw mut A_STACK.0) as *mut [u8; 4096] as *mut u8,
+            4096,
+            task_a_entry,
+        );
+
+        // Warm-up a few switches
+        for _ in 0..8 {
+            T0 = read_cntvct();
+            aarch64_context_switch(&raw mut CTX_MAIN, &raw const CTX_A);
+        }
+
+        // Collect samples
+        REMAIN = 64;
+        for _ in 0..REMAIN {
+            T0 = read_cntvct();
+            aarch64_context_switch(&raw mut CTX_MAIN, &raw const CTX_A);
         }
     }
 }
@@ -360,6 +451,21 @@ unsafe fn cntvct_delta_ns(t0: u64, t1: u64) -> u64 {
     let delta = t1.wrapping_sub(t0);
     // Convert ticks to nanoseconds: delta * 1_000_000_000 / freq
     (delta.saturating_mul(1_000_000_000)) / freq
+}
+
+fn percentiles(v: &mut Vec<u64>) -> Option<(u64,u64,u64)> {
+    if v.is_empty() { return None; }
+    v.sort_unstable();
+    // Use floor to avoid needing floating-point round() in no_std
+    let idx = |p: f64| -> usize {
+        let x = p * ((v.len() as f64) - 1.0);
+        let i = if x < 0.0 { 0 } else { x as usize };
+        if i >= v.len() { v.len() - 1 } else { i }
+    };
+    let p50 = v[idx(0.50)];
+    let p95 = v[idx(0.95)];
+    let p99 = v[idx(0.99)];
+    Some((p50,p95,p99))
 }
 
 unsafe fn print_number(num: usize) {

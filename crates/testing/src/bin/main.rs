@@ -11,9 +11,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     log::info!("SIS Kernel Industry-Grade Test Suite");
     log::info!("====================================");
     
-    let config = if env::args().any(|arg| arg == "--quick") {
+    let args: Vec<String> = env::args().collect();
+    let quick = args.iter().any(|a| a == "--quick");
+    let full = args.iter().any(|a| a == "--full");
+
+    let config = if full {
+        log::info!("Mode: full (comprehensive)");
+        // Comprehensive run (heavier and slower)
         TestSuiteConfig {
-            qemu_nodes: 0,  // Disable QEMU for faster testing
+            qemu_nodes: 1,
+            test_duration_secs: 3600,
+            performance_iterations: 10000,
+            statistical_confidence: 0.99,
+            output_directory: "target/testing".to_string(),
+            generate_reports: true,
+            parallel_execution: true,
+        }
+    } else if quick {
+        log::info!("Mode: quick (no QEMU, simulated)");
+        // Fast run without QEMU
+        TestSuiteConfig {
+            qemu_nodes: 0,
             test_duration_secs: 300,
             performance_iterations: 1000,
             statistical_confidence: 0.95,
@@ -22,11 +40,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             parallel_execution: true,
         }
     } else {
-        // Use single-node QEMU configuration to test boot stability
+        log::info!("Mode: default (single QEMU node, moderate iterations)");
+        // Default: single-node QEMU with moderate iterations
         TestSuiteConfig {
-            qemu_nodes: 1,  // Single node to avoid resource exhaustion on Mac Mini
-            test_duration_secs: 3600,
-            performance_iterations: 10000,
+            qemu_nodes: 1,
+            test_duration_secs: 600,
+            performance_iterations: 2000,
             statistical_confidence: 0.99,
             output_directory: "target/testing".to_string(),
             generate_reports: true,

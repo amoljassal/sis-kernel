@@ -7,10 +7,10 @@ use crate::security::{RandomnessTestResults, EncryptionTestResults, KeyManagemen
 use std::collections::HashMap;
 
 pub struct CryptoValidator {
-    config: TestSuiteConfig,
-    test_vectors: CryptoTestVectors,
-    statistical_tests: StatisticalTestSuite,
-    compliance_checker: ComplianceChecker,
+    _config: TestSuiteConfig,
+    _test_vectors: CryptoTestVectors,
+    _statistical_tests: StatisticalTestSuite,
+    _compliance_checker: ComplianceChecker,
 }
 
 #[derive(Debug, Clone)]
@@ -120,10 +120,10 @@ pub struct NistStandardsCompliance {
 impl CryptoValidator {
     pub fn new(config: &TestSuiteConfig) -> Self {
         Self {
-            config: config.clone(),
-            test_vectors: CryptoTestVectors::new(),
-            statistical_tests: StatisticalTestSuite::new(),
-            compliance_checker: ComplianceChecker::new(),
+            _config: config.clone(),
+            _test_vectors: CryptoTestVectors::new(),
+            _statistical_tests: StatisticalTestSuite::new(),
+            _compliance_checker: ComplianceChecker::new(),
         }
     }
 

@@ -98,6 +98,7 @@ struct IndustryBaselines {
 
 #[derive(Debug, Clone)]
 struct BaselineMetrics {
+    #[allow(dead_code)]
     latency_p50_us: f64,
     latency_p99_us: f64,
     throughput_ips: f64,

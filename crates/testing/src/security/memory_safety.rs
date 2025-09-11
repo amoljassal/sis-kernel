@@ -6,10 +6,10 @@ use crate::security::{MemoryLeakResults, LeakLocation};
 use std::collections::HashMap;
 
 pub struct MemorySafetyChecker {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
     allocation_tracker: AllocationTracker,
-    protection_analyzer: ProtectionAnalyzer,
-    leak_detector: LeakDetector,
+    _protection_analyzer: ProtectionAnalyzer,
+    _leak_detector: LeakDetector,
 }
 
 #[derive(Clone)]
@@ -42,16 +42,24 @@ pub struct AllocationSite {
 }
 
 pub struct ProtectionAnalyzer {
+    #[allow(dead_code)]
     stack_protection_enabled: bool,
+    #[allow(dead_code)]
     heap_protection_enabled: bool,
+    #[allow(dead_code)]
     aslr_enabled: bool,
+    #[allow(dead_code)]
     control_flow_integrity: bool,
+    #[allow(dead_code)]
     stack_canaries: bool,
 }
 
 pub struct LeakDetector {
+    #[allow(dead_code)]
     tracked_allocations: HashMap<u64, TrackedAllocation>,
+    #[allow(dead_code)]
     leak_threshold_bytes: u64,
+    #[allow(dead_code)]
     leak_threshold_count: u32,
 }
 
@@ -94,10 +102,10 @@ pub enum ViolationSeverity {
 impl MemorySafetyChecker {
     pub fn new(config: &TestSuiteConfig) -> Self {
         Self {
-            config: config.clone(),
+            _config: config.clone(),
             allocation_tracker: AllocationTracker::new(),
-            protection_analyzer: ProtectionAnalyzer::new(),
-            leak_detector: LeakDetector::new(),
+            _protection_analyzer: ProtectionAnalyzer::new(),
+            _leak_detector: LeakDetector::new(),
         }
     }
 

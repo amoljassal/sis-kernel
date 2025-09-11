@@ -15,14 +15,12 @@ pub struct DistributedResults {
 }
 
 pub struct DistributedSystemsTestSuite {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
 }
 
 impl DistributedSystemsTestSuite {
     pub fn new(config: &TestSuiteConfig) -> Self {
-        Self {
-            config: config.clone(),
-        }
+        Self { _config: config.clone() }
     }
     
     pub async fn test_byzantine_consensus(&self) -> Result<DistributedResults, TestError> {

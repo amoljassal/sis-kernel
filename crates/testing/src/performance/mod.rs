@@ -10,7 +10,9 @@ use std::path::Path;
 #[derive(Debug, Clone)]
 struct NEONWorkloadResult {
     latency_ns: u64,
+    #[allow(dead_code)]
     matrix_operations: usize,
+    #[allow(dead_code)]
     efficiency_score: f32,
 }
 
@@ -37,6 +39,17 @@ pub struct PerformanceTestFramework {
     hybrid_mode: bool,  // True when QEMU is running but boot detection failed
 }
 
+/// Full dump of parsed metrics for artifacting (module-level type)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct ParsedMetrics {
+        pub real_ctx_switch_ns: Vec<f64>,
+        pub ai_inference_us: Vec<f64>,
+        pub ctx_switch_ns: Vec<f64>,
+        pub irq_latency_ns: Vec<f64>,
+        pub memory_alloc_ns: Vec<f64>,
+        pub summary: PerformanceResults,
+    }
+
 impl PerformanceTestFramework {
     pub fn new(config: &TestSuiteConfig) -> Self {
         Self {
@@ -46,7 +59,7 @@ impl PerformanceTestFramework {
     }
 
     /// Try to parse real metrics from a serial log file
-    pub fn load_from_serial_log<P: AsRef<Path>>(path: P) -> Result<Option<PerformanceResults>, TestError> {
+    pub fn load_from_serial_log<P: AsRef<Path>>(path: P) -> Result<(Option<PerformanceResults>, Option<ParsedMetrics>), TestError> {
         let path_ref = path.as_ref();
         let data = match fs::read_to_string(path_ref) {
             Ok(s) => s,
@@ -57,8 +70,10 @@ impl PerformanceTestFramework {
             }
         };
 
+        let mut real_ns: Vec<f64> = Vec::new();
         let mut ai_us: Vec<f64> = Vec::new();
         let mut ctx_ns: Vec<f64> = Vec::new();
+        let mut irq_ns: Vec<f64> = Vec::new();
         let mut mem_ns: Vec<f64> = Vec::new();
 
         for line in data.lines() {
@@ -67,8 +82,10 @@ impl PerformanceTestFramework {
                 if let Some((k, v)) = rest.split_once('=') {
                     if let Ok(val) = v.trim().parse::<f64>() {
                         match k.trim() {
+                            "real_ctx_switch_ns" => real_ns.push(val),
                             "ai_inference_us" => ai_us.push(val),
                             "ctx_switch_ns" => ctx_ns.push(val),
+                            "irq_latency_ns" => irq_ns.push(val),
                             "memory_alloc_ns" => mem_ns.push(val),
                             _ => {}
                         }
@@ -77,9 +94,9 @@ impl PerformanceTestFramework {
             }
         }
 
-        if ai_us.is_empty() && ctx_ns.is_empty() && mem_ns.is_empty() {
+        if ai_us.is_empty() && ctx_ns.is_empty() && irq_ns.is_empty() && mem_ns.is_empty() && real_ns.is_empty() {
             // No usable metrics present
-            return Ok(None);
+            return Ok((None, None));
         }
 
         // Helper percentile
@@ -98,11 +115,13 @@ impl PerformanceTestFramework {
             (ai_us.iter().map(|x| (x - m)*(x - m)).sum::<f64>() / ai_us.len() as f64).sqrt()
         };
 
-        let ctx_p95 = pct(&ctx_ns, 95);
-        let ctx_mean = if ctx_ns.is_empty() { 0.0 } else { ctx_ns.iter().sum::<f64>() / ctx_ns.len() as f64 };
+        // Prefer real context-switch if present, then IRQ latency, then syscall proxy
+        let ctx_src = if !real_ns.is_empty() { &real_ns } else if !irq_ns.is_empty() { &irq_ns } else { &ctx_ns };
+        let ctx_p95 = pct(ctx_src, 95);
+        let ctx_mean = if ctx_src.is_empty() { 0.0 } else { ctx_src.iter().sum::<f64>() / ctx_src.len() as f64 };
         let mem_p99 = pct(&mem_ns, 99);
 
-        let combined: Vec<f64> = ai_us.iter().copied().chain(ctx_ns.iter().copied()).chain(mem_ns.iter().copied()).collect();
+        let combined: Vec<f64> = ai_us.iter().copied().chain(ctx_src.iter().copied()).chain(mem_ns.iter().copied()).collect();
         let latency_summary = StatisticalSummary::from_samples(&combined);
 
         let perf = PerformanceResults {
@@ -121,7 +140,16 @@ impl PerformanceTestFramework {
             timestamp: chrono::Utc::now(),
         };
 
-        Ok(Some(perf))
+        let dump = ParsedMetrics {
+            real_ctx_switch_ns: real_ns,
+            ai_inference_us: ai_us,
+            ctx_switch_ns: ctx_ns,
+            irq_latency_ns: irq_ns,
+            memory_alloc_ns: mem_ns,
+            summary: perf.clone(),
+        };
+
+        Ok((Some(perf), Some(dump)))
     }
 
     pub fn enable_hybrid_mode(&mut self) {

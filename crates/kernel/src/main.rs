@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 #![feature(alloc_error_handler)]
+// CI lint gate: when built with `--features strict`, fail on any warning
+#![cfg_attr(feature = "strict", deny(warnings))]
 
 // Required for heap allocation
 extern crate alloc;
@@ -21,6 +23,12 @@ pub mod virtio;
 pub mod virtio_console;
 // Heap allocator module
 pub mod heap;
+// Phase 1 scaffolding: trace, capabilities, tensors, channels, graph
+pub mod trace;
+pub mod cap;
+pub mod tensor;
+pub mod channel;
+pub mod graph;
 // AI benchmark module
 #[cfg(feature = "arm64-ai")]
 pub mod ai_benchmark;
@@ -30,6 +38,9 @@ pub mod ai_benchmark;
 pub mod arch {
     // ARM64 implementation would go here
 }
+
+#[cfg(target_arch = "aarch64")]
+pub mod aarch64_context;
 
 #[cfg(target_arch = "x86_64")]
 pub mod arch {
@@ -136,6 +147,14 @@ mod bringup {
         crate::uart::init();
         super::uart_print(b"UART: READY\n");
 
+        // Emit counter frequency for timing sanity check
+        {
+            let mut frq: u64; core::arch::asm!("mrs {x}, cntfrq_el0", x = out(reg) frq);
+            super::uart_print(b"METRIC cntfrq_hz=");
+            print_number(frq as usize);
+            super::uart_print(b"\n");
+        }
+
         // 5) Initialize heap allocator for dynamic memory management
         super::uart_print(b"HEAP: INIT\n");
         if let Err(e) = crate::heap::init_heap() {
@@ -156,11 +175,22 @@ mod bringup {
             }
         }
 
+        // Optional: run a minimal Graph demo to validate Phase 1 scaffolding
+        super::uart_print(b"GRAPH: DEMO\n");
+        {
+            let demo = crate::graph::GraphDemo::new(128);
+            demo.run();
+            super::uart_print(b"GRAPH: DEMO DONE\n");
+        }
+
         // 6) Initialize GICv3 + timer and enable interrupts
         super::uart_print(b"GIC: INIT\n");
         gicv3_init_qemu();
         timer_init_1hz();
         enable_irq();
+
+        // Start IRQ latency benchmark (virtual timer), 64 samples at ~1ms
+        start_irq_latency_bench(64);
 
         // 6) Initialize driver framework and discover devices
         super::uart_print(b"DRIVER FRAMEWORK\n");
@@ -208,6 +238,10 @@ mod bringup {
 
         // 7.5) Emit kernel METRICs for test suite (ctx switch proxy + alloc)
         crate::userspace_test::emit_kernel_metrics();
+
+        // 7.6) Real context-switch benchmark (AArch64 only)
+        #[cfg(target_arch = "aarch64")]
+        crate::userspace_test::bench_real_context_switch();
 
         // 8) Test syscall functionality
         super::uart_print(b"SYSCALL TESTS\n");
@@ -523,15 +557,72 @@ mod bringup {
         unsafe {
             let mut irq: u64;
             asm!("mrs {x}, icc_iar1_el1", x = out(reg) irq);
-            super::uart_print(b"tick\n");
-            // reload timer for ~1s
-            let mut frq: u64;
-            asm!("mrs {x}, cntfrq_el0", x = out(reg) frq);
-            asm!("msr cntv_tval_el0, {x}", x = in(reg) frq);
+            let mut t1: u64; core::arch::asm!("mrs {x}, cntvct_el0", x = out(reg) t1);
+            if TIMER_BENCH_WARMUP > 0 || TIMER_BENCH_REMAIN > 0 {
+                if TIMER_BENCH_WARMUP > 0 {
+                    // Discard warm-up samples
+                    TIMER_BENCH_WARMUP -= 1;
+                } else {
+                    // Record sample
+                    let ns = delta_ns(TIMER_BENCH_T0, t1);
+                    TIMER_SUM_NS = TIMER_SUM_NS.saturating_add(ns);
+                    if ns < TIMER_MIN_NS { TIMER_MIN_NS = ns; }
+                    if ns > TIMER_MAX_NS { TIMER_MAX_NS = ns; }
+                    TIMER_SUM_COUNT = TIMER_SUM_COUNT.saturating_add(1);
+                    super::uart_print(b"METRIC irq_latency_ns=");
+                    print_number(ns as usize);
+                    super::uart_print(b"\n");
+                    if TIMER_BENCH_REMAIN > 0 { TIMER_BENCH_REMAIN -= 1; }
+                }
+                if TIMER_BENCH_WARMUP > 0 || TIMER_BENCH_REMAIN > 0 {
+                    TIMER_BENCH_T0 = t1;
+                    core::arch::asm!("msr cntv_tval_el0, {x}", x = in(reg) TIMER_BENCH_INTERVAL);
+                } else {
+                    // Bench completed: print a brief summary (mean/min/max)
+                    if TIMER_SUM_COUNT > 0 {
+                        let mean = TIMER_SUM_NS / TIMER_SUM_COUNT as u64;
+                        super::uart_print(b"[SUMMARY] irq_latency_ns: count=");
+                        print_number(TIMER_SUM_COUNT as usize);
+                        super::uart_print(b" mean=");
+                        print_number(mean as usize);
+                        super::uart_print(b" ns min=");
+                        print_number(TIMER_MIN_NS as usize);
+                        super::uart_print(b" ns max=");
+                        print_number(TIMER_MAX_NS as usize);
+                        super::uart_print(b" ns\n");
+                    }
+                }
+            }
             // signal end of interrupt
             asm!("msr icc_eoir1_el1, {x}", x = in(reg) irq);
             asm!("msr icc_dir_el1, {x}", x = in(reg) irq);
         }
+    }
+
+    static mut TIMER_BENCH_REMAIN: u32 = 0;
+    static mut TIMER_BENCH_INTERVAL: u64 = 0;
+    static mut TIMER_BENCH_T0: u64 = 0;
+    static mut TIMER_BENCH_WARMUP: u32 = 0;
+    static mut TIMER_SUM_NS: u64 = 0;
+    static mut TIMER_MIN_NS: u64 = u64::MAX;
+    static mut TIMER_MAX_NS: u64 = 0;
+    static mut TIMER_SUM_COUNT: u32 = 0;
+
+    unsafe fn delta_ns(t0: u64, t1: u64) -> u64 {
+        let mut f: u64; core::arch::asm!("mrs {x}, cntfrq_el0", x = out(reg) f);
+        if f == 0 { return 0; }
+        let d = t1.wrapping_sub(t0);
+        (d.saturating_mul(1_000_000_000)) / f
+    }
+
+    unsafe fn start_irq_latency_bench(samples: u32) {
+        let mut frq: u64; core::arch::asm!("mrs {x}, cntfrq_el0", x = out(reg) frq);
+        TIMER_BENCH_INTERVAL = frq / 2000; // ~0.5ms per sample
+        TIMER_BENCH_REMAIN = samples;
+        TIMER_BENCH_WARMUP = 4; // discard first 4 samples
+        core::arch::asm!("mrs {x}, cntvct_el0", x = out(reg) TIMER_BENCH_T0);
+        TIMER_SUM_NS = 0; TIMER_MIN_NS = u64::MAX; TIMER_MAX_NS = 0; TIMER_SUM_COUNT = 0;
+        core::arch::asm!("msr cntv_tval_el0, {x}", x = in(reg) TIMER_BENCH_INTERVAL);
     }
 
     unsafe fn enable_irq() {

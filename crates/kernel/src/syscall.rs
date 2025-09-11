@@ -405,7 +405,7 @@ fn uart_write_bytes(buf: *const u8, count: usize) -> Result<usize, SyscallError>
 #[inline(always)]
 pub fn read_cycle_counter() -> u64 {
     unsafe {
-        let mut count: u64 = 0;
+        let mut count: u64;
         #[cfg(target_arch = "aarch64")]
         asm!("mrs {}, cntvct_el0", out(reg) count);
 
@@ -473,34 +473,39 @@ fn syscall_to_index(syscall: SyscallNumber) -> usize {
 }
 
 /// Record system call performance metrics
-fn record_syscall_metrics(syscall: SyscallNumber, cycles: u64, success: bool) {
-    const HIGH_LATENCY_THRESHOLD: u64 = 1000; // cycles
-    const VERY_HIGH_LATENCY_THRESHOLD: u64 = 5000; // cycles
-
+fn record_syscall_metrics(syscall: SyscallNumber, cycles: u64, _success: bool) {
     unsafe {
         let index = syscall_to_index(syscall);
         SYSCALL_METRICS[index].update(cycles);
 
-        // Performance warnings
-        if cycles > VERY_HIGH_LATENCY_THRESHOLD {
-            crate::uart_print(b"[PERF] CRITICAL latency: ");
-            print_syscall_name(syscall);
-            crate::uart_print(b" took ");
-            print_cycles(cycles);
-            crate::uart_print(b" cycles\n");
-        } else if cycles > HIGH_LATENCY_THRESHOLD {
-            crate::uart_print(b"[PERF] High latency: ");
-            print_syscall_name(syscall);
-            crate::uart_print(b" took ");
-            print_cycles(cycles);
-            crate::uart_print(b" cycles\n");
+        // Performance warnings (verbose only)
+        #[cfg(feature = "perf-verbose")]
+        {
+            const HIGH_LATENCY_THRESHOLD: u64 = 1000; // cycles
+            const VERY_HIGH_LATENCY_THRESHOLD: u64 = 5000; // cycles
+            if cycles > VERY_HIGH_LATENCY_THRESHOLD {
+                crate::uart_print(b"[PERF] CRITICAL latency: ");
+                print_syscall_name(syscall);
+                crate::uart_print(b" took ");
+                print_cycles(cycles);
+                crate::uart_print(b" cycles\n");
+            } else if cycles > HIGH_LATENCY_THRESHOLD {
+                crate::uart_print(b"[PERF] High latency: ");
+                print_syscall_name(syscall);
+                crate::uart_print(b" took ");
+                print_cycles(cycles);
+                crate::uart_print(b" cycles\n");
+            }
         }
 
         // Success/failure tracking
-        if !success {
-            crate::uart_print(b"[PERF] Failed syscall: ");
-            print_syscall_name(syscall);
-            crate::uart_print(b"\n");
+        #[cfg(feature = "perf-verbose")]
+        {
+            if !success {
+                crate::uart_print(b"[PERF] Failed syscall: ");
+                print_syscall_name(syscall);
+                crate::uart_print(b"\n");
+            }
         }
     }
 }
@@ -584,6 +589,7 @@ pub fn print_cycles(cycles: u64) {
 
 /// Display comprehensive performance metrics report
 pub fn print_syscall_performance_report() {
+    #[cfg(feature = "perf-verbose")]
     unsafe {
         crate::uart_print(b"\n[PERF] ========== SYSCALL PERFORMANCE REPORT ==========\n");
         crate::uart_print(b"[PERF] Syscall        | Calls |  Min  |  Max  |  Avg  |\n");
@@ -661,6 +667,7 @@ fn print_padded_number(num: u64, width: usize) {
 }
 
 /// Helper function to print cycle count with padding
+#[cfg(feature = "perf-verbose")]
 fn print_padded_cycles(cycles: u64, width: usize) {
     unsafe {
         if cycles == u64::MAX {

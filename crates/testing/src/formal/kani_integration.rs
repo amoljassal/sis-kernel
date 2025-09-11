@@ -34,7 +34,7 @@ pub struct HarnessResult {
 }
 
 pub struct KaniVerifier {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
     harnesses: Vec<KaniHarness>,
 }
 
@@ -51,10 +51,7 @@ impl KaniVerifier {
             KaniHarness::new("atomic_operations_correctness", "Verify atomic operation semantics"),
         ];
         
-        Self {
-            config: config.clone(),
-            harnesses,
-        }
+        Self { _config: config.clone(), harnesses }
     }
     
     pub async fn verify_memory_safety(&self) -> Result<KaniVerificationResults, TestError> {
@@ -232,6 +229,7 @@ fn vm_mapping_consistent(_vaddr: usize, _paddr: usize) -> bool { true }
 
 struct KaniHarness {
     pub name: String,
+    #[allow(dead_code)]
     pub description: String,
 }
 

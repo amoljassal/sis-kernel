@@ -21,16 +21,12 @@ pub struct AIResults {
 }
 
 pub struct AIModelValidationSuite {
-    config: TestSuiteConfig,
     benchmark_suite: AIBenchmarkSuite,
 }
 
 impl AIModelValidationSuite {
     pub fn new(config: &TestSuiteConfig) -> Self {
-        Self {
-            config: config.clone(),
-            benchmark_suite: AIBenchmarkSuite::new(config),
-        }
+        Self { benchmark_suite: AIBenchmarkSuite::new(config) }
     }
     
     pub async fn validate_inference_accuracy(&self) -> Result<AIResults, TestError> {

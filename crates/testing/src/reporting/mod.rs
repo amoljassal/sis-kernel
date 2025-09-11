@@ -11,7 +11,7 @@ pub use visualization::*;
 pub use analytics::*;
 
 pub struct IndustryReportingEngine {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
     output_dir: PathBuf,
     visualization_engine: VisualizationEngine,
     analytics_engine: AnalyticsEngine,
@@ -21,7 +21,7 @@ impl IndustryReportingEngine {
     pub fn new(config: &TestSuiteConfig) -> Self {
         let output_dir = PathBuf::from(&config.output_directory);
         Self {
-            config: config.clone(),
+            _config: config.clone(),
             output_dir,
             visualization_engine: VisualizationEngine::new(),
             analytics_engine: AnalyticsEngine::new(),

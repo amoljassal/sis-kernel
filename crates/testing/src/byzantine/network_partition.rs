@@ -10,6 +10,7 @@ pub struct NetworkPartitionSimulator {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct Partition {
     group_a: HashSet<u32>,
     group_b: HashSet<u32>,
@@ -18,6 +19,7 @@ struct Partition {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum PartitionType {
     Complete,      // No communication between partitions
     Asymmetric,    // One-way communication only

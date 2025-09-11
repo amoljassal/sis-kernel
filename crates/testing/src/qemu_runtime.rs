@@ -7,7 +7,7 @@ use std::process::Stdio;
 use std::collections::HashMap;
 use tokio::process::{Command, Child};
 use tokio::time::{sleep, Duration};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,13 +29,19 @@ pub struct QEMUCluster {
 
 #[derive(Debug)]
 pub struct QEMURuntimeManager {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
     cluster: QEMUCluster,
     processes: HashMap<usize, Child>,
 }
 
 impl QEMURuntimeManager {
+    fn workspace_root() -> PathBuf {
+        // crates/testing -> crates -> workspace root
+        let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        manifest.parent().and_then(|p| p.parent()).unwrap().to_path_buf()
+    }
     /// Detect if running on Apple Silicon for HVF acceleration
+    #[allow(dead_code)]
     async fn is_apple_silicon() -> bool {
         if cfg!(target_os = "macos") {
             // Check if we're on Apple Silicon by looking for the "Apple" brand in CPU info
@@ -74,17 +80,14 @@ impl QEMURuntimeManager {
             total_nodes: config.qemu_nodes,
         };
 
-        Self {
-            config: config.clone(),
-            cluster,
-            processes: HashMap::new(),
-        }
+        Self { _config: config.clone(), cluster, processes: HashMap::new() }
     }
 
     pub async fn build_kernel(&self) -> Result<(), TestError> {
         log::info!("Building SIS kernel for QEMU testing");
         
         // Build the kernel in release mode for accurate performance testing
+        let root = Self::workspace_root();
         let output = Command::new("cargo")
             .args([
                 "+nightly",
@@ -94,8 +97,11 @@ impl QEMURuntimeManager {
                 "--target", "aarch64-unknown-none",
                 "--features", "bringup,neon-optimized"  // Enable NEON optimizations
             ])
-            .current_dir("../../")  // Go to workspace root
-            .env("RUSTFLAGS", "-C link-arg=-Tsrc/arch/aarch64/aarch64-qemu.ld")
+            .current_dir(&root)
+            .env("RUSTFLAGS", format!(
+                "-C link-arg=-T{}",
+                root.join("crates/kernel/src/arch/aarch64/aarch64-qemu.ld").display()
+            ))
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
@@ -118,7 +124,7 @@ impl QEMURuntimeManager {
                 "--release",
                 "--target", "aarch64-unknown-uefi"
             ])
-            .current_dir("../../")  // Go to workspace root
+            .current_dir(&root)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .output()
@@ -157,19 +163,19 @@ impl QEMURuntimeManager {
                 })?;
 
             // Copy UEFI and kernel binaries
-            let uefi_source = "../../target/aarch64-unknown-uefi/release/uefi-boot.efi";
-            let kernel_source = "../../target/aarch64-unknown-none/debug/sis_kernel";   // Use debug build for stability
+            let uefi_source = Self::workspace_root().join("target/aarch64-unknown-uefi/release/uefi-boot.efi");
+            let kernel_source = Self::workspace_root().join("target/aarch64-unknown-none/debug/sis_kernel");   // Use debug build for stability
             let uefi_dest = format!("{}/BOOTAA64.EFI", efi_boot_dir);
             let kernel_dest = format!("{}/KERNEL.ELF", efi_sis_dir);
 
-            std::fs::copy(uefi_source, &uefi_dest)
+            std::fs::copy(&uefi_source, &uefi_dest)
                 .map_err(|e| TestError::QEMUError {
-                    message: format!("Failed to copy UEFI binary to {}: {}", uefi_dest, e)
+                    message: format!("Failed to copy UEFI binary from {} to {}: {}", uefi_source.display(), uefi_dest, e)
                 })?;
 
-            std::fs::copy(kernel_source, &kernel_dest)
+            std::fs::copy(&kernel_source, &kernel_dest)
                 .map_err(|e| TestError::QEMUError {
-                    message: format!("Failed to copy kernel binary to {}: {}", kernel_dest, e)
+                    message: format!("Failed to copy kernel binary from {} to {}: {}", kernel_source.display(), kernel_dest, e)
                 })?;
         }
 

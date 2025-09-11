@@ -30,29 +30,13 @@ riscv-rt = { version = "0.12", default-features = false, optional = true }
 
 [features]
 default = []
-firewall = []
-apic = []
-smp = ["apic"]
-ipc = []
-userland = []
-iommu = []
-vfio = ["iommu"]
-ai = ["smp", "apic"]
-arm64-ai = ["ai"]
+arm64-ai = []
 neon-optimized = ["arm64-ai"]  # NEON SIMD optimization for Apple Silicon
-idt-selftest = []
-qemu-intel-iommu-sim = []
-affinity = ["smp","scheduler"]
-pf-matrix = []
-per-task-mm = []
-scheduler = []
-selftests = []
-ci-lint-min = []
 bringup = []
-riscv64 = []
-aia = ["riscv64"]  # Advanced Interrupt Architecture for RISC-V
-vector = ["riscv64"]  # RISC-V Vector Extension support
-formal-verification = ["riscv64"]  # Sailor validation hooks
+formal-verification = []  # RISC-V hooks guarded by target_arch
+aia = []  # Advanced Interrupt Architecture for RISC-V (no-op unless riscv64)
+perf-verbose = []  # Enable verbose [PERF] logs on serial
+strict = []        # Deny unused when enabled
 
 [build-dependencies]
 bootloader = { version = "=0.11.11", default-features = false, features = ["bios"] }

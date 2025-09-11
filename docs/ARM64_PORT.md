@@ -2,6 +2,8 @@
 
 This document describes the ARM64 port foundation for the SIS AI-native kernel, designed for deployment on Mac M1/M2 and Raspberry Pi 4 systems.
 
+Note on paths: the current workspace uses a crates/ layout. Replace historical references to paths under `src/` with `crates/kernel/src/` as appropriate. For example, the AArch64 arch code lives under `crates/kernel/src/arch/aarch64/`.
+
 ## Architecture Overview
 
 ### Supported Platforms
@@ -20,17 +22,16 @@ This document describes the ARM64 port foundation for the SIS AI-native kernel, 
 
 ### Key Components
 
-#### 1. Architecture Layer (`src/arch/aarch64/`)
+#### 1. Architecture Layer (`crates/kernel/src/arch/aarch64/`)
 - **mod.rs**: Main ARM64 architecture support
 - **interrupts**: ARM GIC v3/v4 interrupt controller
 - **memory**: Page tables and ARM SMMU support
 - Hardware capability detection
 
-#### 2. AI-Optimized Cognitive Scheduler (`src/kernel/ai/cognitive_scheduler_arm64.rs`)
-- big.LITTLE topology awareness
-- Neural Engine task routing
-- NEON SIMD optimization
-- Power-efficient scheduling
+#### 2. AI Benchmarks (`crates/kernel/src/ai_benchmark.rs`)
+- NEON SIMD microbenchmarks (4x4 layer, 16x16 matmul)
+- CNTVCT/PMU-based timing; METRIC emission to serial
+- Scalar baseline comparisons for speedup measurement
 
 #### 3. Hardware Acceleration
 - **Neural Engine**: Apple's dedicated AI accelerator
@@ -78,15 +79,16 @@ This document describes the ARM64 port foundation for the SIS AI-native kernel, 
 
 ### Mac M1/M2 Development
 ```bash
-# Use ARM64 configuration
-cp .cargo/config-arm64.toml .cargo/config.toml
-cargo build --features="ai,arm64-ai,smp,apic"
+# Local QEMU bring-up with AI benchmarks
+rustup target add aarch64-unknown-none aarch64-unknown-uefi
+export RUSTFLAGS="-C link-arg=-Tcrates/kernel/src/arch/aarch64/aarch64-qemu.ld"
+cargo +nightly build -p sis_kernel -Z build-std=core,alloc --target aarch64-unknown-none --features "bringup,arm64-ai,neon-optimized"
 ```
 
-### Raspberry Pi 4 Deployment
+### Raspberry Pi 4 Deployment (future)
 ```bash
-# Cross-compilation for Pi 4
-cargo build --target aarch64-unknown-linux-gnu --features="ai,smp"
+# Cross-compilation for Pi 4 (to be validated on hardware)
+cargo build --target aarch64-unknown-linux-gnu --features="arm64-ai"
 ```
 
 ## Performance Characteristics

@@ -41,7 +41,7 @@ pub enum VerificationMethod {
 }
 
 pub struct PropertyVerificationEngine {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
     system_properties: Vec<SystemProperty>,
 }
 
@@ -143,10 +143,7 @@ impl PropertyVerificationEngine {
             },
         ];
         
-        Self {
-            config: config.clone(),
-            system_properties,
-        }
+        Self { _config: config.clone(), system_properties }
     }
     
     pub async fn verify_all_properties(&self) -> Result<PropertyVerificationResults, TestError> {

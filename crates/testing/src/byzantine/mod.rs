@@ -72,7 +72,7 @@ pub struct MessageRound {
 }
 
 pub struct ByzantineFaultTestSuite {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
     consensus_tester: ConsensusTester,
     fault_injector: FaultInjector,
     partition_simulator: NetworkPartitionSimulator,
@@ -81,7 +81,7 @@ pub struct ByzantineFaultTestSuite {
 impl ByzantineFaultTestSuite {
     pub fn new(config: &TestSuiteConfig) -> Self {
         Self {
-            config: config.clone(),
+            _config: config.clone(),
             consensus_tester: ConsensusTester::new(config),
             fault_injector: FaultInjector::new(config),
             partition_simulator: NetworkPartitionSimulator::new(config),
@@ -90,7 +90,7 @@ impl ByzantineFaultTestSuite {
 
     pub async fn run_comprehensive_byzantine_tests(&self) -> Result<ByzantineTestResults, TestError> {
         log::info!("Starting comprehensive Byzantine fault tolerance testing");
-        log::info!("Testing with up to {} nodes", self.config.qemu_nodes);
+        log::info!("Testing with up to {} nodes", self._config.qemu_nodes);
 
         // Test consensus protocols
         let consensus_results = self.test_consensus_protocols().await?;
@@ -233,24 +233,26 @@ impl ByzantineFaultTestSuite {
     async fn determine_max_byzantine_nodes(&self) -> Result<u32, TestError> {
         log::info!("Determining maximum Byzantine nodes tolerated");
         
-        let total_nodes = self.config.qemu_nodes;
+        let total_nodes = self._config.qemu_nodes;
         // Byzantine fault tolerance: can tolerate up to (n-1)/3 Byzantine nodes
-        let max_byzantine = (total_nodes - 1) / 3;
-        
+        let max_byzantine = total_nodes.saturating_sub(1) / 3;
+
         // Verify this threshold through testing
         for byzantine_count in 0..=max_byzantine {
+            let byz_u32 = byzantine_count as u32;
             let can_tolerate = self.consensus_tester
-                .test_with_byzantine_nodes(byzantine_count as u32)
+                .test_with_byzantine_nodes(byz_u32)
                 .await?;
-            
+
             if !can_tolerate {
-                return Ok(byzantine_count.saturating_sub(1) as u32);
+                return Ok(byz_u32.saturating_sub(1));
             }
         }
-        
+
         Ok(max_byzantine as u32)
     }
 
+    #[allow(dead_code)]
     async fn measure_consensus_time(&self) -> Result<f64, TestError> {
         log::info!("Measuring consensus achievement time");
         
@@ -263,6 +265,7 @@ impl ByzantineFaultTestSuite {
         Ok(duration.as_secs_f64() * 1000.0)
     }
 
+    #[allow(dead_code)]
     fn analyze_message_complexity(&self, consensus: &ConsensusTestResults) -> MessageComplexity {
         let total_messages: u64 = consensus.message_rounds.iter()
             .map(|r| r.messages_sent as u64)

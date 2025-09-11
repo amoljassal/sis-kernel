@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 pub struct ConsensusTester {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
     nodes: Vec<ByzantineNode>,
     consensus_state: ConsensusState,
 }
@@ -61,7 +61,7 @@ impl ConsensusTester {
             .collect();
         
         Self {
-            config: config.clone(),
+            _config: config.clone(),
             nodes,
             consensus_state: ConsensusState {
                 current_view: 0,
@@ -275,6 +275,7 @@ impl ConsensusTester {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ConsensusResult {
     pub consensus_achieved: bool,
     pub rounds_taken: u32,

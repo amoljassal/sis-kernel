@@ -5,7 +5,7 @@ use crate::{ValidationReport, TestError};
 use serde::{Deserialize, Serialize};
 
 pub struct VisualizationEngine {
-    chart_generators: Vec<ChartGenerator>,
+    _chart_generators: Vec<ChartGenerator>,
     color_palette: ColorPalette,
 }
 
@@ -74,10 +74,7 @@ impl Default for VisualizationEngine {
 
 impl VisualizationEngine {
     pub fn new() -> Self {
-        Self {
-            chart_generators: Self::create_chart_generators(),
-            color_palette: ColorPalette::new(),
-        }
+        Self { _chart_generators: Self::create_chart_generators(), color_palette: ColorPalette::new() }
     }
 
     fn create_chart_generators() -> Vec<ChartGenerator> {

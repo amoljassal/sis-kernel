@@ -762,7 +762,7 @@ fn print_u64_simple(mut num: u64) {
 
     /// Get PID syscall wrapper
     fn syscall_getpid(&self) -> Result<u32, SyscallError> {
-        let mut result: i64 = 0;
+        let mut result: i64;
         unsafe {
             #[cfg(target_arch = "aarch64")]
             asm!(

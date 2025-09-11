@@ -32,6 +32,7 @@ pub enum FaultType {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct InjectionState {
     active_faults: Vec<ActiveFault>,
     total_injected: u32,
@@ -39,6 +40,7 @@ struct InjectionState {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ActiveFault {
     scenario: FaultScenario,
     activated_at: std::time::Instant,

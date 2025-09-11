@@ -131,52 +131,36 @@ impl VirtIOMMIOTransport {
     pub fn new(base_addr: u64, size: u64, irq: Option<u32>) -> Result<Self, DriverError> {
         unsafe {
             // Verify VirtIO magic value
-            let magic =
-                ptr::read_volatile((base_addr + VirtIOMMIOOffset::MagicValue as u64) as *const u32);
+            let magic = ptr::read_volatile((base_addr + VirtIOMMIOOffset::MagicValue as u64) as *const u32);
             if magic != 0x74726976 {
                 // Debug: print the actual magic for troubleshooting
                 if magic != 0x00000000 && magic != 0xFFFFFFFF {
-                    unsafe {
-                        crate::uart_print(b"[VIRTIO-DEBUG] Wrong magic 0x");
-                        crate::virtio::VirtIODiscovery::print_hex(magic as u64);
-                        crate::uart_print(b" at 0x");
-                        crate::virtio::VirtIODiscovery::print_hex(base_addr);
-                        crate::uart_print(b"\n");
-                    }
+                    crate::uart_print(b"[VIRTIO-DEBUG] Wrong magic 0x");
+                    crate::virtio::VirtIODiscovery::print_hex(magic as u64);
+                    crate::uart_print(b" at 0x");
+                    crate::virtio::VirtIODiscovery::print_hex(base_addr);
+                    crate::uart_print(b"\n");
                 }
                 return Err(DriverError::InvalidDevice);
             }
 
             // Check version (accept 1+ for VirtIO 0.9.5+ compatibility)
-            let version =
-                ptr::read_volatile((base_addr + VirtIOMMIOOffset::Version as u64) as *const u32);
+            let version = ptr::read_volatile((base_addr + VirtIOMMIOOffset::Version as u64) as *const u32);
             if version < 1 {
                 // Debug: print the actual version for troubleshooting
-                unsafe {
-                    crate::uart_print(b"[VIRTIO-DEBUG] Found version ");
-                    crate::virtio::VirtIODiscovery::print_number(version);
-                    crate::uart_print(b" at 0x");
-                    crate::virtio::VirtIODiscovery::print_hex(base_addr);
-                    crate::uart_print(b"\n");
-                }
+                crate::uart_print(b"[VIRTIO-DEBUG] Found version ");
+                crate::virtio::VirtIODiscovery::print_number(version);
+                crate::uart_print(b" at 0x");
+                crate::virtio::VirtIODiscovery::print_hex(base_addr);
+                crate::uart_print(b"\n");
                 return Err(DriverError::NotSupported);
             }
 
             // Read device type and vendor
-            let device_type = VirtIODeviceType::from(ptr::read_volatile(
-                (base_addr + VirtIOMMIOOffset::DeviceID as u64) as *const u32,
-            ));
-            let vendor_id =
-                ptr::read_volatile((base_addr + VirtIOMMIOOffset::VendorID as u64) as *const u32);
+            let device_type = VirtIODeviceType::from(ptr::read_volatile((base_addr + VirtIOMMIOOffset::DeviceID as u64) as *const u32));
+            let vendor_id = ptr::read_volatile((base_addr + VirtIOMMIOOffset::VendorID as u64) as *const u32);
 
-            Ok(VirtIOMMIOTransport {
-                base_addr,
-                size,
-                irq,
-                device_type,
-                version,
-                vendor_id,
-            })
+            Ok(VirtIOMMIOTransport { base_addr, size, irq, device_type, version, vendor_id })
         }
     }
 

@@ -15,12 +15,8 @@ use spin::{Mutex, Once};
 /// Cache-aligned array wrapper for heap memory
 #[repr(align(64))] // Align to cache line size for RISC-V
 struct CacheAlignedArray([u8; HEAP_SIZE]);
-
-impl CacheAlignedArray {
-    fn as_mut_ptr(&mut self) -> *mut u8 {
-        self.0.as_mut_ptr()
-    }
-}
+// Note: Previously exposed an as_mut_ptr(); now removed in favor of
+// direct raw pointers via addr_of_mut! to avoid dead_code and keep APIs minimal.
 
 /// Global heap allocator instance
 #[global_allocator]
@@ -54,15 +50,12 @@ static HEAP_INIT: Once = Once::new();
 pub fn init_heap() -> Result<(), &'static str> {
     HEAP_INIT.call_once(|| {
         unsafe {
-            // Map the heap memory region
-            // In a real implementation, this would need proper page table setup
-            let heap_start = HEAP_START as *mut u8;
-
             // For now, we'll use a static array as heap memory
             // This is a simplified approach for demonstration
             // Use cache-aligned heap memory for optimal performance
             static mut HEAP_MEMORY: CacheAlignedArray = CacheAlignedArray([0; HEAP_SIZE]);
-            let heap_start = HEAP_MEMORY.as_mut_ptr();
+            let heap_arr_ptr = core::ptr::addr_of_mut!(HEAP_MEMORY) as *mut CacheAlignedArray;
+            let heap_start = core::ptr::addr_of_mut!((*heap_arr_ptr).0) as *mut u8;
 
             // Initialize the allocator with our memory region
             ALLOCATOR.lock().init(heap_start, HEAP_SIZE);
@@ -243,9 +236,7 @@ pub fn test_heap() -> Result<(), &'static str> {
         }
 
         ALLOCATOR.dealloc(ptr, layout);
-        unsafe {
-            crate::uart_print(b"[HEAP] Test 1 passed: basic allocation/deallocation\n");
-        }
+        crate::uart_print(b"[HEAP] Test 1 passed: basic allocation/deallocation\n");
     }
 
     // Test 2: Multiple allocations
@@ -273,9 +264,7 @@ pub fn test_heap() -> Result<(), &'static str> {
             ALLOCATOR.dealloc(*ptr, *layout);
         }
 
-        unsafe {
-            crate::uart_print(b"[HEAP] Test 2 passed: multiple allocations\n");
-        }
+        crate::uart_print(b"[HEAP] Test 2 passed: multiple allocations\n");
     }
 
     // Test 3: Alignment requirements
@@ -297,9 +286,7 @@ pub fn test_heap() -> Result<(), &'static str> {
             ALLOCATOR.dealloc(ptr, layout);
         }
 
-        unsafe {
-            crate::uart_print(b"[HEAP] Test 3 passed: alignment requirements\n");
-        }
+        crate::uart_print(b"[HEAP] Test 3 passed: alignment requirements\n");
     }
 
     unsafe {
@@ -424,6 +411,7 @@ pub mod ai_heap {
 
 /// Performance monitoring for heap operations
 pub struct HeapProfiler {
+    #[allow(dead_code)]
     start_time: u64,
     operation: &'static str,
 }

@@ -1,6 +1,3 @@
-[build]
-target = "aarch64-unknown-none"
-
 [target.aarch64-unknown-none]
 rustflags = [
     "-C", "code-model=small",
@@ -23,6 +20,5 @@ rustflags = [
     "-C", "relocation-model=static",
 ]
 
-[unstable]
-build-std = ["core", "alloc"]
-build-std-features = ["compiler-builtins-mem"]
+## Note: build-std and target selection are controlled by scripts and per-command flags.
+## Removing global defaults here ensures host tools (like sis-testing) build with std.

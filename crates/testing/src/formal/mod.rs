@@ -77,7 +77,7 @@ pub struct CompletenessAnalysis {
 }
 
 pub struct FormalVerificationSuite {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
     kani_verifier: KaniVerifier,
     prusti_verifier: PrustiVerifier,
 }
@@ -85,7 +85,7 @@ pub struct FormalVerificationSuite {
 impl FormalVerificationSuite {
     pub fn new(config: &TestSuiteConfig) -> Self {
         Self {
-            config: config.clone(),
+            _config: config.clone(),
             kani_verifier: KaniVerifier::new(config),
             prusti_verifier: PrustiVerifier::new(config),
         }
@@ -157,7 +157,7 @@ impl FormalVerificationSuite {
         })
     }
     
-    async fn verify_system_properties(&self) -> Result<PropertyVerificationResults, TestError> {
+    async fn verify_system_properties(&self) -> Result<SystemPropertyResults, TestError> {
         log::info!("Verifying system-level properties and invariants");
         
         // Critical system invariants
@@ -203,7 +203,7 @@ impl FormalVerificationSuite {
             }
         }
         
-        Ok(PropertyVerificationResults {
+        Ok(SystemPropertyResults {
             property_count: invariants.len() as u32,
             success_count: verified_count,
             failures,
@@ -218,7 +218,7 @@ impl FormalVerificationSuite {
 }
 
 #[derive(Debug)]
-struct PropertyVerificationResults {
+struct SystemPropertyResults {
     pub property_count: u32,
     pub success_count: u32,
     pub failures: Vec<PropertyFailure>,

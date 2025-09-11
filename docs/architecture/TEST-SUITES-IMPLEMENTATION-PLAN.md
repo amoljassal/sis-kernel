@@ -133,7 +133,7 @@ SIS Kernel: Industry-Grade Test Suite Implementation Plan
 
   # Build kernel with test instrumentation
   echo "[TEST-ENV] Building instrumented kernel"
-  export RUSTFLAGS="-C instrument-coverage -C link-arg=-T$ROOT_DIR/src/arch/aarch64/aarch64-qemu.ld"
+  export RUSTFLAGS="-C instrument-coverage -C link-arg=-T$ROOT_DIR/crates/kernel/src/arch/aarch64/aarch64-qemu.ld"
   cargo +nightly build -Z instrument-coverage --target aarch64-unknown-none --features
   "testing,profiling"
 
@@ -1477,4 +1477,3 @@ SIS Kernel: Industry-Grade Test Suite Implementation Plan
 
   This test suite transforms the SIS kernel from a promising prototype into an industry-validated,
   enterprise-ready system with concrete evidence suitable for the most demanding technical evaluations.
-

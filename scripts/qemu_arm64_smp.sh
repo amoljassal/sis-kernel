@@ -26,7 +26,7 @@ echo
 
 # Build the kernel with SMP features
 echo "[*] Building kernel with SMP support..."
-export RUSTFLAGS="-C link-arg=-T$ROOT_DIR/src/arch/aarch64/aarch64-qemu.ld"
+export RUSTFLAGS="-C link-arg=-T$ROOT_DIR/crates/kernel/src/arch/aarch64/aarch64-qemu.ld"
 cargo +nightly build -p sis_kernel \
     -Z build-std=core,alloc \
     --target aarch64-unknown-none \

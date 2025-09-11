@@ -1,7 +1,8 @@
 [workspace]
 members = [
   "crates/kernel",
-  "crates/uefi-boot"
+  "crates/uefi-boot",
+  "crates/testing"
 ]
 resolver = "2"
 [profile.dev.package.bootloader]

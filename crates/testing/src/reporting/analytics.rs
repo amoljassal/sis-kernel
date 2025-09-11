@@ -5,6 +5,7 @@ use crate::{ValidationReport, TestError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[allow(dead_code)]
 pub struct AnalyticsEngine {
     statistical_analyzers: Vec<StatisticalAnalyzer>,
     trend_detectors: Vec<TrendDetector>,

@@ -27,7 +27,7 @@ cp "$UEFI_APP" "$EFI_BOOT_DIR/BOOTAA64.EFI"
 
 echo "[*] Building kernel (aarch64-unknown-none)..."
 rustup target add aarch64-unknown-none >/dev/null 2>&1 || true
-export RUSTFLAGS="-C link-arg=-T$ROOT_DIR/src/arch/aarch64/aarch64-qemu.ld"
+export RUSTFLAGS="-C link-arg=-T$ROOT_DIR/crates/kernel/src/arch/aarch64/aarch64-qemu.ld"
 
 # Build features based on environment variables
 FEATURES=""

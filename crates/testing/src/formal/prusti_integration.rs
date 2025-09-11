@@ -35,7 +35,7 @@ pub struct ContractResult {
 }
 
 pub struct PrustiVerifier {
-    config: TestSuiteConfig,
+    _config: TestSuiteConfig,
     specifications: Vec<PrustiSpecification>,
 }
 
@@ -52,10 +52,7 @@ impl PrustiVerifier {
             PrustiSpecification::new("concurrent_data_structures", "Lock-free data structure invariants"),
         ];
         
-        Self {
-            config: config.clone(),
-            specifications,
-        }
+        Self { _config: config.clone(), specifications }
     }
     
     pub async fn verify_functional_correctness(&self) -> Result<PrustiVerificationResults, TestError> {
@@ -281,6 +278,7 @@ fn filesystem_consistency_maintained() -> bool { true }
 
 struct PrustiSpecification {
     pub name: String, 
+    #[allow(dead_code)]
     pub description: String,
 }
 
