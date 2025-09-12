@@ -74,7 +74,6 @@ core::arch::global_asm!(
     r#"
     .text
     .global aarch64_context_switch
-    .type aarch64_context_switch, %function
 aarch64_context_switch:
     // x0 = old, x1 = new
     // Save callee-saved regs and SP into *old

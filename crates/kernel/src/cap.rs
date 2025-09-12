@@ -8,10 +8,16 @@ pub struct CapId(NonZeroU64);
 
 bitflags::bitflags! {
     pub struct CapRights: u32 {
-        const READ  = 0b0001;
-        const WRITE = 0b0010;
-        const RUN   = 0b0100;
-        const ADMIN = 0b1000;
+        const READ    = 0b0000_0001;
+        const WRITE   = 0b0000_0010;
+        const RUN     = 0b0000_0100;
+        const ADMIN   = 0b0000_1000;
+        // Phase 2: Model-specific permissions
+        const LOAD    = 0b0001_0000;
+        const EXECUTE = 0b0010_0000;
+        const INSPECT = 0b0100_0000;
+        const EXPORT  = 0b1000_0000;
+        const ATTEST  = 0b0001_0000_0000;
     }
 }
 

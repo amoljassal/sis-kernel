@@ -106,6 +106,7 @@ impl Shell {
                 "stress" => self.cmd_stress(),
                 "overhead" => self.cmd_overhead(),
                 "graphdemo" => self.cmd_graph_demo(),
+                "detdemo" => self.cmd_deterministic_demo(),
                 "graphctl" => self.cmd_graphctl(&parts[1..]),
                 "ctlhex" => self.cmd_ctlhex(&parts[1..]),
                 "pmu" => self.cmd_pmu_demo(),
@@ -137,6 +138,7 @@ impl Shell {
             crate::uart_print(b"  stress   - Run syscall stress tests\n");
             crate::uart_print(b"  overhead - Measure syscall overhead\n");
             crate::uart_print(b"  graphdemo- Run graph demo (feature: graph-demo)\n");
+            crate::uart_print(b"  detdemo  - Run deterministic scheduler demo (feature: deterministic)\n");
             crate::uart_print(b"  graphctl - Control graph: create | add-channel <cap> | add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] | start <steps> | stats\n");
             crate::uart_print(b"  ctlhex   - Inject control frame as hex (Create/Add/Start)\n");
             crate::uart_print(b"  pmu      - Run PMU demo (cycles/inst/l1d_refill)\n");
@@ -228,6 +230,20 @@ impl Shell {
         let mut demo = crate::graph::GraphDemo::new(64);
         demo.run();
         unsafe { crate::uart_print(b"[GRAPH] Demo complete\n"); }
+    }
+
+    /// Phase 2 deterministic scheduler demo command
+    fn cmd_deterministic_demo(&self) {
+        #[cfg(feature = "deterministic")]
+        {
+            unsafe { crate::uart_print(b"[DETERMINISTIC] Running Phase 2 comprehensive demo\n"); }
+            crate::graph::deterministic_demo();
+            unsafe { crate::uart_print(b"[DETERMINISTIC] Demo complete\n"); }
+        }
+        #[cfg(not(feature = "deterministic"))]
+        {
+            unsafe { crate::uart_print(b"[DETERMINISTIC] Requires 'deterministic' feature\n"); }
+        }
     }
 
     /// PMU demo command (cycles, instructions, L1D refills)

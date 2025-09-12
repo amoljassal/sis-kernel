@@ -79,6 +79,18 @@ pub struct PerformanceTestFramework {
         pub op_b_p50_ns: Option<f64>,
         pub op_b_p95_ns: Option<f64>,
         pub op_b_p99_ns: Option<f64>,
+        // Phase 2 deterministic metrics
+        pub deterministic_deadline_miss_count: Option<f64>,
+        pub deterministic_jitter_p99_ns: Option<f64>,
+        pub model_load_success: Option<f64>,
+        pub model_load_fail: Option<f64>,
+        pub model_audit_entries: Option<f64>,
+        pub models_loaded: Option<f64>,
+        pub det_constraint_verified: Option<f64>,
+        pub det_constraint_violation_alloc: Option<f64>,
+        pub det_constraint_violation_block: Option<f64>,
+        pub deterministic_demo_duration_us: Option<f64>,
+        pub deterministic_demo_completed: Option<f64>,
         // Structured graphs dump (optional) for schema v1 "graphs"
         pub graphs: Option<HashMap<String, GraphMetrics>>,        
         pub summary: PerformanceResults,
@@ -168,6 +180,19 @@ impl PerformanceTestFramework {
         let mut op_b_p95_ns: Option<f64> = None;
         let mut op_b_p99_ns: Option<f64> = None;
         let mut scheduler_run_us: Option<f64> = None;
+        
+        // Phase 2 deterministic metrics
+        let mut deterministic_deadline_miss_count: Option<f64> = None;
+        let mut deterministic_jitter_p99_ns: Option<f64> = None;
+        let mut model_load_success: Option<f64> = None;
+        let mut model_load_fail: Option<f64> = None;
+        let mut model_audit_entries: Option<f64> = None;
+        let mut models_loaded: Option<f64> = None;
+        let mut det_constraint_verified: Option<f64> = None;
+        let mut det_constraint_violation_alloc: Option<f64> = None;
+        let mut det_constraint_violation_block: Option<f64> = None;
+        let mut deterministic_demo_duration_us: Option<f64> = None;
+        let mut deterministic_demo_completed: Option<f64> = None;
 
         for line in data.lines() {
             // Parse lines like: METRIC ai_inference_us=1234
@@ -206,6 +231,18 @@ impl PerformanceTestFramework {
                             "op_b_p95_ns" => op_b_p95_ns = Some(val),
                             "op_b_p99_ns" => op_b_p99_ns = Some(val),
                             "scheduler_run_us" => scheduler_run_us = Some(val),
+                            // Phase 2 deterministic metrics
+                            "deterministic_deadline_miss_count" => deterministic_deadline_miss_count = Some(val),
+                            "deterministic_jitter_p99_ns" => deterministic_jitter_p99_ns = Some(val),
+                            "model_load_success" => model_load_success = Some(val),
+                            "model_load_fail" => model_load_fail = Some(val),
+                            "model_audit_entries" => model_audit_entries = Some(val),
+                            "models_loaded" => models_loaded = Some(val),
+                            "det_constraint_verified" => det_constraint_verified = Some(val),
+                            "det_constraint_violation_alloc" => det_constraint_violation_alloc = Some(val),
+                            "det_constraint_violation_block" => det_constraint_violation_block = Some(val),
+                            "deterministic_demo_duration_us" => deterministic_demo_duration_us = Some(val),
+                            "deterministic_demo_completed" => deterministic_demo_completed = Some(val),
                             _ => {}
                         }
                     }
@@ -376,6 +413,18 @@ impl PerformanceTestFramework {
             op_b_p50_ns,
             op_b_p95_ns,
             op_b_p99_ns,
+            // Phase 2 deterministic metrics
+            deterministic_deadline_miss_count,
+            deterministic_jitter_p99_ns,
+            model_load_success,
+            model_load_fail,
+            model_audit_entries,
+            models_loaded,
+            det_constraint_verified,
+            det_constraint_violation_alloc,
+            det_constraint_violation_block,
+            deterministic_demo_duration_us,
+            deterministic_demo_completed,
             graphs: graphs_struct,
             summary: perf.clone(),
         };

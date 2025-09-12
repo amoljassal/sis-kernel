@@ -44,6 +44,18 @@
     "op_b_p99_ns":  { "type": ["number", "null"] },
     "scheduler_run_us": { "type": ["number", "null"] },
 
+    "deterministic_deadline_miss_count": { "type": ["number", "null"] },
+    "deterministic_jitter_p99_ns": { "type": ["number", "null"] },
+    "model_load_success": { "type": ["number", "null"] },
+    "model_load_fail": { "type": ["number", "null"] },
+    "model_audit_entries": { "type": ["number", "null"] },
+    "models_loaded": { "type": ["number", "null"] },
+    "det_constraint_verified": { "type": ["number", "null"] },
+    "det_constraint_violation_alloc": { "type": ["number", "null"] },
+    "det_constraint_violation_block": { "type": ["number", "null"] },
+    "deterministic_demo_duration_us": { "type": ["number", "null"] },
+    "deterministic_demo_completed": { "type": ["number", "null"] },
+
     "summary": { "$ref": "#/definitions/PerformanceResults" }
     ,
     "graphs": {

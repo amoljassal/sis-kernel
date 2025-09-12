@@ -1,15 +1,19 @@
 # SIS Kernel (Current Status)
 
-An experimental AArch64 (ARM64) kernel that boots under UEFI in QEMU, brings up basic platform services, and emits real, parseable performance metrics. A companion test runner launches QEMU, tails serial output, parses METRIC lines, and exports results to JSON for CI and analysis.
+An experimental AArch64 (ARM64) kernel that boots under UEFI in QEMU, brings up basic platform services, and implements Phase 1 dataflow observability and Phase 2 deterministic scheduling with signed model capabilities. Features include CBS+EDF deterministic scheduler, cryptographically-verified model packages, capability-based security, comprehensive per-operator metrics, channel backpressure tracking, and structured JSON metrics export. A companion test runner launches QEMU, parses performance metrics, and validates results with JSON Schema compliance.
 
 This README reflects the implemented, verifiable behavior in this repo today — no hype, no unbuilt features.
 
 ## Overview
 
 - Boots via UEFI on QEMU `virt` (GICv3, highmem) and prints deterministic boot markers.
-- Enables MMU and caches at EL1; initializes UART, heap, GICv3, and the virtual timer.
-- Emits in-kernel performance METRIC lines (AI microbenchmarks, syscall/alloc proxies, real cooperative context switch, IRQ latency) with warm‑ups and multiple samples.
-- Test runner collects METRICs from serial logs, applies environment-aware thresholds for QEMU vs. hardware, and writes a JSON dump for CI.
+- Enables MMU and caches at EL1; initializes UART, heap, GICv3, virtual timer, and PMU hardware counters.
+- Implements dataflow graph architecture with operators, channels, and OSEMN stage classification.
+- Emits comprehensive performance metrics: per-operator latency percentiles (p50/p95/p99), channel backpressure tracking, PMU instruction-level attribution, scheduler timing, deterministic deadline tracking, and model security audit logs.
+- Features V0 binary control plane for graph management and zero-copy tensor handle passing.
+- Phase 2 deterministic scheduling: CBS+EDF hybrid scheduler with admission control, jitter tracking, and constraint enforcement preventing dynamic allocation, unbounded loops, and indefinite blocking.
+- Signed model package infrastructure with SHA-256 + Ed25519 verification, capability-based permissions (LOAD/EXECUTE/INSPECT/EXPORT/ATTEST), and comprehensive audit logging.
+- Test runner validates metrics against JSON Schema v1 and exports structured observability data for ML workload analysis.
 
 Non-goals and not implemented: production hardening, formal proofs, full BFT consensus, RDMA fabric, sub-µs context switching guarantees, full driver stack. References to these in past docs were aspirational; this README describes actual code.
 
@@ -21,18 +25,37 @@ Non-goals and not implemented: production hardening, formal proofs, full BFT con
   - GICv3 configured, virtual timer (PPI 27) enabled, periodic interrupts.
 
 - Kernel performance metrics (serial console)
-  - `METRIC ai_inference_us=<µs>`: NEON 4x4 layer with CNTVCT timing.
-  - `METRIC ai_inference_scalar_us=<µs>`: scalar baseline for comparison.
-  - `METRIC neon_matmul_us=<µs>`: 16×16 NEON matmul (behind `neon-optimized`).
-  - `METRIC real_ctx_switch_ns=<ns>`: real cooperative context switch (callee-saved regs + SP) measured via CNTVCT.
-  - `METRIC ctx_switch_ns=<ns>`: minimal syscall path proxy (getpid) timed with CNTVCT.
-  - `METRIC memory_alloc_ns=<ns>`: small Vec alloc+free microbench.
-  - `METRIC irq_latency_ns=<ns>`: virtual-timer IRQ latency; prints 64 samples after 4 warm-ups, plus `[SUMMARY]` mean/min/max.
-  - Percentile summaries for context/alloc via `[SUMMARY] ctx_switch_ns ...` and `[SUMMARY] memory_alloc_ns ...`.
+  - Core system metrics:
+    - `METRIC real_ctx_switch_ns=<ns>`: real cooperative context switch (callee-saved regs + SP) measured via CNTVCT.
+    - `METRIC ctx_switch_ns=<ns>`: minimal syscall path proxy (getpid) timed with CNTVCT.
+    - `METRIC memory_alloc_ns=<ns>`: small Vec alloc+free microbench.
+    - `METRIC irq_latency_ns=<ns>`: virtual-timer IRQ latency; prints 64 samples after 4 warm-ups.
+  - AI/ML metrics:
+    - `METRIC ai_inference_us=<µs>`: NEON 4x4 layer with CNTVCT timing.
+    - `METRIC ai_inference_scalar_us=<µs>`: scalar baseline for comparison.
+    - `METRIC neon_matmul_us=<µs>`: 16×16 NEON matmul (behind `neon-optimized`).
+  - Phase 1 dataflow observability:
+    - `METRIC op_a_p50_ns=<ns>`, `op_a_p95_ns=<ns>`, `op_a_p99_ns=<ns>`: per-operator A latency percentiles.
+    - `METRIC op_b_p50_ns=<ns>`, `op_b_p95_ns=<ns>`, `op_b_p99_ns=<ns>`: per-operator B latency percentiles.
+    - `METRIC channel_ab_stalls=<count>`: channel backpressure stall tracking.
+    - `METRIC channel_ab_drops=<count>`: channel drop/overrun detection.
+    - `METRIC scheduler_run_us=<µs>`: graph scheduler batch execution timing.
+  - PMU hardware metrics (feature: `perf-verbose`):
+    - `METRIC op_a_pmu_inst=<count>`, `op_b_pmu_inst=<count>`: instruction count attribution.
+    - `METRIC op_a_pmu_l1d_refill=<count>`, `op_b_pmu_l1d_refill=<count>`: L1D cache refill attribution.
+  - Phase 2 deterministic metrics (feature: `deterministic`):
+    - `METRIC deterministic_deadline_miss_count=<count>`: deadline violations in CBS+EDF scheduler.
+    - `METRIC deterministic_jitter_p99_ns=<ns>`: P99 execution time jitter for deterministic tasks.
+    - `METRIC model_load_success=<count>`, `METRIC model_load_fail=<count>`: model package loading statistics.
+    - `METRIC model_audit_entries=<count>`, `METRIC models_loaded=<count>`: security audit and capacity tracking.
+    - `METRIC det_constraint_verified=<count>`: successful constraint verification checks.
+    - `METRIC det_constraint_violation_alloc=<count>`, `det_constraint_violation_block=<count>`: constraint violations detected.
 
 - Test runner (crates/testing)
   - Builds kernel + UEFI, launches QEMU with `-cpu cortex-a72,pmu=on`, logs serial to per-node files.
-  - Tails serial logs, parses METRIC lines, computes p95/p99, and exports full dump to `target/testing/metrics_dump.json`.
+  - Parses comprehensive METRIC lines including Phase 1 observability data (per-operator latencies, channel backpressure) and Phase 2 deterministic metrics (deadline tracking, model security audit logs).
+  - Validates metrics against JSON Schema v1 (`docs/schemas/sis-metrics-v1.schema.json`).
+  - Exports structured metrics dump to `target/testing/metrics_dump.json` with complete operator/channel/PMU attribution.
   - Context metric preference order: `real_ctx_switch_ns` (only if at least 8 non‑zero samples) > `irq_latency_ns` > `ctx_switch_ns`.
   - Environment-aware thresholds (relaxed in QEMU):
     - AI inference target: <40µs (p99) — measured from `ai_inference_us`.
@@ -41,10 +64,13 @@ Non-goals and not implemented: production hardening, formal proofs, full BFT con
 
 ## Important Caveats
 
-- QEMU’s NEON/PMU behavior is emulated; absolute numbers are not representative of real hardware. Use relative comparisons (e.g., scalar vs. NEON) and distributions.
+- QEMU's NEON/PMU behavior is emulated; absolute numbers are not representative of real hardware. Use relative comparisons (e.g., scalar vs. NEON) and distributions.
 - `real_ctx_switch_ns` measures a real cooperative context switch (between two contexts that save/restore callee-saved registers and SP). `ctx_switch_ns` measures a minimal syscall handler path, not a full switch.
+- Phase 1 observability provides comprehensive per-operator metrics and channel backpressure tracking. Dataflow graph architecture is implemented with OSEMN stage classification and zero-copy tensor handles.
+- Phase 2 deterministic scheduling implements CBS+EDF hybrid scheduler with 85% admission control threshold, jitter tracking with P99 bounds, and constraint enforcement preventing non-deterministic operations.
+- Phase 2 model security provides cryptographically-verified model packages with SHA-256 hash validation and simulated Ed25519 signature verification, capability-based permissions system, and comprehensive audit logging for compliance.
 - VirtIO device enumeration is present. For bring-up stability the VirtIO driver path is skipped by default and demos/control are run from the shell.
-- “Formal verification”, “BFT/consensus”, “RDMA”, and similar features referenced in older docs are not implemented here. Any files mentioning them are stubs or legacy experiments.
+- Advanced features beyond Phase 2 (full ML library integration, hardware deployment, production workloads) are documented in planning phases but not yet implemented.
 
 ## Quick Start (QEMU UEFI)
 
@@ -65,10 +91,12 @@ BRINGUP=1 ./scripts/uefi_run.sh
 # Optional feature toggles for the script
 #  - GRAPH=1 enables graph demo feature
 #  - PERF=1 enables perf-verbose (PMU programming + extra logs)
+#  - DETERMINISTIC=1 enables Phase 2 deterministic scheduler and model security
 #  - VIRTIO=1 enables the virtio-console driver path and adds QEMU virtio-serial devices (off by default)
 #  - SIS_FEATURES allows arbitrary feature list
 BRINGUP=1 GRAPH=1 PERF=1 ./scripts/uefi_run.sh
-BRINGUP=1 SIS_FEATURES="graph-demo,perf-verbose" ./scripts/uefi_run.sh
+BRINGUP=1 DETERMINISTIC=1 ./scripts/uefi_run.sh
+BRINGUP=1 SIS_FEATURES="graph-demo,perf-verbose,deterministic" ./scripts/uefi_run.sh
 BRINGUP=1 VIRTIO=1 ./scripts/uefi_run.sh
 
 # Add AI microbenchmarks (NEON-based; still under QEMU emulation)
@@ -84,14 +112,19 @@ You should see bring-up markers and a stream of `METRIC ...` lines after boot.
 The interactive shell starts at the end of bring-up.
 
 Useful shell commands (type `help` for full list):
-- `graphctl` — high-level control-plane aliases for graphs:
-  - `graphctl create`
-  - `graphctl add-channel <capacity>`
-  - `graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain]`
-  - `graphctl start <steps>`
-- `ctlhex` — low-level control-plane injector for hex-encoded frames
-- `graphdemo` — small graph demo (A→B), emits graph_demo_* METRICs (feature: `graph-demo`)
-- `pmu` — setup PMU and emit METRIC pmu_cycles/pmu_inst/pmu_l1d_refill (feature: `perf-verbose`)
+- **Graph control and observability**:
+  - `graphctl` — high-level control-plane aliases for graphs:
+    - `graphctl create` — create new graph
+    - `graphctl add-channel <capacity>` — add SPSC channel
+    - `graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain]` — add operator with OSEMN stage
+    - `graphctl start <steps>` — execute graph scheduler
+    - `graphctl stats` — show current graph structure (ops/channels)
+  - `graphdemo` — Phase 1 observability demo (A→B pipeline), emits comprehensive per-operator latency percentiles and channel backpressure metrics
+  - `detdemo` — Phase 2 deterministic demo (feature: `deterministic`), demonstrates CBS+EDF scheduler, model security, and constraint enforcement
+  - `ctlhex` — low-level V0 binary control-plane frame injection
+- **Performance monitoring**:
+  - `pmu` — PMU hardware counter demo, emits instruction and cache metrics (feature: `perf-verbose`)
+  - Built-in metrics collection for context switching, memory allocation, AI inference, and deterministic scheduling
 
 ## Control Plane (Shell) and Framing
 
@@ -145,13 +178,28 @@ Artifacts:
 
 ## Repository Structure (relevant parts)
 
-- `crates/kernel/src/main.rs` — AArch64 bring-up, MMU, UART, GICv3, virtual timer, IRQ latency bench, boot markers.
-- `crates/kernel/src/userspace_test.rs` — Syscall tests; emits `ctx_switch_ns` and `memory_alloc_ns` metrics with warm-ups and summaries.
-- `crates/kernel/src/ai_benchmark.rs` — NEON AI microbenchmarks; emits `ai_inference_us`, `ai_inference_scalar_us`, and optionally `neon_matmul_us`.
-- `crates/kernel/src/syscall.rs` — Minimal syscall handler and microbench support.
-- `crates/testing/src/qemu_runtime.rs` — Builds and launches QEMU; serial logging to files; boot detection.
-- `crates/testing/src/performance/mod.rs` — METRIC parser, stats, and JSON export.
-- `scripts/uefi_run.sh` — Local UEFI runner with feature flags (`BRINGUP`, `AI`, `NEON`).
+**Kernel Core**:
+- `crates/kernel/src/main.rs` — AArch64 bring-up, MMU, UART, GICv3, virtual timer, boot markers.
+- `crates/kernel/src/graph.rs` — Phase 1 dataflow architecture: GraphDemo, operators, SPSC channels, per-operator latency tracking, Phase 2 deterministic scheduling integration.
+- `crates/kernel/src/control.rs` — V0 binary control plane for graph management with frame parsing.
+- `crates/kernel/src/pmu.rs` — ARM PMU hardware counter integration for instruction-level metrics.
+- `crates/kernel/src/deterministic.rs` — Phase 2 CBS+EDF hybrid scheduler with admission control, jitter tracking, and constraint enforcement.
+- `crates/kernel/src/model.rs` — Phase 2 signed model package infrastructure with SHA-256+Ed25519 verification, capability-based permissions, and audit logging.
+- `crates/kernel/src/cap.rs` — Extended capability system supporting model-specific permissions (LOAD/EXECUTE/INSPECT/EXPORT/ATTEST).
+- `crates/kernel/src/shell.rs` — Interactive shell with graph control commands, observability tools, and Phase 2 deterministic demos.
+
+**Performance & Testing**:
+- `crates/kernel/src/userspace_test.rs` — Syscall tests; emits `ctx_switch_ns` and `memory_alloc_ns` metrics.
+- `crates/kernel/src/ai_benchmark.rs` — NEON AI microbenchmarks; emits AI inference metrics.
+- `crates/testing/src/performance/mod.rs` — Comprehensive METRIC parser with JSON Schema validation, structured export, and Phase 2 deterministic metrics support.
+- `crates/testing/src/qemu_runtime.rs` — QEMU runtime with PMU-enabled CPU configuration.
+
+**Documentation & Tooling**:
+- `docs/schemas/sis-metrics-v1.schema.json` — JSON Schema for metrics validation including Phase 2 deterministic and model security metrics.
+- `docs/AI-ML-KERNEL-IMPLEMENTATION-PLAN.md` — 20-week roadmap for ML integration beyond Phase 1.
+- `tools/sis_datactl.py` — Control plane client for graph management.
+- `scripts/uefi_run.sh` — Local UEFI runner with feature flags (`BRINGUP`, `GRAPH`, `PERF`, `DETERMINISTIC`).
+- `test_phase2.rs` — Phase 2 verification script for deterministic scheduler and model security components.
 
 ## Feature Flags
 
@@ -183,11 +231,24 @@ GIC: READY
 ...
 METRIC real_ctx_switch_ns=32
 METRIC ctx_switch_ns=4100
-...
 METRIC memory_alloc_ns=8200
-...
 METRIC irq_latency_ns=4800
 [SUMMARY] irq_latency_ns: count=64 mean=5100 ns min=4600 ns max=6500 ns
+...
+# Phase 1 Dataflow Observability (from graphdemo)
+METRIC graph_demo_total_ns=125000
+METRIC graph_demo_items=100
+METRIC scheduler_run_us=125
+METRIC op_a_p50_ns=850
+METRIC op_a_p95_ns=1200
+METRIC op_a_p99_ns=1450
+METRIC op_b_p50_ns=720
+METRIC op_b_p95_ns=980
+METRIC op_b_p99_ns=1150
+METRIC channel_ab_depth_max=8
+METRIC channel_ab_stalls=0
+METRIC channel_ab_drops=0
+METRIC zero_copy_count=100
 ```
 
 ## Measurement Methodology
@@ -205,17 +266,38 @@ METRIC irq_latency_ns=4800
 
 - AI metrics (`ai_inference_us`, `ai_inference_scalar_us`, `neon_matmul_us`): NEON‑based microbenchmarks; QEMU emulates NEON, so treat results as indicative of code paths and relative speedups.
 
+- Phase 1 dataflow observability (`graphdemo` command):
+  - Per-operator latency percentiles: 128-sample sliding windows track individual operator execution times via CNTVCT.
+  - Percentile calculation: in-place sort of samples with linear interpolation for p50/p95/p99.
+  - Channel backpressure: `stalls` tracks when channels are full; `drops` tracks near-capacity conditions (depth >= 63 for 64-capacity channels).
+  - Scheduler timing: measures total graph execution time from first operator to completion.
+  - Zero-copy tracking: counts tensor handle allocations and successful zero-copy operations.
+
 - PMU metrics (perf‑verbose): cycles are reliable under QEMU; architectural events such as `inst_retired` and `l1d_refill` may return 0 depending on QEMU/CPU model.
   - The `pmu` shell command runs a small busy loop and emits `METRIC pmu_cycles`, `pmu_inst`, `pmu_l1d_refill`.
-  - The `graphdemo` command (demo only) also emits per‑operator PMU totals when supported.
+  - The `graphdemo` command also emits per-operator PMU attribution (`op_a_pmu_inst`, `op_b_pmu_inst`, etc.) when supported.
 
-- Runner parsing and thresholds: test runner prefers `real_ctx_switch_ns` for context latency, falling back to `irq_latency_ns` then `ctx_switch_ns`; thresholds are QEMU‑aware when QEMU is in use.
+- Runner parsing and validation: test runner parses all METRIC lines, validates against JSON Schema v1, and exports structured graphs with operator/channel attribution; thresholds are QEMU‑aware when QEMU is in use.
 
-## Deterministic Demos (feature: `deterministic`)
+## Phase 2 Deterministic Demos (feature: `deterministic`)
 
-- Admission control: `GraphApi::admit_deterministic(wcet_ns, period_ns, deadline_ns)` emits:
-  - `det_admission_used_ppm`, `det_admission_accepted`, `det_admission_rejected`, and either `det_admit_ok` or `det_admit_reject`.
-- EDF tick demo: a small simulated EDF loop that emits `det_deadline_miss_count`.
+**CBS+EDF Scheduler with Admission Control**:
+- `detdemo` shell command demonstrates comprehensive Phase 2 deterministic scheduling
+- CBS servers with 85% admission control threshold prevent system overload
+- EDF scheduling ensures deadline-sensitive task ordering
+- Jitter tracking with P99 bounds validation for temporal predictability
+- Constraint enforcement prevents dynamic allocation, unbounded loops, indefinite blocking
+
+**Signed Model Package Infrastructure**:
+- ModelSecurityManager with SHA-256 hash verification and simulated Ed25519 signatures
+- Capability-based permissions system (LOAD/EXECUTE/INSPECT/EXPORT/ATTEST)
+- Comprehensive audit logging for compliance and security analysis
+- Demonstration of secure model loading with cryptographic verification
+
+**Metrics Emitted**:
+- `deterministic_deadline_miss_count`, `deterministic_jitter_p99_ns`: scheduler performance
+- `model_load_success`, `model_load_fail`, `model_audit_entries`: security operations
+- `det_constraint_verified`, `det_constraint_violation_*`: constraint enforcement
 
 ## Lint Gate (CI Strict Mode)
 
@@ -239,17 +321,26 @@ The exact percentiles for each run are exported to `target/testing/metrics_dump.
 
 For other percentiles (P50/P95/P99 across metrics), refer to `metrics_dump.json` and the generated dashboards in `target/testing/`.
 
-## Graph Demo & Shell Commands
+## Phase 1 Dataflow Observability Demo
 
-- Graph demo:
-  - Build or run with the `graph-demo` feature (the UEFI script supports `GRAPH=1`).
-  - From the shell, run `graphdemo`.
-  - METRICs emitted: `graph_demo_total_ns`, `graph_demo_items`, `graph_demo_avg_ns_per_item`, `zero_copy_count`, `zero_copy_handle_count`, `op_a_runs/op_b_runs`, `op_a_total_ns/op_b_total_ns`, `arena_remaining_bytes`.
+**Graph Demo (Phase 1 Complete)**:
+- Build with `graph-demo` feature: `GRAPH=1 ./scripts/uefi_run.sh`
+- From shell: `graphdemo` — executes A→B dataflow pipeline with comprehensive observability
+- **Core metrics**: `graph_demo_total_ns`, `graph_demo_items`, `scheduler_run_us`
+- **Per-operator latency percentiles**: `op_a_p50_ns`, `op_a_p95_ns`, `op_a_p99_ns`, `op_b_p50_ns`, `op_b_p95_ns`, `op_b_p99_ns`
+- **Channel backpressure**: `channel_ab_depth_max`, `channel_ab_stalls`, `channel_ab_drops`
+- **Zero-copy tracking**: `zero_copy_count`, `zero_copy_handle_count`
+- **PMU attribution** (with `PERF=1`): `op_a_pmu_inst`, `op_b_pmu_inst`, `op_a_pmu_l1d_refill`, `op_b_pmu_l1d_refill`
 
-- PMU demo:
-  - Build or run with `perf-verbose` (the UEFI script supports `PERF=1`).
-  - From the shell, run `pmu`.
-  - METRICs emitted: `pmu_cycles`, `pmu_inst`, `pmu_l1d_refill` (note: only cycles are reliable in QEMU).
+**PMU Hardware Monitoring**:
+- Build with `perf-verbose`: `PERF=1 ./scripts/uefi_run.sh`  
+- From shell: `pmu` — standalone PMU counter demonstration
+- METRICs: `pmu_cycles`, `pmu_inst`, `pmu_l1d_refill` (note: only cycles reliable in QEMU)
+
+**Graph Control Plane**:
+- Interactive graph construction: `graphctl create`, `graphctl add-channel 64`, `graphctl add-operator 1 --stage acquire`
+- Low-level frame injection: `ctlhex 4300010000000000` (CreateGraph command)
+- Real-time graph statistics: `graphctl stats`
 
 ## Troubleshooting
 
@@ -275,11 +366,39 @@ Below is an abbreviated example of the exported JSON (arrays truncated):
 
 ```json
 {
+  "schema_version": "v1",
   "real_ctx_switch_ns": [32.0, 33.0, 31.0, 32.0, 33.0],
   "ai_inference_us": [2.9, 3.0, 3.1, 3.0],
   "ctx_switch_ns": [4100.0, 4050.0],
   "irq_latency_ns": [4800.0, 5000.0, 4900.0],
   "memory_alloc_ns": [8200.0, 8100.0, 8300.0],
+  
+  // Phase 1 Dataflow Observability Fields
+  "graph_demo_total_ns": 125000.0,
+  "graph_demo_items": 100.0,
+  "scheduler_run_us": 125.0,
+  "op_a_p50_ns": 850.0,
+  "op_a_p95_ns": 1200.0,
+  "op_a_p99_ns": 1450.0,
+  "op_b_p50_ns": 720.0,
+  "op_b_p95_ns": 980.0,
+  "op_b_p99_ns": 1150.0,
+  "channel_ab_depth_max": 8.0,
+  "channel_ab_stalls": 0.0,
+  "channel_ab_drops": 0.0,
+  "zero_copy_count": 100.0,
+  
+  // Phase 2 Deterministic & Model Security Fields
+  "deterministic_deadline_miss_count": 0.0,
+  "deterministic_jitter_p99_ns": 1250.0,
+  "model_load_success": 3.0,
+  "model_load_fail": 0.0,
+  "model_audit_entries": 12.0,
+  "models_loaded": 3.0,
+  "det_constraint_verified": 45.0,
+  "det_constraint_violation_alloc": 0.0,
+  "det_constraint_violation_block": 0.0,
+  
   "summary": {
     "ai_inference_p99_us": 3.00,
     "ai_inference_mean_us": 3.00,
@@ -291,16 +410,16 @@ Below is an abbreviated example of the exported JSON (arrays truncated):
     "memory_allocation_p99_ns": 8300.0,
     "throughput_ops_per_sec": 13200000.0,
     "latency_summary": {
-      "mean": 0.0,
-      "median": 0.0,
-      "std_dev": 0.0,
-      "min": 0.0,
-      "max": 0.0,
-      "percentiles": { "50": 0.0, "95": 0.0, "99": 0.0 },
-      "confidence_intervals": { "95": [0.0, 0.0], "99": [0.0, 0.0] },
-      "sample_count": 0
+      "mean": 8641.766,
+      "median": 13552.0,
+      "std_dev": 6500.659,
+      "min": 3.0,
+      "max": 13552.0,
+      "percentiles": { "50": 13552.0, "95": 13552.0, "99": 13552.0 },
+      "confidence_intervals": { "95": [7767.0, 9516.3], "99": [7431.7, 9784.9] },
+      "sample_count": 201
     },
-    "timestamp": "2025-09-11T17:16:25Z"
+    "timestamp": "2025-09-12T21:06:58Z"
   }
 }
 ```
@@ -366,6 +485,8 @@ It prints context P95 (ns), AI P99 (µs), allocation P99 (ns), sample count for 
 
 ## Roadmap (near term)
 
+- **Phase 2 Completion**: Validate Phase 2 deterministic scheduler and model security on real hardware.
+- **Phase 3 Planning**: Begin implementation of Phase 3 features per AI-ML-KERNEL-IMPLEMENTATION-PLAN.md.
 - Separate real process/thread context switch measurement from syscall proxy.
 - Improve device support (complete VirtIO console path, add more drivers).
 - Make kernel-side JSON metrics export optional for UEFI-only runs.

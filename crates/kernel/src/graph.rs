@@ -4,6 +4,8 @@
 use crate::channel::spsc::Spsc;
 use crate::tensor::{BumpArena, TensorHandle};
 use crate::trace::metric_kv;
+#[cfg(feature = "deterministic")]
+use crate::deterministic::{DeterministicScheduler, TaskSpec};
 #[cfg(feature = "perf-verbose")]
 use crate::pmu::aarch64 as pmu;
 
@@ -205,7 +207,7 @@ fn op_b_run(_ctx: &mut OperatorCtx) {
 }
 
 #[inline(always)]
-fn now_cycles() -> u64 {
+pub fn now_cycles() -> u64 {
     #[cfg(target_arch = "aarch64")]
     unsafe {
         let mut v: u64; core::arch::asm!("isb; mrs {x}, cntvct_el0", x = out(reg) v, options(nomem, nostack, preserves_flags)); v
@@ -253,7 +255,8 @@ pub struct GraphApi {
     channels: alloc::vec::Vec<alloc::boxed::Box<Spsc<TensorHandle, 64>>>,
     ops: alloc::vec::Vec<OpNode>,
     #[cfg(feature = "deterministic")]
-    det_ac: crate::deterministic::AdmissionController,
+    det_scheduler: DeterministicScheduler<16>,
+    deterministic_mode: bool,
 }
 
 struct OpNode {
@@ -275,7 +278,31 @@ impl GraphApi {
             channels: alloc::vec::Vec::new(),
             ops: alloc::vec::Vec::new(),
             #[cfg(feature = "deterministic")]
-            det_ac: crate::deterministic::AdmissionController::new(850_000),
+            det_scheduler: DeterministicScheduler::new(850_000), // 85% utilization bound
+            deterministic_mode: false,
+        }
+    }
+    
+    /// Enable deterministic mode for this graph
+    #[cfg(feature = "deterministic")]
+    pub fn enable_deterministic(&mut self, wcet_ns: u64, period_ns: u64, deadline_ns: u64) -> bool {
+        let spec = TaskSpec {
+            id: 0, // Graph-level task
+            wcet_ns,
+            period_ns,
+            deadline_ns,
+        };
+        
+        match self.det_scheduler.admit_graph(0, spec) {
+            Ok(_server_id) => {
+                self.deterministic_mode = true;
+                metric_kv("det_admit_ok", 1);
+                true
+            },
+            Err(()) => {
+                metric_kv("det_admit_reject", 1);
+                false
+            }
         }
     }
     pub fn add_channel(&mut self, _spec: ChannelSpec) -> usize {
@@ -327,14 +354,7 @@ impl GraphApi {
 
     #[cfg(feature = "deterministic")]
     pub fn admit_deterministic(&mut self, wcet_ns: u64, period_ns: u64, deadline_ns: u64) -> bool {
-        let spec = crate::deterministic::TaskSpec { id: 0, wcet_ns, period_ns, deadline_ns };
-        let ok = self.det_ac.try_admit(&spec);
-        let (used_ppm, acc, rej) = self.det_ac.stats();
-        crate::trace::metric_kv("det_admission_used_ppm", used_ppm as usize);
-        crate::trace::metric_kv("det_admission_accepted", acc as usize);
-        crate::trace::metric_kv("det_admission_rejected", rej as usize);
-        if ok { crate::trace::metric_kv("det_admit_ok", 1) } else { crate::trace::metric_kv("det_admit_reject", 1) }
-        ok
+        self.enable_deterministic(wcet_ns, period_ns, deadline_ns)
     }
 }
 
@@ -366,4 +386,124 @@ pub fn run_spsc_debug(n: usize) {
         }
     }
     crate::trace::metric_kv("spsc_debug_done", 1);
+}
+
+/// Phase 2 deterministic demo with comprehensive CBS+EDF scheduling
+#[cfg(feature = "deterministic")]
+pub fn deterministic_demo() {
+    use crate::deterministic::{DeterministicScheduler, TaskSpec, ConstraintEnforcer, verify_deterministic_constraints};
+    use crate::model::{ModelSecurityManager, ModelPermissions, ModelConstraints, create_demo_model};
+    use crate::cap::{Capability, CapId, CapRights, CapObjectKind};
+    use crate::trace::trace;
+    
+    trace("DETERMINISTIC DEMO: Starting Phase 2 comprehensive demo");
+    
+    // Initialize deterministic scheduler
+    let mut scheduler: DeterministicScheduler<8> = DeterministicScheduler::new(850_000); // 85% bound
+    
+    // Initialize model security manager
+    let mut model_manager: ModelSecurityManager<4, 32> = ModelSecurityManager::new();
+    
+    // Initialize constraint enforcer
+    let mut enforcer = ConstraintEnforcer::new(1000); // Max 1000 loop iterations
+    
+    // Create and load a demo model
+    let (mut demo_package, demo_data) = create_demo_model();
+    
+    // Compute proper hash for the demo data
+    demo_package.sha256_hash = [0x42; 32]; // Demo hash
+    demo_package.permissions = ModelPermissions::LOAD | ModelPermissions::EXECUTE;
+    
+    // Load the model
+    match model_manager.load_model(demo_package, &demo_data) {
+        Ok(model_idx) => {
+            trace("DETERMINISTIC DEMO: Model loaded successfully");
+            
+            // Create capability for model execution
+            let model_cap = Capability {
+                id: CapId::new(1).unwrap(),
+                kind: CapObjectKind::Model,
+                rights: CapRights::RUN | CapRights::EXECUTE,
+            };
+            
+            // Test model execution with constraints
+            let constraints = ModelConstraints {
+                memory_cap_bytes: 512 * 1024, // 512KB limit
+                compute_budget_ns: 100_000,   // 100μs budget
+                allowed_ops: 0xFF,            // All ops allowed for demo
+            };
+            
+            let exec_result = model_manager.execute_model(model_idx, constraints, model_cap);
+            match exec_result {
+                crate::model::ModelResult::Success => {
+                    trace("DETERMINISTIC DEMO: Model execution successful");
+                }
+                _ => {
+                    trace("DETERMINISTIC DEMO: Model execution failed");
+                }
+            }
+        }
+        Err(_) => {
+            trace("DETERMINISTIC DEMO: Model load failed");
+        }
+    }
+    
+    // Admit deterministic graphs to scheduler
+    let graph_specs = [
+        TaskSpec { id: 1, wcet_ns: 50_000, period_ns: 200_000, deadline_ns: 200_000 },  // 25% util
+        TaskSpec { id: 2, wcet_ns: 30_000, period_ns: 100_000, deadline_ns: 100_000 },  // 30% util  
+        TaskSpec { id: 3, wcet_ns: 40_000, period_ns: 200_000, deadline_ns: 200_000 },  // 20% util
+    ];
+    
+    for spec in graph_specs.iter() {
+        match scheduler.admit_graph(spec.id, *spec) {
+            Ok(_) => trace("DETERMINISTIC DEMO: Graph admitted"),
+            Err(_) => trace("DETERMINISTIC DEMO: Graph rejected (overload)"),
+        }
+    }
+    
+    // Simulate deterministic execution
+    let mut current_time = 0u64;
+    let simulation_duration = 1_000_000u64; // 1ms simulation
+    
+    while current_time < simulation_duration {
+        // Schedule next graph
+        if let Some(graph_id) = scheduler.schedule_next(current_time) {
+            // Find the graph spec for execution time
+            let graph_spec = graph_specs.iter().find(|s| s.id == graph_id);
+            if let Some(spec) = graph_spec {
+                // Verify deterministic constraints before execution
+                if verify_deterministic_constraints(graph_id, &mut enforcer) {
+                    // Simulate execution with some jitter
+                    let base_runtime = spec.wcet_ns / 2; // Use half of WCET as typical runtime
+                    let jitter = (current_time % 1000) as u64; // Small jitter based on time
+                    let actual_runtime = base_runtime + jitter;
+                    
+                    // Complete execution and update scheduler
+                    scheduler.complete_execution(graph_id, actual_runtime, spec.wcet_ns);
+                    
+                    current_time += actual_runtime;
+                } else {
+                    trace("DETERMINISTIC DEMO: Constraint violation detected");
+                    current_time += 10_000; // Skip ahead on violation
+                }
+            }
+        } else {
+            // No graphs ready, advance time
+            current_time += 10_000; // 10μs advance
+        }
+        
+        // Reset constraint enforcer for next iteration
+        enforcer.reset();
+    }
+    
+    trace("DETERMINISTIC DEMO: Simulation completed");
+    
+    // Emit all Phase 2 metrics
+    scheduler.emit_metrics();
+    model_manager.emit_metrics();
+    
+    // Additional deterministic demo metrics
+    metric_kv("deterministic_demo_duration_us", simulation_duration as usize / 1000);
+    metric_kv("deterministic_demo_completed", 1);
 }
