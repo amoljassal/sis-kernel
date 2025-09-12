@@ -207,7 +207,11 @@ pub struct VirtIOConsoleDriver {
     receiveq: Option<VirtQueue>,
     transmitq: Option<VirtQueue>,
     buffer: [u8; 4096],
+    /// Dedicated RX buffer for receive queue
+    rx_buffer: [u8; 4096],
     initialized: bool,
+    ctl_buf: [u8; 1024],
+    ctl_len: usize,
 }
 
 impl VirtIOConsoleDriver {
@@ -218,7 +222,10 @@ impl VirtIOConsoleDriver {
             receiveq: None,
             transmitq: None,
             buffer: [0; 4096],
+            rx_buffer: [0; 4096],
             initialized: false,
+            ctl_buf: [0; 1024],
+            ctl_len: 0,
         }
     }
 
@@ -228,7 +235,9 @@ impl VirtIOConsoleDriver {
 
         // Select queue 0 (receiveq)
         transport.write_reg(VirtIOMMIOOffset::QueueSel, 0);
-        let queue0_size = transport.read_reg(VirtIOMMIOOffset::QueueNumMax);
+        let queue0_size_hw = transport.read_reg(VirtIOMMIOOffset::QueueNumMax);
+        // Clamp to a sane size to avoid huge allocations/writes if QEMU reports a large max
+        let queue0_size = core::cmp::min(queue0_size_hw, 256);
 
         if queue0_size == 0 {
             return Err(DriverError::NotSupported);
@@ -263,9 +272,19 @@ impl VirtIOConsoleDriver {
         transport.write_reg(VirtIOMMIOOffset::QueueNum, queue0_size);
         transport.write_reg(VirtIOMMIOOffset::QueueReady, 1);
 
+        // Prime receive queue with one RX buffer
+        if let Some(recv) = self.receiveq.as_mut() {
+            // VIRTQ_DESC_F_WRITE = 2 (device writes into buffer)
+            const VIRTQ_DESC_F_WRITE: u16 = 1 << 1;
+            let _ = recv.add_buffer(self.rx_buffer.as_ptr() as u64, self.rx_buffer.len() as u32, VIRTQ_DESC_F_WRITE);
+            // Notify queue 0 that buffer is available
+            transport.write_reg(VirtIOMMIOOffset::QueueNotify, 0);
+        }
+
         // Select queue 1 (transmitq)
         transport.write_reg(VirtIOMMIOOffset::QueueSel, 1);
-        let queue1_size = transport.read_reg(VirtIOMMIOOffset::QueueNumMax);
+        let queue1_size_hw = transport.read_reg(VirtIOMMIOOffset::QueueNumMax);
+        let queue1_size = core::cmp::min(queue1_size_hw, 256);
 
         if queue1_size > 0 {
             let queue1_addr = 0x50010000u64;
@@ -339,16 +358,73 @@ impl VirtIOConsoleDriver {
         }
 
         let receiveq = self.receiveq.as_mut().ok_or(DriverError::NotSupported)?;
+        let transport = self.transport.as_ref().ok_or(DriverError::InitFailed)?;
 
         unsafe {
             if let Some((_, len)) = receiveq.get_used_buffer() {
                 let read_len = core::cmp::min(len as usize, buffer.len());
-                buffer[..read_len].copy_from_slice(&self.buffer[..read_len]);
+                buffer[..read_len].copy_from_slice(&self.rx_buffer[..read_len]);
+
+                // Re-post RX buffer to receive more data
+                const VIRTQ_DESC_F_WRITE: u16 = 1 << 1;
+                let _ = receiveq.add_buffer(self.rx_buffer.as_ptr() as u64, self.rx_buffer.len() as u32, VIRTQ_DESC_F_WRITE);
+                // Notify device that RX buffer is available again (queue 0)
+                transport.write_reg(VirtIOMMIOOffset::QueueNotify, 0);
                 return Ok(read_len);
             }
         }
 
         Ok(0)
+    }
+
+    /// Poll the receive queue for control-plane frames following V0 framing.
+    /// This treats all incoming virtconsole input as control frames.
+    pub unsafe fn poll_control_frames(&mut self) -> DriverResult<()> {
+        if !self.initialized { return Ok(()); }
+        // Read into scratch buffer
+        let mut tmp = [0u8; 256];
+        loop {
+            match self.read_data(&mut tmp) {
+                Ok(n) if n > 0 => {
+                    // Append to ctl_buf
+                    let space = self.ctl_buf.len().saturating_sub(self.ctl_len);
+                    let to_copy = core::cmp::min(space, n);
+                    self.ctl_buf[self.ctl_len..self.ctl_len+to_copy].copy_from_slice(&tmp[..to_copy]);
+                    self.ctl_len += to_copy;
+                    // Try to parse frames
+                    self.process_ctl_buffer();
+                }
+                _ => break,
+            }
+        }
+        Ok(())
+    }
+
+    unsafe fn process_ctl_buffer(&mut self) {
+        // Minimal V0 parser: look for 'C'(0x43), ver=0, then cmd, flags, len(u32), payload
+        let mut offset = 0usize;
+        while self.ctl_len.saturating_sub(offset) >= 8 {
+            if self.ctl_buf[offset] != 0x43 { offset += 1; continue; }
+            let ver = self.ctl_buf[offset+1];
+            if ver != 0 { offset += 1; continue; }
+            let len = u32::from_le_bytes([
+                self.ctl_buf[offset+4],
+                self.ctl_buf[offset+5],
+                self.ctl_buf[offset+6],
+                self.ctl_buf[offset+7],
+            ]) as usize;
+            if self.ctl_len.saturating_sub(offset) < 8 + len { break; }
+            let frame = &self.ctl_buf[offset..offset+8+len];
+            let res = crate::control::handle_frame(frame);
+            match res { Ok(()) => crate::uart_print(b"[CTL] ok\n"), Err(_) => crate::uart_print(b"[CTL] error\n"), }
+            offset += 8 + len;
+        }
+        if offset > 0 {
+            // shift remaining
+            let remain = self.ctl_len - offset;
+            for i in 0..remain { self.ctl_buf[i] = self.ctl_buf[offset+i]; }
+            self.ctl_len = remain;
+        }
     }
 }
 
@@ -466,6 +542,8 @@ impl Driver for VirtIOConsoleDriver {
             }
         }
 
+        // Attempt to drain RX and process control frames
+        unsafe { let _ = self.poll_control_frames(); }
         Ok(())
     }
 
@@ -476,6 +554,7 @@ impl Driver for VirtIOConsoleDriver {
     fn write(&mut self, _offset: u64, data: &[u8]) -> DriverResult<usize> {
         self.write_data(data)
     }
+
 }
 
 impl VirtIOConsoleDriver {

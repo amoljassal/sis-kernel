@@ -24,6 +24,11 @@ on:
         required: false
         default: false
         type: boolean
+      enable_virtio_console:
+        description: 'Build sis_kernel with virtio-console feature (opt-in)'
+        required: false
+        default: false
+        type: boolean
 
 env:
   CARGO_TERM_COLOR: always
@@ -214,6 +219,44 @@ jobs:
         cd crates/testing
         # Check that minimum thresholds are met
         python3 scripts/validate_results.py target/testing/${{ matrix.test_profile.name }}/validation_report.json
+
+    - name: Validate metrics_dump.json against schema (if present)
+      run: |
+        set -euxo pipefail
+        FILE="crates/testing/target/testing/${{ matrix.test_profile.name }}/metrics_dump.json"
+        if [ -f "$FILE" ]; then
+          echo "Found $FILE; validating against schema"
+          pip3 install jsonschema >/dev/null
+          python3 - <<'PY'
+import json, jsonschema, sys
+schema = json.load(open('docs/schemas/sis-metrics-v1.schema.json'))
+doc = json.load(open(sys.argv[1]))
+jsonschema.validate(doc, schema)
+print('metrics_dump.json: schema validation OK')
+PY
+          "$FILE"
+        else
+          echo "metrics_dump.json not present; skipping schema validation"
+        fi
+
+    - name: Validate validation_report.json against schema
+      run: |
+        set -euxo pipefail
+        FILE="crates/testing/target/testing/${{ matrix.test_profile.name }}/validation_report.json"
+        if [ -f "$FILE" ]; then
+          echo "Found $FILE; validating against schema"
+          pip3 install jsonschema >/dev/null
+          python3 - <<'PY'
+import json, jsonschema, sys
+schema = json.load(open('docs/schemas/validation-report-v1.schema.json'))
+doc = json.load(open(sys.argv[1]))
+jsonschema.validate(doc, schema)
+print('validation_report.json: schema validation OK')
+PY
+          "$FILE"
+        else
+          echo "validation_report.json not present; skipping schema validation"
+        fi
 
     - name: Upload test artifacts
       uses: actions/upload-artifact@v3
@@ -464,6 +507,27 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: crates/testing/target/
         destination_dir: reports/
+
+  virtio-console-build:
+    name: Optional build: sis_kernel +virtio-console (AArch64)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.enable_virtio_console == 'true'
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Install Rust nightly with aarch64 target
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: nightly
+        targets: aarch64-unknown-none
+        components: rust-src
+    - name: Cache Rust dependencies
+      uses: Swatinem/rust-cache@v2
+    - name: Build sis_kernel (bringup + virtio-console)
+      run: |
+        cargo +nightly build -p sis_kernel -Z build-std=core,alloc \
+          --target aarch64-unknown-none \
+          --features bringup,virtio-console
 
   notification:
     name: Notification & Reporting

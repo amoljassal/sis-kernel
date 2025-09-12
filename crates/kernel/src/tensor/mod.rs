@@ -46,3 +46,29 @@ impl TensorAlloc {
     }
 }
 
+/// Simple per-graph bump arena for predictable allocation in Phase 1.
+#[repr(align(64))]
+pub struct Aligned<const N: usize>(pub [u8; N]);
+
+pub struct BumpArena<const N: usize> {
+    buf: Aligned<N>,
+    off: usize,
+}
+
+impl<const N: usize> BumpArena<N> {
+    pub const fn new() -> Self { Self { buf: Aligned([0; N]), off: 0 } }
+
+    #[inline(always)]
+    pub fn remaining(&self) -> usize { N.saturating_sub(self.off) }
+
+    #[inline(always)]
+    pub fn alloc(&mut self, size: usize, align: usize) -> Option<TensorHandle> {
+        let base = self.buf.0.as_ptr() as usize;
+        let cur = base + self.off;
+        let aligned = (cur + (align - 1)) & !(align - 1);
+        let end = aligned.checked_add(size)?;
+        if end > base + N { return None; }
+        self.off = end - base;
+        Some(TensorHandle { ptr: aligned as *mut u8, len: size })
+    }
+}

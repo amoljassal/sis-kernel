@@ -473,7 +473,9 @@ fn syscall_to_index(syscall: SyscallNumber) -> usize {
 }
 
 /// Record system call performance metrics
-fn record_syscall_metrics(syscall: SyscallNumber, cycles: u64, _success: bool) {
+fn record_syscall_metrics(syscall: SyscallNumber, cycles: u64, success: bool) {
+    // Ensure `success` is observed even when perf-verbose is off
+    let _ = success;
     unsafe {
         let index = syscall_to_index(syscall);
         SYSCALL_METRICS[index].update(cycles);

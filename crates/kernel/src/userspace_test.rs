@@ -392,15 +392,25 @@ pub fn bench_real_context_switch() {
     // Shared timing state between main and task A
     static mut T0: u64 = 0;
     static mut REMAIN: u32 = 0;
+    static mut RCX_BUF: [u64; 128] = [0; 128];
+    static mut RCX_IDX: u32 = 0;
 
     extern "C" fn task_a_entry() -> ! {
         loop {
             let t1 = unsafe { read_cntvct() };
             let ns = unsafe { cntvct_delta_ns(T0, t1) };
-            unsafe {
-                crate::uart_print(b"METRIC real_ctx_switch_ns=");
-                print_number(ns as usize);
-                crate::uart_print(b"\n");
+            if ns > 0 {
+                unsafe {
+                    // Emit metric only for non-zero samples
+                    crate::uart_print(b"METRIC real_ctx_switch_ns=");
+                    print_number(ns as usize);
+                    crate::uart_print(b"\n");
+                    let idx = core::ptr::addr_of!(RCX_IDX).read_volatile() as usize;
+                    if idx < 128 {
+                        core::ptr::addr_of_mut!(RCX_BUF[idx]).write(ns);
+                        core::ptr::addr_of_mut!(RCX_IDX).write((idx as u32).wrapping_add(1));
+                    }
+                }
             }
             // Switch back to main
             unsafe { aarch64_context_switch(&raw mut CTX_A, &raw const CTX_MAIN); }
@@ -415,8 +425,9 @@ pub fn bench_real_context_switch() {
             task_a_entry,
         );
 
-        // Warm-up a few switches
+        // Warm-up a few switches (discard outputs)
         for _ in 0..8 {
+            cntvct_isb();
             T0 = read_cntvct();
             aarch64_context_switch(&raw mut CTX_MAIN, &raw const CTX_A);
         }
@@ -424,18 +435,31 @@ pub fn bench_real_context_switch() {
         // Collect samples
         REMAIN = 64;
         for _ in 0..REMAIN {
+            cntvct_isb();
             T0 = read_cntvct();
             aarch64_context_switch(&raw mut CTX_MAIN, &raw const CTX_A);
+        }
+
+        // Compute and print summary for collected non-zero samples
+        let count = core::ptr::addr_of!(RCX_IDX).read_volatile() as usize;
+        if count > 0 {
+            let mut v = alloc::vec::Vec::with_capacity(count);
+            for i in 0..count { v.push(core::ptr::addr_of!(RCX_BUF[i]).read()); }
+            if let Some((p50, p95, p99)) = percentiles(&mut v) {
+                crate::uart_print(b"[SUMMARY] real_ctx_switch_ns: count="); print_number(count);
+                crate::uart_print(b" P50="); print_number(p50 as usize);
+                crate::uart_print(b" ns, P95="); print_number(p95 as usize);
+                crate::uart_print(b" ns, P99="); print_number(p99 as usize); crate::uart_print(b" ns\n");
+            }
         }
     }
 }
 
 #[inline(always)]
-unsafe fn read_cntvct() -> u64 {
-    let v: u64;
-    asm!("mrs {}, CNTVCT_EL0", out(reg) v);
-    v
-}
+unsafe fn read_cntvct() -> u64 { let v: u64; asm!("isb; mrs {}, CNTVCT_EL0", out(reg) v); v }
+
+#[inline(always)]
+unsafe fn cntvct_isb() { asm!("isb"); }
 
 #[inline(always)]
 unsafe fn read_cntfrq() -> u64 {

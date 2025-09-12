@@ -14,6 +14,12 @@ SIS treats AI workloads as first‑class: the kernel schedules dataflow graphs, 
 - Built‑In Observability: Low‑overhead tracepoints and PMU attribution tied to operators and graphs; stable JSON exports.
 - Minimal SSI: A consensus‑free data plane with a narrow control plane to place and supervise graphs across nodes.
 
+Implementation status (current repo)
+- Phase 1 foundations are in: Graph/Operator/Channel/Tensor scaffolding, SPSC ring, zero‑copy tensor handles, graph demo (A→B), basic per‑operator time attribution and METRICs.
+- Control plane V0 is implemented in‑kernel with a minimal binary frame format; for bring‑up it is exercised via shell commands (`graphctl`, `ctlhex`). A VirtIO control path exists behind a feature flag and remains opt‑in until hardened.
+- PMU helpers exist with a QEMU caveat (cycles reliable; other events may read as 0).
+- Strict lint gate is available (`strict` feature) and CI/test runner prefer real context‑switch metrics with a minimum non‑zero sample requirement.
+
 ### 16–20 Week Roadmap (Phases)
 
 | Weeks | Phase | Milestones |
@@ -48,6 +54,103 @@ Lifecycle (typical): GraphCreate → OperatorAdd/ChannelCreate → GraphStart �
 - Phase 1: SPSC lock‑free ring buffers only (fast, analyzable). Watermark backpressure with metrics on depth, stalls, drops.
 - Future: MPSC/MPMC via credits if needed; keep deterministic graphs on SPSC.
 
+## Data Analyst Pipelines (Design & Plan)
+
+This section defines a higher‑level “Data Analyst” framework built on the kernel graph, without adding heavy logic to the kernel. The kernel remains a fast, deterministic data plane, while a userspace application orchestrates pipelines composed of five literal stages:
+
+- Acquire Data: Ingestion from files/streams/endpoints into DataTensor batches
+- Clean Data: Validation, normalization, transformation; quality metrics updated
+- Explore Data: Statistics, sampling, and summary materialization
+- Model Data: Training/inference operators (deterministic subgraphs where needed)
+- Explain Results: Formatting, reporting, and actuation-ready outputs
+
+### Kernel Hooks (implemented/planned)
+
+- Implemented now:
+  - Stage enum on operators: Acquire/Clean/Explore/Model/Explain (for attribution and filtering).
+  - Minimal control plane V0: CreateGraph, AddChannel, AddOperator, StartGraph.
+  - Shell front-ends: `graphctl` (friendly) and `ctlhex` (raw frames) to drive graphs during bring‑up.
+  - Graph demo (A→B) with METRICs for totals, items, ns/item, per‑operator counts/times, arena remaining.
+  - PMU demo/setup with QEMU caveat (cycles reliable; other events may be 0).
+
+- Planned in P1 hardening:
+  - VirtIO control path behind a feature flag (multiport binding, RX IRQ path, backpressure).
+  - JSON schema v1 for graphs/operators/channels with stable keys.
+  - Depth/backpressure metrics and zero‑copy counters in steady‑state runs.
+
+### Kernel Support (Additions)
+
+- DataTensor Header (minimal, typed):
+  - `schema_id: u32` – identifies a schema known to userspace
+  - `records: u32` – row count for batch semantics
+  - `quality: { nulls: u32, errors: u32, flags: u32 }` – quick quality indicators
+  - `lineage: { run_id: u64, upstream_op: u32, seq: u32 }` – provenance for replay/debug
+  - All fields ride alongside `TensorHandle`; payload stays zero‑copy
+
+- Stage Tags and Operator Hints:
+  - `enum Stage { AcquireData, CleanData, ExploreData, ModelData, ExplainResults }`
+  - Stored per operator; used in metrics, capability checks, and validation
+
+- Sideband Metadata and Errors:
+  - Per‑edge metadata frames to carry schema updates, quality rollups, and counters
+  - Error frames: `(code, count, sample_offset)` with channel‑level error counters
+  - Backpressure signals extended to allow “drain” or “quarantine” paths from CleanData
+
+- Control Plane (message‑based, userspace driven):
+  - Dedicated virtio‑serial port for control (e.g., `sis.datactl`), distinct from console
+  - Framed CBOR/FlatBuffers commands:
+    - `CreateGraph { graph_id }`
+    - `AddOperator { graph_id, op_id, stage, config_id }`
+    - `Connect { graph_id, src, dst }`
+    - `StartGraph { graph_id }`, `StopGraph { graph_id }`, `DestroyGraph { graph_id }`
+    - `EmitStats { graph_id }`
+  - Capability checks on control ops: DataSourceCap for AcquireData, ModelCap for ModelData, SinkCap for ExplainResults
+
+- Deterministic Subgraphs:
+  - Apply admission control and EDF scheduling to ModelData/ExplainResults subgraphs when requested
+  - Enforce “no dynamic alloc/unbounded loops/indefinite blocking” invariants for deterministic operators
+
+### Userspace Application (First Userspace App)
+
+- Python “Data Analyst” Orchestrator (initial target):
+  - `sis_data_analyst.Graph()` builder; methods `.acquire()`, `.clean()`, `.explore()`, `.model()`, `.explain()`
+  - Talks to the kernel via `/tmp/sis-datactl.sock` (virtio‑serial mapped socket)
+  - Converts high‑level pipeline to control messages; pushes data batches for AcquireData
+  - Integrates with pandas/pyarrow/scikit/PyTorch for cleansing, stats, and model logic where appropriate
+
+- Data Types and Schemas:
+  - Arrow‑like schema at the boundary (IDs carried in kernel), with mapping to kernel `schema_id`
+  - Kernel validates `schema_id` continuity on channel connects; userspace is source of truth for full schema
+
+- Observability & Lineage:
+  - Kernel emits per‑op METRICs; userspace correlates with run_id and op IDs
+  - Userspace collects lineage and quality summaries; persists runs for replay
+
+### Milestones (Userspace + Kernel)
+
+1) Control Plane MVP:
+   - Virtio‑serial port + CBOR command schema; `CreateGraph/AddOperator/Connect/StartGraph` end‑to‑end
+   - Synthetic Acquire→Clean→Model pipeline with METRICs
+
+2) Typed DataTensor:
+   - Add `schema_id`, `records`, `quality`, `lineage` to headers; enforce `schema_id` checks on connects
+
+3) Error Frames & Backpressure:
+   - CleanData emits error frames + quality counters; graph exposes per‑edge error METRICs
+
+4) Deterministic Subgraph:
+   - Admit and run a small deterministic ModelData subgraph; emit admission and miss metrics
+
+5) Data Connectors:
+   - Userspace AcquireData pulls from files/streams → kernel batches; measure end‑to‑end latency/throughput
+
+### Security & Capabilities
+
+- DataSourceCap: allows AcquireData from a specific source URI
+- ModelCap: allows ModelData execution for a signed model package (hash + measurement)
+- SinkCap: allows ExplainResults to write to configured sinks (files/streams)
+- All control ops are capability‑checked; kernel remains mechanism, userspace defines policy
+
 ## Scheduling
 
 ### Phase 1: Static Priority Scheduler
@@ -61,6 +164,10 @@ Lifecycle (typical): GraphCreate → OperatorAdd/ChannelCreate → GraphStart �
 - CBS Server per deterministic graph isolates runtime; EDF orders operator activations inside the server.
 - Timer Discipline: Program ARM architected timer per deadline (event‑driven), not heavy periodic ticks.
 - Invariants: No dynamic allocation, no unbounded loops, no indefinite blocking in deterministic operators; enforced by kernel checks and audits.
+
+Deterministic Data Analyst Subgraphs
+
+- Apply deterministic mode to ModelData and ExplainResults where deadlines/SLAs are required. Admission control and EDF ordering ensure predictable behavior; non‑deterministic stages (Acquire/Clean/Explore) remain best‑effort.
 
 ## Security & Model Capabilities
 
@@ -81,6 +188,7 @@ Lifecycle (typical): GraphCreate → OperatorAdd/ChannelCreate → GraphStart �
 ### PMU Attribution
 
 - Per‑operator: fixed set of counters (cycles, instructions, L1D miss, branch miss). Configure once per run or per activation with care to avoid reprogramming overhead.
+  - QEMU caveat: cycles are reliable; other architectural events may read as 0 depending on the build/CPU model. Attribute only supported events in emulation.
 
 ### Metrics & JSON (Schema v1)
 
@@ -89,6 +197,11 @@ Lifecycle (typical): GraphCreate → OperatorAdd/ChannelCreate → GraphStart �
   - P2: deterministic_deadline_miss_count, deterministic_jitter_ns, model_load_success/fail.
   - P3: remote_channel_latency_p95_us, retry_rate, placement_time_ms, node_failures.
 - JSON export: stable keys with a top‑level schema version; dedicated sections for graphs, operators, channels, and percentiles.
+
+Current in‑tree METRIC keys (Phase 1, for reference):
+- Graph demo: `graph_demo_total_ns`, `graph_demo_items`, `graph_demo_avg_ns_per_item`, `zero_copy_count`, `zero_copy_handle_count`, `op_a_runs`, `op_b_runs`, `op_a_total_ns`, `op_b_total_ns`, `arena_remaining_bytes`.
+- PMU demo: `pmu_cycles`, `pmu_inst`, `pmu_l1d_refill` (subject to QEMU caveat above).
+- Timing harness: `irq_latency_ns` samples + `[SUMMARY]`, `real_ctx_switch_ns` samples + `[SUMMARY]` (min count enforced by runner), `ctx_switch_ns`, `memory_alloc_ns`.
 
 ## Multi‑Node SSI Prototype
 
@@ -206,4 +319,3 @@ fn admit(wcet: u64, period: u64, current_util: f64) -> bool {
 - Barrelfish: Multikernel message‑passing; separate mechanism from policy; per‑core independence.
 - Google Dapper: Tracing principles; low overhead, context propagation.
 - ARM ARM + PMU Docs: Barriers, memory model, counter programming; avoid over‑fencing; attribute wisely.
-

@@ -44,6 +44,32 @@ if [[ "${NEON:-}" != "" ]]; then
   FEATURES="${FEATURES},neon-optimized"
 fi
 
+# Optional toggles for demos and verbose perf
+if [[ "${GRAPH:-}" != "" ]]; then
+  echo "[*] Enabling graph demo"
+  FEATURES="${FEATURES},graph-demo"
+fi
+if [[ "${GRAPH_STATS:-}" != "" ]]; then
+  echo "[*] Enabling baseline graph stats"
+  FEATURES="${FEATURES},graph-autostats"
+fi
+if [[ "${PERF:-}" != "" ]]; then
+  echo "[*] Enabling perf-verbose"
+  FEATURES="${FEATURES},perf-verbose"
+fi
+
+# Optional toggle for VirtIO console driver path (off by default)
+if [[ "${VIRTIO:-}" != "" ]]; then
+  echo "[*] Enabling virtio-console feature"
+  FEATURES="${FEATURES},virtio-console"
+fi
+
+# Allow caller to pass arbitrary additional features via SIS_FEATURES
+if [[ -n "${SIS_FEATURES:-}" ]]; then
+  echo "[*] Adding SIS_FEATURES: ${SIS_FEATURES}"
+  FEATURES="${FEATURES},${SIS_FEATURES}"
+fi
+
 # Remove leading comma if present
 FEATURES="${FEATURES#,}"
 
@@ -82,17 +108,30 @@ if [[ "${DEBUG:-}" != "" ]]; then
   echo "[*] Debug mode enabled: logging to /tmp/qemu-debug.log"
 fi
 
+QEMU_DEVICES=(
+  -M virt,gic-version=3,highmem=on,secure=off
+  -cpu cortex-a72,pmu=on
+  -m 512M
+  -nographic
+  -bios "$FIRMWARE"
+  -drive if=none,id=esp,format=raw,file=fat:rw:"$ESP_DIR"
+  -device virtio-blk-pci,drive=esp,id=boot-disk,disable-legacy=on
+  -device virtio-rng-pci,id=rng0,disable-legacy=on
+  -device virtio-net-pci,netdev=net0,id=net0,disable-legacy=on
+  -netdev user,id=net0
+)
+
+# Add virtio-serial only if VIRTIO=1
+if [[ "${VIRTIO:-}" != "" ]]; then
+  QEMU_DEVICES+=(
+    -device virtio-serial-device
+    -chardev socket,id=datactl,server=on,wait=off,path=/tmp/sis-datactl.sock
+    -device virtconsole,chardev=datactl,name=sis.datactl
+  )
+fi
+
 qemu-system-aarch64 \
-  -M virt,gic-version=3,highmem=on,secure=off \
-  -cpu cortex-a72,pmu=on \
-  -m 512M \
-  -nographic \
-  -bios "$FIRMWARE" \
-  -drive if=none,id=esp,format=raw,file=fat:rw:"$ESP_DIR" \
-  -device virtio-blk-pci,drive=esp,id=boot-disk,disable-legacy=on \
-  -device virtio-rng-pci,id=rng0,disable-legacy=on \
-  -device virtio-net-pci,netdev=net0,id=net0,disable-legacy=on \
-  -netdev user,id=net0 \
+  "${QEMU_DEVICES[@]}" \
   -rtc base=utc \
   -no-reboot \
   -smp 2 \

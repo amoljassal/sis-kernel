@@ -524,6 +524,7 @@ impl VisualizationEngine {
             text-align: center;
             color: white;
             margin-bottom: 40px;
+            position: relative;
         }}
         
         .header h1 {{
@@ -536,6 +537,18 @@ impl VisualizationEngine {
         .header p {{
             font-size: 1.2rem;
             opacity: 0.9;
+        }}
+        
+        .schema-badge {{
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: rgba(0,0,0,0.35);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 0 8px 0 8px;
+            font-size: 12px;
+            letter-spacing: 0.5px;
         }}
         
         .stats-grid {{
@@ -611,6 +624,7 @@ impl VisualizationEngine {
 <body>
     <div class="dashboard">
         <div class="header">
+            <span class="schema-badge">Schema v1</span>
             <h1>SIS Kernel Analytics</h1>
             <p>Advanced Performance & Security Insights</p>
         </div>

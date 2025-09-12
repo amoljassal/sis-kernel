@@ -22,6 +22,26 @@ pub fn trace(tag: &str) {
 }
 
 #[inline(always)]
+pub fn op_start(op_id: u32) {
+    unsafe {
+        crate::uart_print(b"[TRACE] op_start id=");
+        print_usize(op_id as usize);
+        crate::uart_print(b"\n");
+    }
+}
+
+#[inline(always)]
+pub fn op_end_ns(op_id: u32, ns: u64) {
+    unsafe {
+        crate::uart_print(b"[TRACE] op_end id=");
+        print_usize(op_id as usize);
+        crate::uart_print(b" ns=");
+        print_usize(ns as usize);
+        crate::uart_print(b"\n");
+    }
+}
+
+#[inline(always)]
 pub unsafe fn print_str(s: &str) {
     crate::uart_print(s.as_bytes());
 }
@@ -44,4 +64,3 @@ pub unsafe fn print_usize(mut num: usize) {
         crate::uart_print(&[buf[i]]);
     }
 }
-

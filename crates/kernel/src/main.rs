@@ -29,6 +29,12 @@ pub mod cap;
 pub mod tensor;
 pub mod channel;
 pub mod graph;
+pub mod control;
+// PMU helpers (feature-gated usage)
+pub mod pmu;
+// Deterministic scheduler scaffolding (feature-gated)
+#[cfg(feature = "deterministic")]
+pub mod deterministic;
 // AI benchmark module
 #[cfg(feature = "arm64-ai")]
 pub mod ai_benchmark;
@@ -140,6 +146,11 @@ mod bringup {
         // Enable Performance Monitoring Unit for cycle counts
         super::uart_print(b"PMU: INIT\n");
         pmu_enable();
+        #[cfg(feature = "perf-verbose")]
+        {
+            super::uart_print(b"PMU: EVENTS\n");
+            crate::pmu::aarch64::setup_events();
+        }
         super::uart_print(b"PMU: READY\n");
 
         // 4) Initialize UART for interactive I/O
@@ -175,12 +186,35 @@ mod bringup {
             }
         }
 
-        // Optional: run a minimal Graph demo to validate Phase 1 scaffolding
-        super::uart_print(b"GRAPH: DEMO\n");
+        // Graph demo is available as a shell command `graphdemo` (feature: graph-demo).
+        // Avoid running it during bring-up to keep boot deterministic.
+
+        // Deterministic admission demo (feature-gated)
+        #[cfg(feature = "deterministic")]
         {
-            let demo = crate::graph::GraphDemo::new(128);
-            demo.run();
-            super::uart_print(b"GRAPH: DEMO DONE\n");
+            super::uart_print(b"DET: ADMISSION DEMO\n");
+            crate::deterministic::demo_admission();
+            super::uart_print(b"DET: EDF TICK DEMO\n");
+            crate::deterministic::edf_tick_demo();
+        }
+
+        // Auto-emit baseline graph stats for dashboards (feature-gated)
+        #[cfg(feature = "graph-autostats")]
+        {
+            super::uart_print(b"GRAPH: BASELINE STATS\n");
+            let mut g = crate::graph::GraphApi::create();
+            let ch = g.add_channel(crate::graph::ChannelSpec { capacity: 64 });
+            let _op = g.add_operator(crate::graph::OperatorSpec {
+                id: 1,
+                func: crate::graph::op_a_run,
+                in_ch: None,
+                out_ch: Some(ch),
+                priority: 10,
+                stage: None,
+            });
+            let (ops, chans) = g.counts();
+            crate::trace::metric_kv("graph_stats_ops", ops);
+            crate::trace::metric_kv("graph_stats_channels", chans);
         }
 
         // 6) Initialize GICv3 + timer and enable interrupts
@@ -192,35 +226,41 @@ mod bringup {
         // Start IRQ latency benchmark (virtual timer), 64 samples at ~1ms
         start_irq_latency_bench(64);
 
-        // 6) Initialize driver framework and discover devices
-        super::uart_print(b"DRIVER FRAMEWORK\n");
-        if let Err(_) = crate::driver::init_driver_framework() {
-            super::uart_print(b"DRIVER: INIT FAILED\n");
-        } else {
-            super::uart_print(b"DRIVER: INIT OK\n");
-
-            // Register VirtIO console driver
-            super::uart_print(b"DRIVER: REGISTERING VIRTIO CONSOLE\n");
-            if let Err(_) =
-                crate::driver::register_driver(crate::virtio_console::get_virtio_console_driver())
-            {
-                super::uart_print(b"DRIVER: VIRTIO CONSOLE REGISTRATION FAILED\n");
+        // 6) Initialize driver framework and discover devices (optional)
+        // For bring-up stability, skip VirtIO drivers unless explicitly enabled.
+        #[cfg(feature = "virtio-console")]
+        {
+            super::uart_print(b"DRIVER FRAMEWORK\n");
+            if let Err(_) = crate::driver::init_driver_framework() {
+                super::uart_print(b"DRIVER: INIT FAILED\n");
             } else {
-                super::uart_print(b"DRIVER: VIRTIO CONSOLE REGISTERED\n");
-            }
+                super::uart_print(b"DRIVER: INIT OK\n");
 
-            if let Some(registry) = crate::driver::get_driver_registry() {
-                match registry.discover_devices() {
-                    Ok(count) => {
-                        super::uart_print(b"DRIVER: DISCOVERED ");
-                        print_number(count);
-                        super::uart_print(b" DEVICES\n");
-                    }
-                    Err(_) => {
-                        super::uart_print(b"DRIVER: DISCOVERY FAILED\n");
+                // Register VirtIO console driver
+                super::uart_print(b"DRIVER: REGISTERING VIRTIO CONSOLE\n");
+                if let Err(_) = crate::driver::register_driver(crate::virtio_console::get_virtio_console_driver()) {
+                    super::uart_print(b"DRIVER: VIRTIO CONSOLE REGISTRATION FAILED\n");
+                } else {
+                    super::uart_print(b"DRIVER: VIRTIO CONSOLE REGISTERED\n");
+                }
+
+                if let Some(registry) = crate::driver::get_driver_registry() {
+                    match registry.discover_devices() {
+                        Ok(count) => {
+                            super::uart_print(b"DRIVER: DISCOVERED ");
+                            print_number(count);
+                            super::uart_print(b" DEVICES\n");
+                        }
+                        Err(_) => {
+                            super::uart_print(b"DRIVER: DISCOVERY FAILED\n");
+                        }
                     }
                 }
             }
+        }
+        #[cfg(not(feature = "virtio-console"))]
+        {
+            super::uart_print(b"DRIVER FRAMEWORK: SKIPPED (virtio-console feature off)\n");
         }
 
         // 7) Initialize AI features if enabled
@@ -558,6 +598,14 @@ mod bringup {
             let mut irq: u64;
             asm!("mrs {x}, icc_iar1_el1", x = out(reg) irq);
             let mut t1: u64; core::arch::asm!("mrs {x}, cntvct_el0", x = out(reg) t1);
+            // Attempt to dispatch device interrupts to drivers (best-effort)
+            if let Some(registry) = crate::driver::get_driver_registry() {
+                let intid: u32 = (irq & 0xFFFFFF) as u32;
+                let _ = registry.handle_device_irq(intid);
+            }
+            // Note: do not call into device drivers here to avoid re-entrancy
+            // while drivers are being initialized. Control-plane polling stays
+            // in the device IRQ path for now.
             if TIMER_BENCH_WARMUP > 0 || TIMER_BENCH_REMAIN > 0 {
                 if TIMER_BENCH_WARMUP > 0 {
                     // Discard warm-up samples

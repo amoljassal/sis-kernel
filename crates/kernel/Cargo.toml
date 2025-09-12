@@ -37,6 +37,11 @@ formal-verification = []  # RISC-V hooks guarded by target_arch
 aia = []  # Advanced Interrupt Architecture for RISC-V (no-op unless riscv64)
 perf-verbose = []  # Enable verbose [PERF] logs on serial
 strict = []        # Deny unused when enabled
+deterministic = [] # Enable deterministic scheduler scaffolding (CBS+EDF)
+graph-demo = []    # Run graph demo during bring-up
+graph-spsc-debug = [] # Debug SPSC ring demo with progress prints
+virtio-console = []   # Enable VirtIO console driver path during bring-up
+graph-autostats = []  # Auto-create a baseline graph and emit graph_stats_* METRICs
 
 [build-dependencies]
 bootloader = { version = "=0.11.11", default-features = false, features = ["bios"] }

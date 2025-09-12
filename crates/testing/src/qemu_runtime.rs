@@ -88,6 +88,11 @@ impl QEMURuntimeManager {
         
         // Build the kernel in release mode for accurate performance testing
         let root = Self::workspace_root();
+        // Build features: bringup + neon-optimized, with optional graph-autostats when SIS_GRAPH_STATS=1
+        let mut features = "bringup,neon-optimized".to_string();
+        if std::env::var("SIS_GRAPH_STATS").unwrap_or_default() == "1" {
+            features.push_str(",graph-autostats");
+        }
         let output = Command::new("cargo")
             .args([
                 "+nightly",
@@ -95,7 +100,7 @@ impl QEMURuntimeManager {
                 "-p", "sis_kernel",
                 "-Z", "build-std=core,alloc",
                 "--target", "aarch64-unknown-none",
-                "--features", "bringup,neon-optimized"  // Enable NEON optimizations
+                "--features", &features
             ])
             .current_dir(&root)
             .env("RUSTFLAGS", format!(

@@ -49,4 +49,23 @@ impl<T: Copy, const N: usize> Spsc<T, N> {
         self.head.store((head + 1) % N, Ordering::Release);
         Some(v)
     }
+
+    #[inline(always)]
+    pub fn depth(&self) -> usize {
+        let head = self.head.load(Ordering::Relaxed);
+        let tail = self.tail.load(Ordering::Relaxed);
+        if tail >= head { tail - head } else { N - (head - tail) }
+    }
+
+    #[inline(always)]
+    pub fn is_full(&self) -> bool {
+        let head = self.head.load(Ordering::Relaxed);
+        let tail = self.tail.load(Ordering::Relaxed);
+        ((tail + 1) % N) == head
+    }
+    
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.head.load(Ordering::Relaxed) == self.tail.load(Ordering::Relaxed)
+    }
 }

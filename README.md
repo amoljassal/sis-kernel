@@ -33,7 +33,7 @@ Non-goals and not implemented: production hardening, formal proofs, full BFT con
 - Test runner (crates/testing)
   - Builds kernel + UEFI, launches QEMU with `-cpu cortex-a72,pmu=on`, logs serial to per-node files.
   - Tails serial logs, parses METRIC lines, computes p95/p99, and exports full dump to `target/testing/metrics_dump.json`.
-  - Context metric preference order: `real_ctx_switch_ns` (if present) > `irq_latency_ns` > `ctx_switch_ns`.
+  - Context metric preference order: `real_ctx_switch_ns` (only if at least 8 non‑zero samples) > `irq_latency_ns` > `ctx_switch_ns`.
   - Environment-aware thresholds (relaxed in QEMU):
     - AI inference target: <40µs (p99) — measured from `ai_inference_us`.
     - Context-switch proxy target: QEMU <50µs (p95), hardware goal <500ns; selected via `SIS_CI_ENV=qemu` or `SIS_QEMU=1`.
@@ -43,7 +43,7 @@ Non-goals and not implemented: production hardening, formal proofs, full BFT con
 
 - QEMU’s NEON/PMU behavior is emulated; absolute numbers are not representative of real hardware. Use relative comparisons (e.g., scalar vs. NEON) and distributions.
 - `real_ctx_switch_ns` measures a real cooperative context switch (between two contexts that save/restore callee-saved registers and SP). `ctx_switch_ns` measures a minimal syscall handler path, not a full switch.
-- VirtIO device enumeration is present; drivers are minimal (virtio-console registration) and many devices are unimplemented.
+- VirtIO device enumeration is present. For bring-up stability the VirtIO driver path is skipped by default and demos/control are run from the shell.
 - “Formal verification”, “BFT/consensus”, “RDMA”, and similar features referenced in older docs are not implemented here. Any files mentioning them are stubs or legacy experiments.
 
 ## Quick Start (QEMU UEFI)
@@ -62,13 +62,59 @@ rustup target add aarch64-unknown-none aarch64-unknown-uefi
 # Bring-up only (stack/vectors/MMU, IRQ timer, METRICs)
 BRINGUP=1 ./scripts/uefi_run.sh
 
+# Optional feature toggles for the script
+#  - GRAPH=1 enables graph demo feature
+#  - PERF=1 enables perf-verbose (PMU programming + extra logs)
+#  - VIRTIO=1 enables the virtio-console driver path and adds QEMU virtio-serial devices (off by default)
+#  - SIS_FEATURES allows arbitrary feature list
+BRINGUP=1 GRAPH=1 PERF=1 ./scripts/uefi_run.sh
+BRINGUP=1 SIS_FEATURES="graph-demo,perf-verbose" ./scripts/uefi_run.sh
+BRINGUP=1 VIRTIO=1 ./scripts/uefi_run.sh
+
 # Add AI microbenchmarks (NEON-based; still under QEMU emulation)
 BRINGUP=1 AI=1 ./scripts/uefi_run.sh
 
 # Quit QEMU: Ctrl+a, then x
+
+# Debug mode (logs MMIO/interrupt details to /tmp/qemu-debug.log)
+# DEBUG=1 BRINGUP=1 ./scripts/uefi_run.sh
 ```
 
 You should see bring-up markers and a stream of `METRIC ...` lines after boot.
+The interactive shell starts at the end of bring-up.
+
+Useful shell commands (type `help` for full list):
+- `graphctl` — high-level control-plane aliases for graphs:
+  - `graphctl create`
+  - `graphctl add-channel <capacity>`
+  - `graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain]`
+  - `graphctl start <steps>`
+- `ctlhex` — low-level control-plane injector for hex-encoded frames
+- `graphdemo` — small graph demo (A→B), emits graph_demo_* METRICs (feature: `graph-demo`)
+- `pmu` — setup PMU and emit METRIC pmu_cycles/pmu_inst/pmu_l1d_refill (feature: `perf-verbose`)
+
+## Control Plane (Shell) and Framing
+
+Control-plane uses a small V0 binary frame format. For bring-up, use shell commands (virtio-serial integration is a future step).
+
+- Frame header: magic `C`(0x43), ver u8(0), cmd u8, flags u8, len u32 LE, payload[len].
+- Commands:
+  - 0x01 CreateGraph {}
+  - 0x02 AddChannel { capacity_le_u16 }
+  - 0x03 AddOperator { op_id_le_u32, in_ch_le_u16(0xFFFF=none), out_ch_le_u16(0xFFFF=none), priority_u8, stage_u8 }
+  - 0x04 StartGraph { steps_le_u32 }
+
+Use `graphctl` for convenience, or `ctlhex` to inject raw frames.
+
+Schema (metrics_dump.json)
+- The test runner writes a JSON dump of parsed METRICs. A JSON Schema is provided at `docs/schemas/sis-metrics-v1.schema.json`.
+- Validate with `pip install jsonschema` and:
+  `python -c "import json,sys,jsonschema; s=json.load(open('docs/schemas/sis-metrics-v1.schema.json')); d=json.load(open('crates/testing/target/testing/metrics_dump.json')); jsonschema.validate(d,s); print('OK')"`
+
+Schema (validation_report.json)
+- The reporting engine also writes a structured validation report with `schema_version: "v1"`.
+- Schema at `docs/schemas/validation-report-v1.schema.json`.
+- Validate both in one go: `scripts/validate-metrics.sh` (defaults to `target/testing`).
 
 ## Running the Test Runner
 
@@ -114,6 +160,10 @@ Artifacts:
   - `arm64-ai` — Enable AI benchmark wiring.
   - `neon-optimized` — Enable 16×16 NEON matmul demo and related metric.
   - `perf-verbose` — Gate noisy `[PERF] ...` logs; METRICs and summaries are always on.
+  - `graph-demo` — Enable the `graphdemo` shell demo and graph scaffolding helpers.
+  - `deterministic` — Enable deterministic scheduler scaffolding demos and METRICs.
+  - `strict` — Deny warnings in the kernel build (CI lint gate).
+  - `virtio-console` — Enable VirtIO console driver path (opt-in; default off).
 
 - Test runner
   - Environment variable `SIS_CI_ENV=qemu` (or `SIS_QEMU=1`) selects QEMU-aware thresholds for context/consensus claims.
@@ -143,8 +193,9 @@ METRIC irq_latency_ns=4800
 ## Measurement Methodology
 
 - Real context switch (`real_ctx_switch_ns`): cooperative switch between two contexts using a tiny AArch64 routine that saves/restores callee‑saved registers (x19–x30) and SP, then `ret`s into the target context.
-  - Timing: read CNTVCT before switching; target context reads CNTVCT on entry and emits the delta in nanoseconds.
-  - Sampling: 8 warm‑ups then 64 measured switches; each sample printed as a `METRIC real_ctx_switch_ns=…` line.
+  - Timing: ISB + CNTVCT read before switching; target context reads CNTVCT on entry and emits the delta in nanoseconds.
+  - Sampling: 8 warm‑ups (discarded) then 64 switches; zero deltas are filtered out; each non‑zero sample is printed as a `METRIC real_ctx_switch_ns=…` line.
+  - Summary: a `[SUMMARY] real_ctx_switch_ns: count=.. P50=.. P95=.. P99=..` line is emitted at the end.
   - Scope: measures cooperative save/restore + control transfer only. Does not include interrupt dispatch, scheduler decision, page table/timer reprogramming, or full preemption.
   - Environment: measured under QEMU; use relative comparisons, not absolute values, for hardware conclusions.
 
@@ -154,7 +205,17 @@ METRIC irq_latency_ns=4800
 
 - AI metrics (`ai_inference_us`, `ai_inference_scalar_us`, `neon_matmul_us`): NEON‑based microbenchmarks; QEMU emulates NEON, so treat results as indicative of code paths and relative speedups.
 
+- PMU metrics (perf‑verbose): cycles are reliable under QEMU; architectural events such as `inst_retired` and `l1d_refill` may return 0 depending on QEMU/CPU model.
+  - The `pmu` shell command runs a small busy loop and emits `METRIC pmu_cycles`, `pmu_inst`, `pmu_l1d_refill`.
+  - The `graphdemo` command (demo only) also emits per‑operator PMU totals when supported.
+
 - Runner parsing and thresholds: test runner prefers `real_ctx_switch_ns` for context latency, falling back to `irq_latency_ns` then `ctx_switch_ns`; thresholds are QEMU‑aware when QEMU is in use.
+
+## Deterministic Demos (feature: `deterministic`)
+
+- Admission control: `GraphApi::admit_deterministic(wcet_ns, period_ns, deadline_ns)` emits:
+  - `det_admission_used_ppm`, `det_admission_accepted`, `det_admission_rejected`, and either `det_admit_ok` or `det_admit_reject`.
+- EDF tick demo: a small simulated EDF loop that emits `det_deadline_miss_count`.
 
 ## Lint Gate (CI Strict Mode)
 
@@ -177,6 +238,36 @@ The exact percentiles for each run are exported to `target/testing/metrics_dump.
 - Byzantine consensus latency (100 nodes): 5.14ms
 
 For other percentiles (P50/P95/P99 across metrics), refer to `metrics_dump.json` and the generated dashboards in `target/testing/`.
+
+## Graph Demo & Shell Commands
+
+- Graph demo:
+  - Build or run with the `graph-demo` feature (the UEFI script supports `GRAPH=1`).
+  - From the shell, run `graphdemo`.
+  - METRICs emitted: `graph_demo_total_ns`, `graph_demo_items`, `graph_demo_avg_ns_per_item`, `zero_copy_count`, `zero_copy_handle_count`, `op_a_runs/op_b_runs`, `op_a_total_ns/op_b_total_ns`, `arena_remaining_bytes`.
+
+- PMU demo:
+  - Build or run with `perf-verbose` (the UEFI script supports `PERF=1`).
+  - From the shell, run `pmu`.
+  - METRICs emitted: `pmu_cycles`, `pmu_inst`, `pmu_l1d_refill` (note: only cycles are reliable in QEMU).
+
+## Troubleshooting
+
+- Feature flags don’t seem to apply
+  - The UEFI script always rebuilds a debug kernel for the run. Pass flags in the same command, e.g. `BRINGUP=1 GRAPH=1 PERF=1 ./scripts/uefi_run.sh`.
+  - Verify on boot: with `PERF=1`, you should see `PMU: EVENTS` between `PMU: INIT` and `PMU: READY`.
+
+- No graph demo METRICs or a stall at “GRAPH: DEMO”
+  - The demo no longer auto‑runs in bring‑up to keep boot deterministic. Use the shell: type `graphdemo`.
+  - If you still want auto‑run, we can add a separate opt‑in feature; default leaves it as a shell command.
+
+- PMU `inst`/`l1d_refill` are 0 in QEMU
+  - Expected for many QEMU builds: cycles increment; architectural events may not. Use `pmu` shell command for a sanity check.
+  - On real hardware these counters should be non‑zero; the code already guards setup and prints a note when unsupported.
+
+- Fewer `real_ctx_switch_ns` samples than expected
+  - Warm‑ups are discarded and zero deltas filtered; a `[SUMMARY] real_ctx_switch_ns: count=..` line reports the final non‑zero count and percentiles.
+  - The test runner can be configured to require a minimum count and fall back to `irq_latency_ns` if needed.
 
 ## metrics_dump.json Example
 

@@ -105,6 +105,10 @@ impl Shell {
                 "bench" => self.cmd_bench(),
                 "stress" => self.cmd_stress(),
                 "overhead" => self.cmd_overhead(),
+                "graphdemo" => self.cmd_graph_demo(),
+                "graphctl" => self.cmd_graphctl(&parts[1..]),
+                "ctlhex" => self.cmd_ctlhex(&parts[1..]),
+                "pmu" => self.cmd_pmu_demo(),
                 "mem" => self.cmd_mem(),
                 "regs" => self.cmd_regs(),
                 "dtb" => self.cmd_dtb(),
@@ -132,6 +136,10 @@ impl Shell {
             crate::uart_print(b"  bench    - Run syscall performance benchmarks\n");
             crate::uart_print(b"  stress   - Run syscall stress tests\n");
             crate::uart_print(b"  overhead - Measure syscall overhead\n");
+            crate::uart_print(b"  graphdemo- Run graph demo (feature: graph-demo)\n");
+            crate::uart_print(b"  graphctl - Control graph: create | add-channel <cap> | add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] | start <steps> | stats\n");
+            crate::uart_print(b"  ctlhex   - Inject control frame as hex (Create/Add/Start)\n");
+            crate::uart_print(b"  pmu      - Run PMU demo (cycles/inst/l1d_refill)\n");
             crate::uart_print(b"  mem      - Show memory information\n");
             crate::uart_print(b"  regs     - Show system registers\n");
             crate::uart_print(b"  dtb      - Show device tree information\n");
@@ -213,6 +221,205 @@ impl Shell {
     fn cmd_overhead(&self) {
         crate::userspace_test::measure_syscall_overhead();
     }
+
+    /// Graph demo command
+    fn cmd_graph_demo(&self) {
+        unsafe { crate::uart_print(b"[GRAPH] Running demo (64 items)\n"); }
+        let mut demo = crate::graph::GraphDemo::new(64);
+        demo.run();
+        unsafe { crate::uart_print(b"[GRAPH] Demo complete\n"); }
+    }
+
+    /// PMU demo command (cycles, instructions, L1D refills)
+    fn cmd_pmu_demo(&self) {
+        #[cfg(feature = "perf-verbose")]
+        {
+            unsafe { crate::uart_print(b"[PMU] Demo: setup events and run busy loop\n"); }
+            unsafe { crate::pmu::aarch64::setup_events(); }
+            let s0 = unsafe { crate::pmu::aarch64::read_snapshot() };
+
+            // Busy loop: arithmetic + memory touches
+            let mut acc: u64 = 0;
+            let mut buf: [u64; 128] = [0; 128];
+            for i in 0..8192 {
+                acc = acc.wrapping_mul(6364136223846793005).wrapping_add(1);
+                let idx = (i & 127) as usize;
+                buf[idx] = buf[idx].wrapping_add(acc ^ (i as u64));
+            }
+            unsafe { core::ptr::read_volatile(&acc); }
+
+            let s1 = unsafe { crate::pmu::aarch64::read_snapshot() };
+            let d_cycles = s1.cycles.saturating_sub(s0.cycles);
+            let d_inst = s1.inst.saturating_sub(s0.inst);
+            let d_l1d = s1.l1d_refill.saturating_sub(s0.l1d_refill);
+            unsafe {
+                crate::uart_print(b"METRIC pmu_cycles="); self.print_number(d_cycles);
+                crate::uart_print(b"\nMETRIC pmu_inst="); self.print_number(d_inst);
+                crate::uart_print(b"\nMETRIC pmu_l1d_refill="); self.print_number(d_l1d);
+                crate::uart_print(b"\n");
+            }
+            if d_inst == 0 {
+                unsafe { crate::uart_print(b"[PMU] Note: instructions counter may be unsupported in this QEMU build\n"); }
+            }
+        }
+        #[cfg(not(feature = "perf-verbose"))]
+        unsafe {
+            crate::uart_print(b"[PMU] perf-verbose feature not enabled\n");
+        }
+    }
+
+    /// Inject a control-plane frame as hex (V0 framing: 'C', ver, cmd, flags, len, payload)
+    fn cmd_ctlhex(&self, args: &[&str]) {
+        if args.is_empty() {
+            unsafe { crate::uart_print(b"Usage: ctlhex <hex>\n"); }
+            return;
+        }
+        let s = args[0].trim();
+        let bytes = s.as_bytes();
+        let mut buf = [0u8; 256];
+        let mut bi = 0usize;
+        let mut i = 0usize;
+        while i + 1 < bytes.len() && bi < buf.len() {
+            let hn = match bytes[i] {
+                b'0'..=b'9' => bytes[i] - b'0',
+                b'a'..=b'f' => bytes[i] - b'a' + 10,
+                b'A'..=b'F' => bytes[i] - b'A' + 10,
+                _ => 0xFF,
+            };
+            let ln = match bytes[i + 1] {
+                b'0'..=b'9' => bytes[i + 1] - b'0',
+                b'a'..=b'f' => bytes[i + 1] - b'a' + 10,
+                b'A'..=b'F' => bytes[i + 1] - b'A' + 10,
+                _ => 0xFF,
+            };
+            if hn > 15 || ln > 15 {
+                unsafe { crate::uart_print(b"[CTL] invalid hex\n"); }
+                return;
+            }
+            buf[bi] = ((hn as u8) << 4) | (ln as u8);
+            bi += 1;
+            i += 2;
+        }
+        match crate::control::handle_frame(&buf[..bi]) {
+            Ok(()) => unsafe { crate::uart_print(b"[CTL] ok\n"); }
+            Err(_) => unsafe { crate::uart_print(b"[CTL] error\n"); }
+        }
+    }
+
+    /// Graph control convenience command
+    fn cmd_graphctl(&self, args: &[&str]) {
+        if args.is_empty() {
+            unsafe { crate::uart_print(b"Usage: graphctl <create|add-channel|add-operator|start> ...\n"); }
+            return;
+        }
+
+        // Helper to send a framed control message
+        fn send_frame(cmd: u8, payload: &[u8]) -> bool {
+            let mut buf = [0u8; 64];
+            let total = 8 + payload.len();
+            if total > buf.len() { unsafe { crate::uart_print(b"[CTL] payload too large\n"); } return false; }
+            buf[0] = 0x43; // 'C'
+            buf[1] = 0;    // ver
+            buf[2] = cmd;  // cmd
+            buf[3] = 0;    // flags
+            let len = payload.len() as u32;
+            let le = len.to_le_bytes();
+            buf[4] = le[0]; buf[5] = le[1]; buf[6] = le[2]; buf[7] = le[3];
+            for i in 0..payload.len() { buf[8 + i] = payload[i]; }
+            match crate::control::handle_frame(&buf[..total]) {
+                Ok(()) => unsafe { crate::uart_print(b"[CTL] ok\n"); true },
+                Err(_) => unsafe { crate::uart_print(b"[CTL] error\n"); false },
+            }
+        }
+
+        match args[0] {
+            "create" => {
+                let _ = send_frame(0x01, &[]);
+            }
+            "add-channel" => {
+                if args.len() < 2 { unsafe { crate::uart_print(b"Usage: graphctl add-channel <capacity>\n"); } return; }
+                if let Ok(cap) = args[1].parse::<u32>() {
+                    if cap == 0 || cap > 65535 { unsafe { crate::uart_print(b"[CTL] capacity must be 1..65535\n"); } return; }
+                    let cap_le = (cap as u16).to_le_bytes();
+                    let payload = [cap_le[0], cap_le[1]];
+                    let _ = send_frame(0x02, &payload);
+                } else {
+                    unsafe { crate::uart_print(b"[CTL] invalid capacity\n"); }
+                }
+            }
+            "add-operator" => {
+                if args.len() < 2 { unsafe { crate::uart_print(b"Usage: graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain]\n"); } return; }
+                let op_id = match args[1].parse::<u32>() { Ok(v) => v, Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid op_id\n"); } return; } };
+                let mut in_ch: Option<u16> = None;
+                let mut out_ch: Option<u16> = None;
+                let mut prio: u8 = 10;
+                let mut stage: u8 = 0; // acquire
+
+                let mut i = 2;
+                while i < args.len() {
+                    match args[i] {
+                        "--in" => {
+                            i += 1; if i >= args.len() { unsafe { crate::uart_print(b"[CTL] --in requires a value\n"); } return; }
+                            let v = args[i];
+                            if v.eq_ignore_ascii_case("none") { in_ch = None; } else if let Ok(n) = v.parse::<u32>() { if n <= 0xFFFF { in_ch = Some(n as u16); } else { unsafe { crate::uart_print(b"[CTL] --in out of range\n"); } return; } } else { unsafe { crate::uart_print(b"[CTL] invalid --in\n"); } return; }
+                        }
+                        "--out" => {
+                            i += 1; if i >= args.len() { unsafe { crate::uart_print(b"[CTL] --out requires a value\n"); } return; }
+                            let v = args[i];
+                            if v.eq_ignore_ascii_case("none") { out_ch = None; } else if let Ok(n) = v.parse::<u32>() { if n <= 0xFFFF { out_ch = Some(n as u16); } else { unsafe { crate::uart_print(b"[CTL] --out out of range\n"); } return; } } else { unsafe { crate::uart_print(b"[CTL] invalid --out\n"); } return; }
+                        }
+                        "--prio" | "--priority" => {
+                            i += 1; if i >= args.len() { unsafe { crate::uart_print(b"[CTL] --prio requires a value\n"); } return; }
+                            match args[i].parse::<u32>() { Ok(n) if n <= 255 => prio = n as u8, _ => { unsafe { crate::uart_print(b"[CTL] invalid --prio\n"); } return; } }
+                        }
+                        "--stage" => {
+                            i += 1; if i >= args.len() { unsafe { crate::uart_print(b"[CTL] --stage requires a value\n"); } return; }
+                            stage = match args[i] {
+                                "acquire" => 0,
+                                "clean" => 1,
+                                "explore" => 2,
+                                "model" => 3,
+                                "explain" => 4,
+                                _ => { unsafe { crate::uart_print(b"[CTL] invalid stage (use acquire|clean|explore|model|explain)\n"); } return; }
+                            };
+                        }
+                        _ => { unsafe { crate::uart_print(b"[CTL] unknown option\n"); } return; }
+                    }
+                    i += 1;
+                }
+
+                let op_le = op_id.to_le_bytes();
+                let in_le = match in_ch { Some(v) => v.to_le_bytes(), None => 0xFFFFu16.to_le_bytes() };
+                let out_le = match out_ch { Some(v) => v.to_le_bytes(), None => 0xFFFFu16.to_le_bytes() };
+                let payload = [op_le[0],op_le[1],op_le[2],op_le[3], in_le[0],in_le[1], out_le[0],out_le[1], prio, stage];
+                let _ = send_frame(0x03, &payload);
+            }
+            "start" => {
+                if args.len() < 2 { unsafe { crate::uart_print(b"Usage: graphctl start <steps>\n"); } return; }
+                if let Ok(steps) = args[1].parse::<u32>() {
+                    let le = steps.to_le_bytes();
+                    let payload = [le[0], le[1], le[2], le[3]];
+                    let _ = send_frame(0x04, &payload);
+                } else {
+                    unsafe { crate::uart_print(b"[CTL] invalid steps\n"); }
+                }
+            }
+            "stats" => {
+                // Print a concise summary and METRICs for graph structure
+                if let Some((ops, chans)) = crate::control::current_graph_counts() {
+                    unsafe {
+                        crate::uart_print(b"GRAPH: counts ops="); self.print_number(ops as u64); crate::uart_print(b" channels="); self.print_number(chans as u64); crate::uart_print(b"\n");
+                        crate::uart_print(b"METRIC graph_stats_ops="); self.print_number(ops as u64); crate::uart_print(b"\n");
+                        crate::uart_print(b"METRIC graph_stats_channels="); self.print_number(chans as u64); crate::uart_print(b"\n");
+                    }
+                } else {
+                    unsafe { crate::uart_print(b"GRAPH: no active graph\n"); }
+                }
+            }
+            _ => unsafe { crate::uart_print(b"Usage: graphctl <create|add-channel|add-operator|start> ...\n"); }
+        }
+    }
+
 
     /// AI benchmark command
     fn cmd_ai_bench(&self) {
@@ -678,7 +885,10 @@ fn print_u64_simple(mut num: u64) {
         i -= 1;
         unsafe { crate::uart_print(&[digits[i]]); }
     }
+
 }
+
+// reserved: control-plane injection helpers (to be added later as needed)
 
     /// Clear screen command
     fn cmd_clear(&self) {

@@ -201,11 +201,16 @@ The SIS Kernel underwent comprehensive validation testing across multiple domain
     
     async fn generate_json_report(&self, report: &ValidationReport) -> Result<(), TestError> {
         let json_path = self.output_dir.join("validation_report.json");
-        let json_content = serde_json::to_string_pretty(report)?;
+        // Inject schema_version at top level without changing the struct
+        let mut value = serde_json::to_value(report)?;
+        if let serde_json::Value::Object(ref mut map) = value {
+            map.insert("schema_version".to_string(), serde_json::Value::String("v1".to_string()));
+        }
+        let json_content = serde_json::to_string_pretty(&value)?;
         
         tokio::fs::write(&json_path, json_content).await?;
         log::info!("JSON report written to: {}", json_path.display());
-        
+
         Ok(())
     }
     
@@ -221,7 +226,8 @@ The SIS Kernel underwent comprehensive validation testing across multiple domain
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }}
         .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-        .header {{ text-align: center; margin-bottom: 40px; }}
+        .header {{ text-align: center; margin-bottom: 40px; position: relative; }}
+        .schema-badge {{ position: absolute; top: 10px; right: 10px; background: #343a40; color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 12px; }}
         .score {{ font-size: 48px; font-weight: bold; color: {}; }}
         .metrics {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 30px 0; }}
         .metric {{ background: #f8f9fa; padding: 20px; border-radius: 6px; border-left: 4px solid #007bff; }}
@@ -239,6 +245,7 @@ The SIS Kernel underwent comprehensive validation testing across multiple domain
 <body>
     <div class="container">
         <div class="header">
+            <span class="schema-badge">Schema v1</span>
             <h1>SIS Kernel Validation Report</h1>
             <div class="score">{:.1}%</div>
             <p>Overall Validation Score</p>

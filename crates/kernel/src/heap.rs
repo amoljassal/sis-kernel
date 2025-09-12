@@ -178,6 +178,15 @@ pub extern "C" fn __rust_alloc_error_handler(_size: usize, _align: usize) -> ! {
     loop {}
 }
 
+// Newer nightly toolchains reference an internal OOM hook symbol `__rg_oom`.
+// Export a minimal handler to satisfy the linker in no_std release builds.
+#[allow(improper_ctypes_definitions)]
+#[no_mangle]
+pub extern "C" fn __rg_oom(_layout: core::alloc::Layout) -> ! {
+    loop {}
+}
+
+
 /// Print current heap statistics
 pub fn print_heap_stats() {
     let stats = HEAP_STATS.lock();

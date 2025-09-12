@@ -336,13 +336,32 @@ impl SISTestSuite {
             let out_dir = &self.config.output_directory;
             let _ = std::fs::create_dir_all(out_dir);
             let out_file = format!("{}/metrics_dump.json", out_dir);
-            match serde_json::to_string_pretty(dump) {
-                Ok(s) => {
-                    if let Err(e) = std::fs::write(&out_file, s) {
-                        log::warn!("Failed to write metrics dump {}: {}", out_file, e);
+            // Inject schema_version without changing the ParsedMetrics type
+            let value = match serde_json::to_value(dump) {
+                Ok(mut v) => {
+                    if let serde_json::Value::Object(ref mut map) = v {
+                        map.insert("schema_version".to_string(), serde_json::Value::String("v1".to_string()));
                     }
+                    v
                 }
-                Err(e) => log::warn!("Failed to serialize metrics dump: {}", e),
+                Err(e) => {
+                    log::warn!("Failed to convert metrics dump to value: {}", e);
+                    return Ok(ValidationReport {
+                        overall_score: 0.0,
+                        results: vec![],
+                        performance_results: real_perf,
+                        correctness_results: None,
+                        distributed_results: None,
+                        security_results: None,
+                        ai_results: None,
+                        test_coverage: TestCoverageReport { performance_coverage: 0.0, correctness_coverage: 0.0, security_coverage: 0.0, distributed_coverage: 0.0, ai_coverage: 0.0, overall_coverage: 0.0 },
+                        generated_at: chrono::Utc::now(),
+                    });
+                }
+            };
+            let s = serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".to_string());
+            if let Err(e) = std::fs::write(&out_file, s) {
+                log::warn!("Failed to write metrics dump {}: {}", out_file, e);
             }
         }
 

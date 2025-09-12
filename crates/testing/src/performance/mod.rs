@@ -2,6 +2,7 @@
 // Comprehensive benchmarking with statistical rigor
 
 use crate::{TestSuiteConfig, StatisticalSummary, TestError};
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -47,8 +48,72 @@ pub struct PerformanceTestFramework {
         pub ctx_switch_ns: Vec<f64>,
         pub irq_latency_ns: Vec<f64>,
         pub memory_alloc_ns: Vec<f64>,
+        // Graph structure stats (from shell graphctl stats)
+        pub graph_stats_ops: Option<f64>,
+        pub graph_stats_channels: Option<f64>,
+        // Graph demo and Phase 1 scaffolding metrics (optional)
+        pub graph_demo_total_ns: Option<f64>,
+        pub graph_demo_avg_ns_per_item: Option<f64>,
+        pub graph_demo_items: Option<f64>,
+        pub channel_ab_depth_max: Option<f64>,
+        pub channel_ab_stalls: Option<f64>,
+        pub channel_ab_drops: Option<f64>,
+        pub zero_copy_count: Option<f64>,
+        pub zero_copy_handle_count: Option<f64>,
+        pub scheduler_run_us: Option<f64>,
+        // Operator summaries (optional)
+        pub op_a_total_ns: Option<f64>,
+        pub op_b_total_ns: Option<f64>,
+        pub op_a_runs: Option<f64>,
+        pub op_b_runs: Option<f64>,
+        pub arena_remaining_bytes: Option<f64>,
+        // Optional PMU totals (when perf-verbose is enabled)
+        pub op_a_pmu_inst: Option<f64>,
+        pub op_b_pmu_inst: Option<f64>,
+        pub op_a_pmu_l1d_refill: Option<f64>,
+        pub op_b_pmu_l1d_refill: Option<f64>,
+        // Per-operator latency percentiles (Phase 1 observability)
+        pub op_a_p50_ns: Option<f64>,
+        pub op_a_p95_ns: Option<f64>,
+        pub op_a_p99_ns: Option<f64>,
+        pub op_b_p50_ns: Option<f64>,
+        pub op_b_p95_ns: Option<f64>,
+        pub op_b_p99_ns: Option<f64>,
+        // Structured graphs dump (optional) for schema v1 "graphs"
+        pub graphs: Option<HashMap<String, GraphMetrics>>,        
         pub summary: PerformanceResults,
     }
+
+/// Structured per-graph metrics for metrics_dump.json (schema v1)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphMetrics {
+    pub name: Option<String>,
+    pub total_ns: Option<f64>,
+    pub avg_ns_per_item: Option<f64>,
+    pub items: Option<f64>,
+    pub arena_remaining_bytes: Option<f64>,
+    pub zero_copy_count: Option<f64>,
+    pub zero_copy_handle_count: Option<f64>,
+    pub operators: Option<Vec<OperatorMetrics>>,
+    pub channels: Option<Vec<ChannelMetrics>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorMetrics {
+    pub id: String,
+    pub stage: Option<String>,
+    pub runs: Option<f64>,
+    pub total_ns: Option<f64>,
+    pub pmu: Option<HashMap<String, f64>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChannelMetrics {
+    pub id: String,
+    pub depth_max: Option<f64>,
+    pub stalls: Option<f64>,
+    pub drops: Option<f64>,
+}
 
 impl PerformanceTestFramework {
     pub fn new(config: &TestSuiteConfig) -> Self {
@@ -76,6 +141,34 @@ impl PerformanceTestFramework {
         let mut irq_ns: Vec<f64> = Vec::new();
         let mut mem_ns: Vec<f64> = Vec::new();
 
+        let mut graph_stats_ops: Option<f64> = None;
+        let mut graph_stats_channels: Option<f64> = None;
+
+        let mut graph_demo_total_ns: Option<f64> = None;
+        let mut graph_demo_avg_ns_per_item: Option<f64> = None;
+        let mut graph_demo_items: Option<f64> = None;
+        let mut channel_ab_depth_max: Option<f64> = None;
+        let mut channel_ab_stalls: Option<f64> = None;
+        let mut channel_ab_drops: Option<f64> = None;
+        let mut zero_copy_count: Option<f64> = None;
+        let mut zero_copy_handle_count: Option<f64> = None;
+        let mut op_a_total_ns: Option<f64> = None;
+        let mut op_b_total_ns: Option<f64> = None;
+        let mut op_a_runs: Option<f64> = None;
+        let mut op_b_runs: Option<f64> = None;
+        let mut arena_remaining_bytes: Option<f64> = None;
+        let mut op_a_pmu_inst: Option<f64> = None;
+        let mut op_b_pmu_inst: Option<f64> = None;
+        let mut op_a_pmu_l1d_refill: Option<f64> = None;
+        let mut op_b_pmu_l1d_refill: Option<f64> = None;
+        let mut op_a_p50_ns: Option<f64> = None;
+        let mut op_a_p95_ns: Option<f64> = None;
+        let mut op_a_p99_ns: Option<f64> = None;
+        let mut op_b_p50_ns: Option<f64> = None;
+        let mut op_b_p95_ns: Option<f64> = None;
+        let mut op_b_p99_ns: Option<f64> = None;
+        let mut scheduler_run_us: Option<f64> = None;
+
         for line in data.lines() {
             // Parse lines like: METRIC ai_inference_us=1234
             if let Some(rest) = line.strip_prefix("METRIC ") {
@@ -87,6 +180,32 @@ impl PerformanceTestFramework {
                             "ctx_switch_ns" => ctx_ns.push(val),
                             "irq_latency_ns" => irq_ns.push(val),
                             "memory_alloc_ns" => mem_ns.push(val),
+                            "graph_stats_ops" => graph_stats_ops = Some(val),
+                            "graph_stats_channels" => graph_stats_channels = Some(val),
+                            "graph_demo_total_ns" => graph_demo_total_ns = Some(val),
+                            "graph_demo_avg_ns_per_item" => graph_demo_avg_ns_per_item = Some(val),
+                            "graph_demo_items" => graph_demo_items = Some(val),
+                            "channel_ab_depth_max" => channel_ab_depth_max = Some(val),
+                            "channel_ab_stalls" => channel_ab_stalls = Some(val),
+                            "channel_ab_drops" => channel_ab_drops = Some(val),
+                            "zero_copy_count" => zero_copy_count = Some(val),
+                            "zero_copy_handle_count" => zero_copy_handle_count = Some(val),
+                            "op_a_total_ns" => op_a_total_ns = Some(val),
+                            "op_b_total_ns" => op_b_total_ns = Some(val),
+                            "op_a_runs" => op_a_runs = Some(val),
+                            "op_b_runs" => op_b_runs = Some(val),
+                            "arena_remaining_bytes" => arena_remaining_bytes = Some(val),
+                            "op_a_pmu_inst" => op_a_pmu_inst = Some(val),
+                            "op_b_pmu_inst" => op_b_pmu_inst = Some(val),
+                            "op_a_pmu_l1d_refill" => op_a_pmu_l1d_refill = Some(val),
+                            "op_b_pmu_l1d_refill" => op_b_pmu_l1d_refill = Some(val),
+                            "op_a_p50_ns" => op_a_p50_ns = Some(val),
+                            "op_a_p95_ns" => op_a_p95_ns = Some(val),
+                            "op_a_p99_ns" => op_a_p99_ns = Some(val),
+                            "op_b_p50_ns" => op_b_p50_ns = Some(val),
+                            "op_b_p95_ns" => op_b_p95_ns = Some(val),
+                            "op_b_p99_ns" => op_b_p99_ns = Some(val),
+                            "scheduler_run_us" => scheduler_run_us = Some(val),
                             _ => {}
                         }
                     }
@@ -115,10 +234,29 @@ impl PerformanceTestFramework {
             (ai_us.iter().map(|x| (x - m)*(x - m)).sum::<f64>() / ai_us.len() as f64).sqrt()
         };
 
-        // Prefer real context-switch if present, then IRQ latency, then syscall proxy
-        let ctx_src = if !real_ns.is_empty() { &real_ns } else if !irq_ns.is_empty() { &irq_ns } else { &ctx_ns };
-        let ctx_p95 = pct(ctx_src, 95);
-        let ctx_mean = if ctx_src.is_empty() { 0.0 } else { ctx_src.iter().sum::<f64>() / ctx_src.len() as f64 };
+        // Prefer real context-switch if present with sufficient non-zero samples,
+        // otherwise fall back to IRQ latency, then syscall proxy.
+        let min_real_nonzero = 8usize;
+        let real_nz: Vec<f64> = real_ns.iter().copied().filter(|v| *v > 0.0).collect();
+        let ctx_src: &Vec<f64> = if real_nz.len() >= min_real_nonzero {
+            // Use filtered non-zero real samples for summary
+            // Note: we keep raw real_ns in dump; summaries use non-zero set
+            // To avoid ownership issues, create a local reference to a shadow vec
+            // and compute percentiles on that below.
+            // We will compute percentiles using real_nz explicitly and override ctx_p95/mean.
+            // ctx_src serves only for combined latency summary below.
+            // For combined summary, include all samples we have (real or fallback).
+            &real_ns
+        } else if !irq_ns.is_empty() {
+            &irq_ns
+        } else {
+            &ctx_ns
+        };
+        let (ctx_p95, ctx_mean) = if real_nz.len() >= min_real_nonzero {
+            (pct(&real_nz, 95), if real_nz.is_empty() { 0.0 } else { real_nz.iter().sum::<f64>() / real_nz.len() as f64 })
+        } else {
+            (pct(ctx_src, 95), if ctx_src.is_empty() { 0.0 } else { ctx_src.iter().sum::<f64>() / ctx_src.len() as f64 })
+        };
         let mem_p99 = pct(&mem_ns, 99);
 
         let combined: Vec<f64> = ai_us.iter().copied().chain(ctx_src.iter().copied()).chain(mem_ns.iter().copied()).collect();
@@ -140,12 +278,105 @@ impl PerformanceTestFramework {
             timestamp: chrono::Utc::now(),
         };
 
+        // Build structured graphs dump if graph demo metrics are present
+        let mut graphs_struct: Option<HashMap<String, GraphMetrics>> = None;
+        let demo_present = graph_demo_total_ns.is_some()
+            || graph_demo_items.is_some()
+            || op_a_runs.is_some()
+            || op_b_runs.is_some()
+            || channel_ab_depth_max.is_some();
+        if demo_present {
+            let mut ops: Vec<OperatorMetrics> = Vec::new();
+            if op_a_total_ns.is_some() || op_a_runs.is_some() || op_a_pmu_inst.is_some() || op_a_pmu_l1d_refill.is_some() || op_a_p50_ns.is_some() {
+                let mut pmu: HashMap<String, f64> = HashMap::new();
+                if let Some(v) = op_a_pmu_inst { pmu.insert("inst".to_string(), v); }
+                if let Some(v) = op_a_pmu_l1d_refill { pmu.insert("l1d_refill".to_string(), v); }
+                if let Some(v) = op_a_p50_ns { pmu.insert("p50_ns".to_string(), v); }
+                if let Some(v) = op_a_p95_ns { pmu.insert("p95_ns".to_string(), v); }
+                if let Some(v) = op_a_p99_ns { pmu.insert("p99_ns".to_string(), v); }
+                ops.push(OperatorMetrics {
+                    id: "op_a".to_string(),
+                    stage: None,
+                    runs: op_a_runs,
+                    total_ns: op_a_total_ns,
+                    pmu: if pmu.is_empty() { None } else { Some(pmu) },
+                });
+            }
+            if op_b_total_ns.is_some() || op_b_runs.is_some() || op_b_pmu_inst.is_some() || op_b_pmu_l1d_refill.is_some() || op_b_p50_ns.is_some() {
+                let mut pmu: HashMap<String, f64> = HashMap::new();
+                if let Some(v) = op_b_pmu_inst { pmu.insert("inst".to_string(), v); }
+                if let Some(v) = op_b_pmu_l1d_refill { pmu.insert("l1d_refill".to_string(), v); }
+                if let Some(v) = op_b_p50_ns { pmu.insert("p50_ns".to_string(), v); }
+                if let Some(v) = op_b_p95_ns { pmu.insert("p95_ns".to_string(), v); }
+                if let Some(v) = op_b_p99_ns { pmu.insert("p99_ns".to_string(), v); }
+                ops.push(OperatorMetrics {
+                    id: "op_b".to_string(),
+                    stage: None,
+                    runs: op_b_runs,
+                    total_ns: op_b_total_ns,
+                    pmu: if pmu.is_empty() { None } else { Some(pmu) },
+                });
+            }
+            let channels = if channel_ab_depth_max.is_some() || channel_ab_stalls.is_some() || channel_ab_drops.is_some() {
+                Some(vec![ChannelMetrics {
+                    id: "ab".to_string(),
+                    depth_max: channel_ab_depth_max,
+                    stalls: channel_ab_stalls,
+                    drops: channel_ab_drops,
+                }])
+            } else {
+                None
+            };
+
+            let g = GraphMetrics {
+                name: Some("graph_demo".to_string()),
+                total_ns: graph_demo_total_ns,
+                avg_ns_per_item: graph_demo_avg_ns_per_item,
+                items: graph_demo_items,
+                arena_remaining_bytes,
+                zero_copy_count,
+                zero_copy_handle_count,
+                operators: if ops.is_empty() { None } else { Some(ops) },
+                channels,
+            };
+            let mut map = HashMap::new();
+            map.insert("graph0".to_string(), g);
+            graphs_struct = Some(map);
+        }
+
         let dump = ParsedMetrics {
             real_ctx_switch_ns: real_ns,
             ai_inference_us: ai_us,
             ctx_switch_ns: ctx_ns,
             irq_latency_ns: irq_ns,
             memory_alloc_ns: mem_ns,
+            graph_stats_ops: Some(graph_stats_ops.unwrap_or(0.0)),
+            graph_stats_channels: Some(graph_stats_channels.unwrap_or(0.0)),
+            graph_demo_total_ns,
+            graph_demo_avg_ns_per_item,
+            graph_demo_items,
+            channel_ab_depth_max,
+            channel_ab_stalls,
+            channel_ab_drops,
+            zero_copy_count,
+            zero_copy_handle_count,
+            scheduler_run_us,
+            op_a_total_ns,
+            op_b_total_ns,
+            op_a_runs,
+            op_b_runs,
+            arena_remaining_bytes,
+            op_a_pmu_inst,
+            op_b_pmu_inst,
+            op_a_pmu_l1d_refill,
+            op_b_pmu_l1d_refill,
+            op_a_p50_ns,
+            op_a_p95_ns,
+            op_a_p99_ns,
+            op_b_p50_ns,
+            op_b_p95_ns,
+            op_b_p99_ns,
+            graphs: graphs_struct,
             summary: perf.clone(),
         };
 
