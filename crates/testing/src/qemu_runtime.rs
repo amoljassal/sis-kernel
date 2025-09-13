@@ -323,6 +323,15 @@ impl QEMURuntimeManager {
             .map(|i| i.serial_log_path.clone())
     }
 
+    pub fn get_monitor_port(&self, node_id: usize) -> u16 {
+        self.cluster
+            .instances
+            .iter()
+            .find(|i| i.node_id == node_id)
+            .map(|i| i.monitor_port)
+            .unwrap_or(7100) // Default monitor port
+    }
+
     pub async fn wait_for_boot(&self, node_id: usize, timeout_secs: u64) -> Result<bool, TestError> {
         log::info!("Waiting for instance {} to boot (timeout: {}s)", node_id, timeout_secs);
         

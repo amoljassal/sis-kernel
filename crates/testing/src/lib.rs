@@ -18,6 +18,7 @@ pub mod property_based;
 pub mod byzantine;
 pub mod reporting;
 pub mod qemu_runtime;
+pub mod kernel_interface;
 
 // Core test result types
 
@@ -332,6 +333,15 @@ impl SISTestSuite {
         }
 
         // Persist metrics dump if available
+        // Initialize kernel interface for real AI validation if QEMU is running
+        if let Some(ref qemu_manager) = self.qemu_runtime {
+            if let Some(serial_log_path) = qemu_manager.get_serial_log_path(0) {
+                let monitor_port = qemu_manager.get_monitor_port(0);
+                self.ai_validation.with_kernel_interface(serial_log_path, monitor_port);
+                log::info!("Kernel command interface initialized for real AI validation");
+            }
+        }
+
         if let (Some(ref dump), true) = (&metrics_dump, self.config.generate_reports) {
             let out_dir = &self.config.output_directory;
             let _ = std::fs::create_dir_all(out_dir);
@@ -366,14 +376,16 @@ impl SISTestSuite {
         }
 
         if self.config.parallel_execution {
-            let (maybe_perf_results, correctness_results, distributed_results, security_results, ai_results) = tokio::try_join!(
+            // Note: AI validation needs mutable access, so we run it first
+            let ai_results = self.ai_validation.validate_inference_accuracy().await?;
+            
+            let (maybe_perf_results, correctness_results, distributed_results, security_results) = tokio::try_join!(
                 async {
                     if let Some(perf) = real_perf.clone() { Ok(perf) } else { self.performance.run_full_benchmark_suite().await }
                 },
                 self.correctness.verify_all_properties(),
                 self.distributed.test_byzantine_consensus(),
                 self.security.run_comprehensive_security_tests(),
-                self.ai_validation.validate_inference_accuracy()
             )?;
 
             self.generate_validation_report(
@@ -550,19 +562,43 @@ impl SISTestSuite {
     }
 
     fn validate_ai_claims(&self, results: &ai::AIResults) -> Vec<ValidationResult> {
+        let data_source_label = match results.data_source {
+            ai::AIDataSource::RealKernelCommands => "REAL kernel validation",
+            ai::AIDataSource::SimulatedFallback => "Simulated validation",
+        };
+        
+        let mut evidence = vec![
+            format!("Data source: {}", data_source_label),
+            format!("Models tested: {}", results.models_tested),
+            format!("Inference samples: {}", results.inference_samples),
+            format!("Max deviation: {:.6}", results.max_deviation),
+        ];
+        
+        // Add real kernel validation details if available
+        if let Some(ref real_validation) = results.real_kernel_validation {
+            evidence.push(format!("Real-time AI scheduler: {}", 
+                if real_validation.real_time_ai_results.deterministic_scheduler_active { "Active" } else { "Inactive" }));
+            evidence.push(format!("Temporal isolation: {}", 
+                if real_validation.temporal_isolation_results.isolation_verified { "Verified" } else { "Failed" }));
+            evidence.push(format!("Phase 3 score: {:.1}%", 
+                real_validation.phase3_validation_results.overall_phase3_score));
+            if let Some(ai_latency) = real_validation.real_time_ai_results.ai_inference_latency_us {
+                evidence.push(format!("Real AI inference latency: {:.2}μs", ai_latency));
+            }
+        }
+        
         vec![
             ValidationResult {
-                claim: "AI Inference Accuracy >99.9%".to_string(),
+                claim: format!("AI Inference Accuracy >99.9% ({})", data_source_label),
                 target: "99.9%".to_string(),
                 measured: format!("{:.3}%", results.inference_accuracy * 100.0),
                 passed: results.inference_accuracy > 0.999,
-                confidence_level: 0.99,
-                industry_comparison: Some("Reference implementations: 99.9% baseline".to_string()),
-                evidence: vec![
-                    format!("Models tested: {}", results.models_tested),
-                    format!("Inference samples: {}", results.inference_samples),
-                    format!("Max deviation: {:.6}", results.max_deviation),
-                ],
+                confidence_level: match results.data_source {
+                    ai::AIDataSource::RealKernelCommands => 0.99,
+                    ai::AIDataSource::SimulatedFallback => 0.80, // Lower confidence for simulated
+                },
+                industry_comparison: Some(format!("{}: 99.9% baseline", data_source_label)),
+                evidence,
             },
         ]
     }
