@@ -30,6 +30,11 @@ pub mod tensor;
 pub mod channel;
 pub mod graph;
 pub mod model;
+pub mod ml;
+pub mod inference;
+pub mod npu;
+pub mod npu_driver;
+pub mod interrupts;
 pub mod control;
 // PMU helpers (feature-gated usage)
 pub mod pmu;

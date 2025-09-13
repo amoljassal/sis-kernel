@@ -5,6 +5,7 @@
 
 use crate::syscall::{SyscallError, SyscallNumber};
 use core::arch::asm;
+use alloc::format;
 
 /// Maximum command line length
 const MAX_CMD_LEN: usize = 256;
@@ -107,6 +108,12 @@ impl Shell {
                 "overhead" => self.cmd_overhead(),
                 "graphdemo" => self.cmd_graph_demo(),
                 "detdemo" => self.cmd_deterministic_demo(),
+                "aidemo" => self.cmd_ai_scheduler_demo(),
+                "cbsdemo" => self.cmd_cbs_budget_demo(),
+                "mldemo" => self.cmd_ml_demo(),
+                "infdemo" => self.cmd_inference_demo(),
+                "npudemo" => self.cmd_npu_demo(),
+                "npudriver" => self.cmd_npu_driver_demo(),
                 "graphctl" => self.cmd_graphctl(&parts[1..]),
                 "ctlhex" => self.cmd_ctlhex(&parts[1..]),
                 "pmu" => self.cmd_pmu_demo(),
@@ -139,6 +146,12 @@ impl Shell {
             crate::uart_print(b"  overhead - Measure syscall overhead\n");
             crate::uart_print(b"  graphdemo- Run graph demo (feature: graph-demo)\n");
             crate::uart_print(b"  detdemo  - Run deterministic scheduler demo (feature: deterministic)\n");
+            crate::uart_print(b"  aidemo   - Run AI-enhanced scheduler demo with real-time inference\n");
+            crate::uart_print(b"  cbsdemo  - Run CBS+EDF budget management demo for AI inference\n");
+            crate::uart_print(b"  mldemo   - Run Phase 3 TinyML demo (AI inference)\n");
+            crate::uart_print(b"  infdemo  - Run deterministic inference demo (cycle-accurate)\n");
+            crate::uart_print(b"  npudemo  - Run NPU device emulation demo (MMIO/IRQ)\n");
+            crate::uart_print(b"  npudriver- Run NPU driver demo with interrupt handling\n");
             crate::uart_print(b"  graphctl - Control graph: create | add-channel <cap> | add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] | start <steps> | stats\n");
             crate::uart_print(b"  ctlhex   - Inject control frame as hex (Create/Add/Start)\n");
             crate::uart_print(b"  pmu      - Run PMU demo (cycles/inst/l1d_refill)\n");
@@ -243,6 +256,59 @@ impl Shell {
         #[cfg(not(feature = "deterministic"))]
         {
             unsafe { crate::uart_print(b"[DETERMINISTIC] Requires 'deterministic' feature\n"); }
+        }
+    }
+
+    fn cmd_ml_demo(&self) {
+        unsafe { crate::uart_print(b"[ML] Running Phase 3 TinyML demonstration\n"); }
+        crate::ml::ml_demo();
+        unsafe { crate::uart_print(b"[ML] Phase 3 demonstration complete\n"); }
+    }
+
+    fn cmd_inference_demo(&self) {
+        unsafe { crate::uart_print(b"[INFERENCE] Running deterministic inference demonstration\n"); }
+        crate::inference::deterministic_inference_demo();
+        unsafe { crate::uart_print(b"[INFERENCE] Deterministic inference demonstration complete\n"); }
+    }
+
+    fn cmd_npu_demo(&self) {
+        unsafe { crate::uart_print(b"[NPU] Running NPU device emulation demonstration\n"); }
+        crate::npu::npu_demo();
+        unsafe { crate::uart_print(b"[NPU] NPU device emulation demonstration complete\n"); }
+    }
+
+    /// NPU driver demo command (MMIO interface and interrupt handling)
+    fn cmd_npu_driver_demo(&self) {
+        unsafe { crate::uart_print(b"[NPU DRIVER] Running NPU driver demonstration with interrupt handling\n"); }
+        npu_driver_demo();
+        unsafe { crate::uart_print(b"[NPU DRIVER] NPU driver demonstration complete\n"); }
+    }
+
+    /// AI-enhanced scheduler demo command
+    fn cmd_ai_scheduler_demo(&self) {
+        #[cfg(feature = "deterministic")]
+        {
+            unsafe { crate::uart_print(b"[AI SCHEDULER] Running AI-enhanced deterministic scheduler demonstration\n"); }
+            crate::deterministic::ai_scheduler_demo();
+            unsafe { crate::uart_print(b"[AI SCHEDULER] AI-enhanced scheduler demonstration complete\n"); }
+        }
+        #[cfg(not(feature = "deterministic"))]
+        {
+            unsafe { crate::uart_print(b"[AI SCHEDULER] AI scheduler demo requires 'deterministic' feature\n"); }
+        }
+    }
+
+    /// CBS budget management demo command
+    fn cmd_cbs_budget_demo(&self) {
+        #[cfg(feature = "deterministic")]
+        {
+            unsafe { crate::uart_print(b"[CBS BUDGET] Running CBS+EDF AI inference budget management demonstration\n"); }
+            crate::deterministic::cbs_ai_budget_demo();
+            unsafe { crate::uart_print(b"[CBS BUDGET] CBS+EDF budget management demonstration complete\n"); }
+        }
+        #[cfg(not(feature = "deterministic"))]
+        {
+            unsafe { crate::uart_print(b"[CBS BUDGET] CBS budget demo requires 'deterministic' feature\n"); }
         }
     }
 
@@ -1038,4 +1104,129 @@ fn print_u64_simple(mut num: u64) {
 pub fn run_shell() {
     let mut shell = Shell::new();
     shell.run();
+}
+
+/// NPU driver demonstration function
+pub fn npu_driver_demo() {
+    use crate::npu_driver::{initialize_npu_driver, submit_ai_inference, get_npu_stats, NPU_DRIVER};
+    use crate::ml::{VerifiedMLModel, ModelMetadata, ModelId, ArenaPtr, DataType};
+    use crate::npu::NpuPriority;
+    
+    unsafe {
+        crate::uart_print(b"[NPU DRIVER] Initializing NPU driver...\n");
+    }
+    
+    // Initialize NPU driver
+    match initialize_npu_driver() {
+        Ok(()) => {
+            unsafe { crate::uart_print(b"[NPU DRIVER] NPU driver initialized successfully\n"); }
+        }
+        Err(e) => {
+            unsafe { 
+                crate::uart_print(b"[NPU DRIVER] Failed to initialize NPU driver: ");
+                crate::uart_print(format!("{:?}", e).as_bytes());
+                crate::uart_print(b"\n");
+                return;
+            }
+        }
+    }
+    
+    // Create a test model
+    let test_metadata = ModelMetadata {
+        input_shape: [4, 1, 1, 1],
+        output_shape: [4, 1, 1, 1], 
+        input_dtype: DataType::Float32,
+        output_dtype: DataType::Float32,
+        arena_size_required: 1024 * 1024,
+        wcet_cycles: 100000,
+        operator_count: 10,
+        tensor_count: 5,
+    };
+    
+    let test_model = VerifiedMLModel {
+        id: ModelId(1),
+        data_ptr: ArenaPtr { ptr: core::ptr::null_mut(), size: 0, generation: 0 },
+        metadata: test_metadata,
+        security_index: 0,
+    };
+    
+    unsafe { crate::uart_print(b"[NPU DRIVER] Submitting test inference job...\n"); }
+    
+    // Submit a test inference job
+    let test_input = [1.0f32, 2.0, 3.0, 4.0];
+    match submit_ai_inference(&test_model, &test_input, 4, NpuPriority::High) {
+        Ok(job_id) => {
+            unsafe { 
+                crate::uart_print(b"[NPU DRIVER] Submitted inference job with ID: ");
+                print_number_simple(job_id as u64);
+                crate::uart_print(b"\n");
+            }
+            
+            // Simulate interrupt handling by polling
+            unsafe { crate::uart_print(b"[NPU DRIVER] Simulating interrupt handling...\n"); }
+            
+            for i in 0..5 {
+                NPU_DRIVER.handle_interrupt();
+                
+                // Brief delay simulation
+                for _ in 0..1000 {
+                    core::hint::spin_loop();
+                }
+                
+                unsafe {
+                    crate::uart_print(b"[NPU DRIVER] Interrupt handling cycle ");
+                    print_number_simple(i + 1);
+                    crate::uart_print(b"\n");
+                }
+            }
+            
+            // Get statistics
+            let stats = get_npu_stats();
+            unsafe {
+                crate::uart_print(b"[NPU DRIVER] NPU Statistics:\n");
+                crate::uart_print(b"  Jobs submitted: ");
+                print_number_simple(stats.total_jobs_submitted);
+                crate::uart_print(b"\n  Jobs completed: ");
+                print_number_simple(stats.total_jobs_completed);
+                crate::uart_print(b"\n  Jobs failed: ");
+                print_number_simple(stats.total_jobs_failed);
+                crate::uart_print(b"\n  Pending jobs: ");
+                print_number_simple(stats.current_pending_jobs as u64);
+                crate::uart_print(b"\n  Peak queue depth: ");
+                print_number_simple(stats.peak_queue_depth as u64);
+                crate::uart_print(b"\n  Average completion time: ");
+                print_number_simple(stats.average_completion_time_cycles);
+                crate::uart_print(b" cycles\n");
+            }
+        }
+        Err(e) => {
+            unsafe {
+                crate::uart_print(b"[NPU DRIVER] Failed to submit inference job: ");
+                crate::uart_print(format!("{:?}", e).as_bytes());
+                crate::uart_print(b"\n");
+            }
+        }
+    }
+}
+
+/// Simple number printing helper for demo
+fn print_number_simple(mut num: u64) {
+    if num == 0 {
+        unsafe { crate::uart_print(b"0"); }
+        return;
+    }
+
+    let mut digits = [0u8; 20];
+    let mut i = 0;
+
+    while num > 0 {
+        digits[i] = b'0' + (num % 10) as u8;
+        num /= 10;
+        i += 1;
+    }
+
+    while i > 0 {
+        i -= 1;
+        unsafe { crate::uart_print(&[digits[i]]); }
+    }
 }

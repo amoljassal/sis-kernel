@@ -256,6 +256,7 @@ pub struct GraphApi {
     ops: alloc::vec::Vec<OpNode>,
     #[cfg(feature = "deterministic")]
     det_scheduler: DeterministicScheduler<16>,
+    #[allow(dead_code)]
     deterministic_mode: bool,
 }
 
