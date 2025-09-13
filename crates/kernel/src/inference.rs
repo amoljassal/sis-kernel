@@ -34,6 +34,12 @@ pub struct ArmPmu {
     enabled_events: AtomicU32,
 }
 
+impl Default for ArmPmu {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ArmPmu {
     pub const fn new() -> Self {
         Self {
@@ -107,6 +113,12 @@ pub struct DeadlineEnforcer {
     armed: AtomicU32,
 }
 
+impl Default for DeadlineEnforcer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DeadlineEnforcer {
     pub const fn new() -> Self {
         Self {
@@ -148,6 +160,12 @@ pub struct DeterministicInferenceEngine {
     total_cycles_used: AtomicU64,
     deadline_misses: AtomicU64,
     preemption_count: AtomicU64,
+}
+
+impl Default for DeterministicInferenceEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DeterministicInferenceEngine {
@@ -407,6 +425,12 @@ pub struct InferenceSchedulerInterface {
     active_inference: Option<ModelId>,
 }
 
+impl Default for InferenceSchedulerInterface {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InferenceSchedulerInterface {
     pub const fn new() -> Self {
         Self {
@@ -566,12 +590,12 @@ pub fn test_bounded_inference() {
     unsafe { crate::uart_print(b"[INFERENCE TEST] Testing bounded inference execution\n"); }
     
     // Create test inference engine
-    let mut inference_engine = DeterministicInferenceEngine::new();
+    let _inference_engine = DeterministicInferenceEngine::new();
     
     // Create test model and input
-    let test_model = crate::ml::create_test_model();
-    let test_input = [1.0f32, 0.5, -0.25, 2.0];
-    let mut test_output = [0.0f32; 4];
+    let _test_model = crate::ml::create_test_model();
+    let _test_input = [1.0f32, 0.5, -0.25, 2.0];
+    let _test_output = [0.0f32; 4];
     let max_cycles = 50000; // 20μs budget at 2.4GHz
     
     // Execute simulated bounded inference

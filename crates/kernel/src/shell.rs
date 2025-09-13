@@ -1055,6 +1055,7 @@ pub fn print_number_simple(mut num: u64) {
 
     // Validation helper methods for comprehensive AI inference testing
     
+    #[allow(dead_code)]
     fn test_cycle_accurate_inference(&self) {
         unsafe { crate::uart_print(b"[RT-AI] Testing cycle-accurate inference with ARM PMU\n"); }
         
@@ -1088,6 +1089,7 @@ pub fn print_number_simple(mut num: u64) {
         }
     }
     
+    #[allow(dead_code)]
     fn test_temporal_isolation(&self) {
         unsafe { crate::uart_print(b"[RT-AI] Testing temporal isolation between AI and traditional tasks\n"); }
         
@@ -1104,6 +1106,7 @@ pub fn print_number_simple(mut num: u64) {
         }
     }
     
+    #[allow(dead_code)]
     fn test_priority_inference_scheduling(&self) {
         unsafe { crate::uart_print(b"[RT-AI] Testing priority-based AI inference scheduling\n"); }
         
@@ -1119,6 +1122,7 @@ pub fn print_number_simple(mut num: u64) {
         }
     }
     
+    #[allow(dead_code)]
     fn test_inference_budget_compliance(&self) {
         unsafe { crate::uart_print(b"[RT-AI] Testing AI inference budget compliance\n"); }
         
@@ -1134,6 +1138,7 @@ pub fn print_number_simple(mut num: u64) {
         }
     }
     
+    #[allow(dead_code)]
     fn demonstrate_workload_isolation(&self) {
         unsafe { crate::uart_print(b"[TEMPORAL ISO] Demonstrating AI and traditional workload isolation\n"); }
         
@@ -1167,6 +1172,7 @@ pub fn print_number_simple(mut num: u64) {
         }
     }
     
+    #[allow(dead_code)]
     fn measure_interference_bounds(&self) {
         unsafe { crate::uart_print(b"[TEMPORAL ISO] Measuring cross-workload interference bounds\n"); }
         
@@ -1198,6 +1204,7 @@ pub fn print_number_simple(mut num: u64) {
         }
     }
     
+    #[allow(dead_code)]
     fn validate_deterministic_behavior(&self) {
         unsafe { crate::uart_print(b"[TEMPORAL ISO] Validating deterministic timing behavior\n"); }
         
@@ -1310,6 +1317,7 @@ pub fn print_number_simple(mut num: u64) {
     // Helper methods for testing
     
     #[cfg(target_arch = "aarch64")]
+    #[allow(dead_code)]
     fn read_pmu_cycles(&self) -> u64 {
         let mut cycles: u64;
         unsafe {
@@ -1323,10 +1331,12 @@ pub fn print_number_simple(mut num: u64) {
     }
     
     #[cfg(not(target_arch = "aarch64"))]
+    #[allow(dead_code)]
     fn read_pmu_cycles(&self) -> u64 {
         0 // Fallback for non-ARM architectures
     }
     
+    #[allow(dead_code)]
     fn simulate_deterministic_inference(&self) {
         // Simulate a deterministic AI inference with known cycle count
         for _ in 0..10000 {
@@ -1336,6 +1346,7 @@ pub fn print_number_simple(mut num: u64) {
         }
     }
     
+    #[allow(dead_code)]
     fn simulate_ai_workload(&self) {
         // Simulate AI workload for 5ms
         for _ in 0..50000 {
@@ -1345,6 +1356,7 @@ pub fn print_number_simple(mut num: u64) {
         }
     }
     
+    #[allow(dead_code)]
     fn simulate_traditional_workload(&self) {
         // Simulate traditional workload for 5ms
         for _ in 0..50000 {
@@ -1354,6 +1366,7 @@ pub fn print_number_simple(mut num: u64) {
         }
     }
     
+    #[allow(dead_code)]
     fn simulate_concurrent_workloads(&self) {
         // Simulate concurrent AI and traditional workloads
         for _ in 0..100000 {
@@ -1394,6 +1407,7 @@ pub fn print_number_simple(mut num: u64) {
         }
     }
     
+    #[allow(dead_code)]
     fn sqrt_approximation(&self, n: u64) -> u64 {
         if n == 0 { return 0; }
         let mut x = n;

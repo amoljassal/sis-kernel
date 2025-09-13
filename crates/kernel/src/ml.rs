@@ -49,6 +49,7 @@ pub enum DataType {
 }
 
 impl DataType {
+    /// Returns size in bytes for this data type.
     pub fn size_bytes(self) -> usize {
         match self {
             DataType::Float32 => 4,
@@ -67,6 +68,12 @@ pub struct TensorArena<const SIZE: usize> {
     generation: AtomicU32,
 }
 
+impl<const SIZE: usize> Default for TensorArena<SIZE> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const SIZE: usize> TensorArena<SIZE> {
     pub const fn new() -> Self {
         Self {
@@ -76,7 +83,14 @@ impl<const SIZE: usize> TensorArena<SIZE> {
         }
     }
     
-    /// Allocate aligned memory from the arena
+    /// Allocate aligned memory from the arena.
+    ///
+    /// # Arguments
+    /// - `size`: Number of bytes to allocate
+    /// - `align`: Alignment requirement (must be power of 2)
+    ///
+    /// # Returns
+    /// Some(ArenaPtr) if allocation succeeds, None if arena exhausted
     pub fn allocate_aligned(&self, size: usize, align: usize) -> Option<ArenaPtr> {
         let mask = align - 1;
         let mut current = self.head.load(Ordering::Acquire);
@@ -108,6 +122,7 @@ impl<const SIZE: usize> TensorArena<SIZE> {
     }
     
     /// Reset arena for reuse (clears sensitive data)
+    /// Reset arena to initial state, freeing all allocations.
     pub fn reset(&self) {
         self.head.store(0, Ordering::Release);
         self.generation.fetch_add(1, Ordering::Release);
@@ -119,6 +134,7 @@ impl<const SIZE: usize> TensorArena<SIZE> {
     }
     
     /// Get remaining free space in arena
+    /// Returns remaining free space in bytes.
     pub fn remaining_bytes(&self) -> usize {
         SIZE.saturating_sub(self.head.load(Ordering::Acquire))
     }
@@ -188,6 +204,12 @@ pub struct EnhancedModelLoader {
     security_manager: ModelSecurityManager<MAX_MODELS, 1024>,
 }
 
+impl Default for EnhancedModelLoader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EnhancedModelLoader {
     pub const fn new() -> Self {
         Self {
@@ -209,7 +231,7 @@ impl EnhancedModelLoader {
         let flatbuffer_data = self.extract_flatbuffer_data(package)?;
         
         // Phase 3: Parse model metadata before interpreter creation
-        let metadata = self.parse_model_metadata(&flatbuffer_data)?;
+        let metadata = self.parse_model_metadata(flatbuffer_data)?;
         
         // Phase 4: Validate arena size requirements
         if metadata.arena_size_required > ARENA_SIZE_BYTES {
@@ -366,6 +388,12 @@ pub struct KernelMLArenaManager {
     scratch_arenas: [TensorArena<SCRATCH_SIZE_BYTES>; MAX_MODELS],
     // Usage tracking
     allocated_models: AtomicU32,
+}
+
+impl Default for KernelMLArenaManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl KernelMLArenaManager {
