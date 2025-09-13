@@ -231,8 +231,10 @@ impl QEMURuntimeManager {
             "-smp".to_string(), "4".to_string(),  // Multi-core for realistic M-series behavior
             "-m".to_string(), "1G".to_string(),  // Increased memory for better performance
             "-nographic".to_string(),
-            // Log serial output to file for robust boot detection
-            "-serial".to_string(), format!("file:{}", instance.serial_log_path),
+            // Use chardev with socket for bidirectional serial communication + file logging
+            "-chardev".to_string(), format!("socket,id=serial0,port={},host=localhost,server,nowait,logfile={}", 
+                                           instance.serial_port, instance.serial_log_path),
+            "-serial".to_string(), "chardev:serial0".to_string(),
             "-monitor".to_string(), format!("tcp:localhost:{},server,nowait", instance.monitor_port),
             "-bios".to_string(), firmware_path.to_string(),
             "-drive".to_string(), format!("if=none,id=esp,format=raw,file=fat:rw:{}", instance.esp_directory),

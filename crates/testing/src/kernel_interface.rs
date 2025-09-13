@@ -64,6 +64,7 @@ pub struct KernelCommandInterface {
     #[allow(dead_code)]
     qemu_process: Option<Child>,
     serial_log_path: String,
+    serial_port: u16,
     monitor_port: u16,
     command_timeout: Duration,
     last_log_position: u64,
@@ -71,11 +72,14 @@ pub struct KernelCommandInterface {
 
 impl KernelCommandInterface {
     pub fn new(serial_log_path: String, monitor_port: u16) -> Self {
+        // Extract serial port from monitor port (serial port = monitor_port - 100)
+        let serial_port = monitor_port - 100;
         Self {
             qemu_process: None,
             serial_log_path,
+            serial_port,
             monitor_port,
-            command_timeout: Duration::from_secs(30),
+            command_timeout: Duration::from_secs(10),
             last_log_position: 0,
         }
     }
@@ -84,11 +88,14 @@ impl KernelCommandInterface {
     pub async fn execute_command(&mut self, command: &str) -> TestResult<CommandOutput> {
         let start_time = Instant::now();
         
+        // Wait for shell prompt to be ready
+        self.wait_for_shell_prompt().await?;
+        
         // Mark current position in serial log before sending command
         self.update_log_position().await?;
         
-        // Send command via QEMU monitor
-        self.send_command_via_monitor(command).await?;
+        // Send command via direct serial socket connection  
+        self.send_command_via_serial(command).await?;
         
         // Wait for command completion and parse output
         let raw_output = self.wait_for_command_completion(command).await?;
@@ -105,9 +112,28 @@ impl KernelCommandInterface {
         })
     }
 
+    /// Test basic command execution with help command
+    pub async fn test_basic_command_execution(&mut self) -> TestResult<CommandOutput> {
+        log::info!("Testing basic command execution with 'help' command");
+        self.execute_command("help").await
+    }
+
     /// Execute the full Phase 3 AI validation command suite
     pub async fn run_phase3_ai_validation(&mut self) -> TestResult<RealAIValidationResults> {
         let start_time = Instant::now();
+        
+        // First test basic command execution
+        match self.test_basic_command_execution().await {
+            Ok(output) => {
+                log::info!("Basic command execution successful: {}", 
+                          output.raw_output.chars().take(100).collect::<String>());
+            },
+            Err(e) => {
+                return Err(TestError::ExecutionFailed {
+                    message: format!("Basic command execution failed: {}", e)
+                });
+            }
+        }
         
         // Execute real-time AI validation
         let rtai_output = self.execute_command("rtaivalidation").await?;
@@ -132,36 +158,69 @@ impl KernelCommandInterface {
         })
     }
 
-    /// Send command to kernel shell via QEMU monitor interface
-    async fn send_command_via_monitor(&self, command: &str) -> TestResult<()> {
-        // Connect to QEMU monitor and send keys to simulate typing command
-        let output = Command::new("nc")
-            .args(["-N", "localhost", &self.monitor_port.to_string()])
-            .arg(format!("sendkey {}\nsendkey ret\n", 
-                        command.chars().map(|c| format!("char:{}", c)).collect::<Vec<_>>().join("\nsendkey ")))
+    /// Send command to kernel shell via direct serial socket connection
+    async fn send_command_via_serial(&self, command: &str) -> TestResult<()> {
+        // Send command directly to serial socket using netcat
+        let output = Command::new("sh")
+            .args(["-c", &format!(
+                "echo '{}' | nc localhost {}", 
+                command, 
+                self.serial_port
+            )])
             .output()
             .await
             .map_err(|e| TestError::QEMUError {
-                message: format!("Failed to connect to QEMU monitor: {}", e)
+                message: format!("Failed to connect to serial socket: {}", e)
             })?;
         
         if !output.status.success() {
             return Err(TestError::QEMUError {
-                message: format!("QEMU monitor command failed: {}", 
+                message: format!("Serial socket command failed: {}", 
                                String::from_utf8_lossy(&output.stderr))
             });
         }
         
+        log::debug!("Successfully sent command '{}' to kernel via serial socket", command);
         Ok(())
+    }
+
+    /// Wait for shell prompt to be ready
+    async fn wait_for_shell_prompt(&mut self) -> TestResult<()> {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        
+        while Instant::now() < deadline {
+            let content = fs::read_to_string(&self.serial_log_path).await
+                .map_err(|e| TestError::IoError(e))?;
+            
+            if content.contains("sis>") {
+                log::debug!("Shell prompt detected, ready for commands");
+                return Ok(());
+            }
+            
+            sleep(Duration::from_millis(200)).await;
+        }
+        
+        Err(TestError::ExecutionFailed {
+            message: "Shell prompt not detected within timeout".to_string()
+        })
     }
 
     /// Wait for command completion by monitoring serial log for expected patterns
     async fn wait_for_command_completion(&mut self, command: &str) -> TestResult<String> {
-        let expected_completion_pattern = match command {
-            "rtaivalidation" => "[RT-AI VALIDATION] Real-time AI validation complete",
-            "temporaliso" => "[TEMPORAL ISOLATION] Temporal isolation validation complete", 
-            "phase3validation" => "[PHASE 3 VALIDATION] Phase 3 validation complete",
-            _ => "sis>", // Default shell prompt
+        let expected_completion_patterns = match command {
+            "rtaivalidation" => vec![
+                "[RT-AI VALIDATION] Real-time AI validation complete",
+                "sis>" // Shell prompt indicates command completed
+            ],
+            "temporaliso" => vec![
+                "[TEMPORAL ISOLATION] Temporal isolation validation complete",
+                "sis>"
+            ],
+            "phase3validation" => vec![
+                "[PHASE 3 VALIDATION] Phase 3 validation complete", 
+                "sis>"
+            ],
+            _ => vec!["sis>"], // Default shell prompt
         };
         
         let deadline = Instant::now() + self.command_timeout;
@@ -172,9 +231,12 @@ impl KernelCommandInterface {
             let new_content = self.read_new_log_content().await?;
             accumulated_output.push_str(&new_content);
             
-            // Check if command completed
-            if accumulated_output.contains(expected_completion_pattern) {
-                return Ok(accumulated_output);
+            // Check if any completion pattern is found
+            for pattern in &expected_completion_patterns {
+                if accumulated_output.contains(pattern) {
+                    log::debug!("Command '{}' completed with pattern: '{}'", command, pattern);
+                    return Ok(accumulated_output);
+                }
             }
             
             // Brief delay before next check
@@ -182,7 +244,8 @@ impl KernelCommandInterface {
         }
         
         Err(TestError::ExecutionFailed {
-            message: format!("Command '{}' timed out after {:?}", command, self.command_timeout)
+            message: format!("Command '{}' timed out after {:?}. Output: {}", 
+                           command, self.command_timeout, accumulated_output.chars().take(200).collect::<String>())
         })
     }
 
