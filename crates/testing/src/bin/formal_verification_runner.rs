@@ -85,11 +85,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             
             // Soundness guarantees
             log::info!("Safety Guarantees:");
-            log::info!("  Memory Safety: {}", if verification_results.soundness_guarantees.memory_safety { "✓" } else { "✗" });
-            log::info!("  Type Safety: {}", if verification_results.soundness_guarantees.type_safety { "✓" } else { "✗" });
-            log::info!("  Overflow Safety: {}", if verification_results.soundness_guarantees.overflow_safety { "✓" } else { "✗" });
-            log::info!("  Concurrency Safety: {}", if verification_results.soundness_guarantees.concurrency_safety { "✓" } else { "✗" });
-            log::info!("  Invariant Preservation: {}", if verification_results.soundness_guarantees.invariant_preservation { "✓" } else { "✗" });
+            log::info!("  Memory Safety: {}", if verification_results.soundness_guarantees.memory_safety { "PASS" } else { "FAIL" });
+            log::info!("  Type Safety: {}", if verification_results.soundness_guarantees.type_safety { "PASS" } else { "FAIL" });
+            log::info!("  Overflow Safety: {}", if verification_results.soundness_guarantees.overflow_safety { "PASS" } else { "FAIL" });
+            log::info!("  Concurrency Safety: {}", if verification_results.soundness_guarantees.concurrency_safety { "PASS" } else { "FAIL" });
+            log::info!("  Invariant Preservation: {}", if verification_results.soundness_guarantees.invariant_preservation { "PASS" } else { "FAIL" });
             log::info!("");
             
             // Completeness analysis
@@ -104,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if !verification_results.failed_properties.is_empty() {
                 log::warn!("=== FAILED PROPERTIES ===");
                 for failure in &verification_results.failed_properties {
-                    log::warn!("✗ {} ({:?})", failure.property_name, failure.severity);
+                    log::warn!("{} ({:?})", failure.property_name, failure.severity);
                     log::warn!("  Reason: {}", failure.failure_reason);
                     if let Some(counterexample) = &failure.counterexample {
                         log::warn!("  Counterexample: {}", counterexample);
@@ -119,28 +119,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             match verification_results.verification_status {
                 VerificationStatus::Complete => {
                     if success_rate >= 95.0 {
-                        log::info!("🛡️  SAFETY-CRITICAL CERTIFICATION READY");
+                        log::info!("CERTIFICATION: SAFETY-CRITICAL READY");
                         log::info!("   All critical safety properties verified");
                         log::info!("   Suitable for safety-critical applications");
                         log::info!("   Meets DO-178C Level A requirements");
                     } else {
-                        log::info!("✅ HIGH CONFIDENCE VERIFICATION");
+                        log::info!("PASS: HIGH CONFIDENCE VERIFICATION");
                         log::info!("   Most safety properties verified");
                         log::info!("   Suitable for high-reliability applications");
                     }
                 }
                 VerificationStatus::Partial => {
-                    log::warn!("⚠️  PARTIAL VERIFICATION");
+                    log::warn!("WARNING: PARTIAL VERIFICATION");
                     log::warn!("   Some properties require additional work");
                     log::warn!("   Review failed properties before deployment");
                 }
                 VerificationStatus::Failed => {
-                    log::error!("❌ VERIFICATION FAILED");
+                    log::error!("FAIL: VERIFICATION FAILED");
                     log::error!("   Critical safety issues identified");
                     log::error!("   System not safe for deployment");
                 }
                 _ => {
-                    log::warn!("❓ VERIFICATION INCOMPLETE");
+                    log::warn!("VERIFICATION INCOMPLETE");
                     log::warn!("   Unable to complete full verification");
                 }
             }
@@ -175,25 +175,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             
             if verification_results.soundness_guarantees.memory_safety && 
                verification_results.soundness_guarantees.type_safety {
-                log::info!("  ✓ MISRA-C 2012 (Static Analysis)");
-                log::info!("  ✓ CERT C Secure Coding (Memory Safety)");
+                log::info!("  MISRA-C 2012 (Static Analysis) - PASS");
+                log::info!("  CERT C Secure Coding (Memory Safety) - PASS");
             } else {
-                log::warn!("  ⚠ MISRA-C 2012 (Partial compliance)");
+                log::warn!("  MISRA-C 2012 (Partial compliance)");
             }
             
             if success_rate >= 90.0 {
-                log::info!("  ✓ ISO 26262 ASIL-D (Automotive Safety)");
-                log::info!("  ✓ DO-178C Level A (Avionics Software)");
-                log::info!("  ✓ IEC 61508 SIL-4 (Functional Safety)");
+                log::info!("  ISO 26262 ASIL-D (Automotive Safety) - PASS");
+                log::info!("  DO-178C Level A (Avionics Software) - PASS");
+                log::info!("  IEC 61508 SIL-4 (Functional Safety) - PASS");
             } else if success_rate >= 80.0 {
-                log::info!("  ✓ ISO 26262 ASIL-C (Automotive Safety)");  
-                log::info!("  ✓ DO-178C Level B (Avionics Software)");
+                log::info!("  ISO 26262 ASIL-C (Automotive Safety) - PASS");  
+                log::info!("  DO-178C Level B (Avionics Software) - PASS");
             } else {
-                log::warn!("  ⚠ Safety standards require additional verification");
+                log::warn!("  Safety standards require additional verification");
             }
             
             if verification_results.soundness_guarantees.concurrency_safety {
-                log::info!("  ✓ Common Criteria EAL6+ (Security Evaluation)");
+                log::info!("  Common Criteria EAL6+ (Security Evaluation) - PASS");
             }
             
             log::info!("");
@@ -201,12 +201,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if success_rate >= 95.0 && 
                verification_results.soundness_guarantees.memory_safety &&
                verification_results.soundness_guarantees.type_safety {
-                log::info!("  🎓 Ready for safety-critical certification");
-                log::info!("  🏭 Suitable for industrial deployment");
-                log::info!("  🚁 Qualified for avionics applications");
-                log::info!("  🚗 Meets automotive safety requirements");
+                log::info!("  Ready for safety-critical certification");
+                log::info!("  Suitable for industrial deployment");
+                log::info!("  Qualified for avionics applications");
+                log::info!("  Meets automotive safety requirements");
             } else {
-                log::warn!("  📋 Additional verification needed for certification");
+                log::warn!("  Additional verification needed for certification");
             }
             
             log::info!("");

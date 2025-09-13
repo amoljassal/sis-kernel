@@ -89,7 +89,7 @@ impl PrustiVerifier {
                         verified_postconditions += 1;
                         verified_invariants += 1;
                         
-                        log::info!("✓ {} - SUCCESS ({:.1}% complete)", 
+                        log::info!("{} - SUCCESS ({:.1}% complete)", 
                                   spec.name, result.specification_completeness);
                     } else {
                         failures.push(PropertyFailure {
@@ -100,7 +100,7 @@ impl PrustiVerifier {
                             location: format!("Prusti specification: {}", spec.name),
                             severity: PropertySeverity::High,
                         });
-                        log::warn!("✗ {} - FAILED", spec.name);
+                        log::warn!("{} - FAILED", spec.name);
                         
                         // Partial credit for successful components
                         if result.precondition_status == "SUCCESS" {
@@ -120,7 +120,7 @@ impl PrustiVerifier {
                         location: format!("Prusti specification: {}", spec.name),
                         severity: PropertySeverity::Critical,
                     });
-                    log::error!("✗ {} - ERROR: {}", spec.name, e);
+                    log::error!("{} - ERROR: {}", spec.name, e);
                 }
             }
         }

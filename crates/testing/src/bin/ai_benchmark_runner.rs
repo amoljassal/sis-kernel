@@ -125,11 +125,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                    benchmark_results.accuracy_validation.model_accuracy > 0.999;
             
             if validation_passed {
-                log::info!("✓ VALIDATION PASSED");
+                log::info!("VALIDATION PASSED");
                 log::info!("  All performance targets met");
                 log::info!("  Ready for industry presentation");
             } else {
-                log::warn!("⚠ VALIDATION PARTIAL");
+                log::warn!("VALIDATION PARTIAL");
                 log::warn!("  Some targets not fully met");
                 log::warn!("  Review recommendations");
             }
@@ -174,12 +174,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             log::info!("");
             
             if report.executive_summary.overall_score >= 90.0 {
-                log::info!("🎉 SUCCESS: SIS Kernel demonstrates industry-leading AI performance!");
+                log::info!("SUCCESS: SIS Kernel demonstrates industry-leading AI performance!");
                 log::info!("Ready for presentations to FAANG and enterprise customers.");
             } else if report.executive_summary.overall_score >= 70.0 {
-                log::info!("✓ GOOD: Strong AI performance with opportunities for optimization.");
+                log::info!("GOOD: Strong AI performance with opportunities for optimization.");
             } else {
-                log::warn!("⚠ NEEDS WORK: Performance improvements required before industry presentation.");
+                log::warn!("NEEDS WORK: Performance improvements required before industry presentation.");
             }
             
             log::info!("");

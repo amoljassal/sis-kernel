@@ -9,13 +9,19 @@ This document establishes the technical standards, architectural principles, and
 
 ## Core Philosophy
 
-### 1. Factual Engineering Over Hype
+### 1. Production-Grade Standards Mandate
+- **Industry Compliance**: All code must meet or exceed production-grade industry standards
+- **Enterprise Quality**: Code quality suitable for enterprise kernel development environments
+- **Professional Standards**: Never compromise on professional development practices and conventions
+- **Zero Tolerance**: No relaxation of standards for prototyping or development convenience
+
+### 2. Factual Engineering Over Hype
 - **Documentation Rule**: Document only implemented, verifiable behavior. No aspirational claims.
 - **README Standard**: "This README reflects the implemented, verifiable behavior in this repo today — no hype, no unbuilt features."
 - **Metric Claims**: Every performance metric must be measurable and reproducible.
 - **Feature Claims**: Only describe features that compile, run, and produce expected output.
 
-### 2. Minimal, Focused Implementation
+### 3. Minimal, Focused Implementation
 - **Module Principle**: Each module should do one thing exceptionally well.
 - **Incremental Growth**: Add functionality in small, verifiable increments.
 - **Scaffolding Approach**: Build minimal scaffolding first, then expand with proven patterns.
@@ -60,6 +66,7 @@ This document establishes the technical standards, architectural principles, and
 - **When**: Complex algorithms, unsafe blocks, performance-critical sections
 - **Style**: Technical, concise, explain the "why" not the "what"
 - **Architecture**: Document architectural decisions and trade-offs
+- **Professional Language**: No emojis, casual language, or non-technical expressions
 
 ### 3. Error Handling Standards
 
@@ -386,6 +393,7 @@ jsonschema -i metrics_dump.json docs/schemas/sis-metrics-v1.schema.json
 - **No Business Hyperbole**: Avoid claims about "industry disruption" or "competitive advantage"
 - **No Unrealistic Promises**: Do not promise capabilities beyond current implementation
 - **No Excessive Enthusiasm**: Maintain professional demeanor, avoid "Amazing!", "Incredible!" language
+- **No Emojis in Code**: Strictly prohibited in all source code, comments, and technical documentation
 
 ### 3. Required Communication Format
 ```

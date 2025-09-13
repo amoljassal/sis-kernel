@@ -59,7 +59,7 @@ receivers:
       - to: 'sis-kernel-oncall@example.com'
         subject: '[CRITICAL] SIS Kernel Alert: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
         body: |
-          🚨 CRITICAL ALERT 🚨
+          CRITICAL ALERT
           
           {{ range .Alerts }}
           Alert: {{ .Annotations.summary }}
@@ -77,7 +77,7 @@ receivers:
         channel: '#sis-kernel-alerts'
         title: 'Critical SIS Kernel Alert'
         text: |
-          🚨 *CRITICAL ALERT* 🚨
+          *CRITICAL ALERT*
           {{ range .Alerts }}
           *{{ .Annotations.summary }}*
           {{ .Annotations.description }}
@@ -105,7 +105,7 @@ receivers:
       - to: 'sis-kernel-security@example.com'
         subject: '[SECURITY] SIS Kernel: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
         body: |
-          🔒 SECURITY ALERT 🔒
+          SECURITY ALERT
           
           {{ range .Alerts }}
           Alert: {{ .Annotations.summary }}

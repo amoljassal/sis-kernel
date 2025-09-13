@@ -179,7 +179,7 @@ impl FormalVerificationSuite {
             match self.verify_invariant(invariant).await {
                 Ok(true) => {
                     verified_count += 1;
-                    log::debug!("✓ Verified: {}", invariant);
+                    log::debug!("Verified: {}", invariant);
                 }
                 Ok(false) => {
                     failures.push(PropertyFailure {
@@ -189,7 +189,7 @@ impl FormalVerificationSuite {
                         location: format!("Property {}", i + 1),
                         severity: PropertySeverity::High,
                     });
-                    log::warn!("✗ Failed: {}", invariant);
+                    log::warn!("Failed: {}", invariant);
                 }
                 Err(_) => {
                     failures.push(PropertyFailure {

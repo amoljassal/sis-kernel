@@ -161,7 +161,7 @@ impl PropertyVerificationEngine {
                 Ok(result) => {
                     if result.verified {
                         verified_properties += 1;
-                        log::info!("✓ {} - VERIFIED ({:.1}s)", property.name, result.verification_time_seconds);
+                        log::info!("{} - VERIFIED ({:.1}s)", property.name, result.verification_time_seconds);
                     } else {
                         failed_properties.push(PropertyFailure {
                             property_name: property.name.clone(),
@@ -175,7 +175,7 @@ impl PropertyVerificationEngine {
                                 PropertyCriticality::Low => PropertySeverity::Low,
                             },
                         });
-                        log::warn!("✗ {} - FAILED", property.name);
+                        log::warn!("{} - FAILED", property.name);
                     }
                     verification_results.push(result);
                 }
@@ -187,7 +187,7 @@ impl PropertyVerificationEngine {
                         location: format!("{:?} property", property.category),
                         severity: PropertySeverity::Critical,
                     });
-                    log::error!("✗ {} - ERROR: {}", property.name, e);
+                    log::error!("{} - ERROR: {}", property.name, e);
                 }
             }
         }
@@ -301,7 +301,7 @@ impl PropertyVerificationEngine {
         
         report.push_str("## Detailed Results\n");
         for result in &results.verification_results {
-            let status = if result.verified { "✓ VERIFIED" } else { "✗ FAILED" };
+            let status = if result.verified { "VERIFIED" } else { "FAILED" };
             report.push_str(&format!("- **{}**: {} ({:.3}s, {:.0}% confidence)\n", 
                                     result.property_name, status, 
                                     result.verification_time_seconds, result.confidence_level * 100.0));

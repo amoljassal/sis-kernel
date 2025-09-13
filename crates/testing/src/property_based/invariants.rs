@@ -340,7 +340,7 @@ impl InvariantChecker {
         report.push_str(&format!("High Severity Violations: {}\n\n", high_count));
         
         if critical_count > 0 {
-            report.push_str("⚠️  **CRITICAL**: System safety compromised!\n\n");
+            report.push_str("**CRITICAL**: System safety compromised!\n\n");
         }
         
         report.push_str("## Violations by Category\n\n");

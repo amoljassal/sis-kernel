@@ -37,7 +37,7 @@ impl CorrectnessValidationSuite {
             formal_verification_coverage: formal_results,
             property_tests_passed: property_results.0,
             property_tests_total: property_results.1,
-            invariant_violations: 0, // TODO: Implement invariant checking
+            invariant_violations: 0, // NOTE: Invariant checking not implemented
             timestamp: chrono::Utc::now(),
         })
     }

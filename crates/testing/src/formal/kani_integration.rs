@@ -71,7 +71,7 @@ impl KaniVerifier {
                     verified_count += 1;
                     if result.verification_status == "SUCCESS" {
                         success_count += 1;
-                        log::info!("✓ {} - SUCCESS ({:.1}% coverage)", harness.name, result.coverage_percentage);
+                        log::info!("{} - SUCCESS ({:.1}% coverage)", harness.name, result.coverage_percentage);
                     } else {
                         failures.push(PropertyFailure {
                             property_name: harness.name.clone(),
@@ -80,7 +80,7 @@ impl KaniVerifier {
                             location: format!("Kani harness: {}", harness.name),
                             severity: PropertySeverity::High,
                         });
-                        log::warn!("✗ {} - FAILED", harness.name);
+                        log::warn!("{} - FAILED", harness.name);
                     }
                     harness_results.push(result);
                 }
@@ -92,7 +92,7 @@ impl KaniVerifier {
                         location: format!("Kani harness: {}", harness.name),
                         severity: PropertySeverity::Critical,
                     });
-                    log::error!("✗ {} - ERROR: {}", harness.name, e);
+                    log::error!("{} - ERROR: {}", harness.name, e);
                 }
             }
         }

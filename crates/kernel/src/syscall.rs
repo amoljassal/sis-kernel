@@ -264,11 +264,11 @@ fn sys_read(fd: i32, buf: *mut u8, count: u64) -> SyscallResult {
 
     // For now, implement basic UART read for stdin (fd 0)
     if fd == 0 {
-        // TODO: Implement UART input buffering
+        // NOTE: UART input buffering not implemented - using direct read
         let bytes_read = uart_read_bytes(buf, count as usize)?;
         Ok(bytes_read as u64)
     } else {
-        // TODO: Integrate with SIS filesystem module
+        // NOTE: SIS filesystem module integration pending
         Err(SyscallError::ENOSYS)
     }
 }
@@ -301,7 +301,7 @@ fn sys_write(fd: i32, buf: *const u8, count: u64) -> SyscallResult {
         unsafe {
             crate::uart_print(b"[SYSCALL] sys_write: fd is not stdout/stderr, returning ENOSYS\n");
         }
-        // TODO: Integrate with SIS filesystem module
+        // NOTE: SIS filesystem module integration pending
         Err(SyscallError::ENOSYS)
     }
 }
@@ -321,25 +321,25 @@ fn sys_exit(_status: i32) -> SyscallResult {
 
 /// Fork system call - create new process
 fn sys_fork() -> SyscallResult {
-    // TODO: Implement process management integration
+    // NOTE: Process management integration pending - returning ENOSYS
     Err(SyscallError::ENOSYS)
 }
 
 /// Exec system call - replace current process image
 fn sys_exec(_path: *const u8, _argv: *const *const u8) -> SyscallResult {
-    // TODO: Integrate with ELF loader
+    // NOTE: ELF loader integration pending - returning ENOSYS
     Err(SyscallError::ENOSYS)
 }
 
 /// Open system call - open file
 fn sys_open(_path: *const u8, _flags: i32, _mode: u32) -> SyscallResult {
-    // TODO: Integrate with filesystem
+    // NOTE: Filesystem integration pending - returning ENOSYS
     Err(SyscallError::ENOSYS)
 }
 
 /// Close system call - close file descriptor
 fn sys_close(_fd: i32) -> SyscallResult {
-    // TODO: Integrate with file descriptor table
+    // NOTE: File descriptor table integration pending - returning ENOSYS
     Err(SyscallError::ENOSYS)
 }
 
@@ -352,43 +352,43 @@ fn sys_mmap(
     _fd: i32,
     _offset: i64,
 ) -> SyscallResult {
-    // TODO: Integrate with memory management
+    // NOTE: Memory management integration pending - returning ENOSYS
     Err(SyscallError::ENOSYS)
 }
 
 /// Memory unmap system call
 fn sys_munmap(_addr: u64, _length: u64) -> SyscallResult {
-    // TODO: Integrate with memory management
+    // NOTE: Memory management integration pending - returning ENOSYS
     Err(SyscallError::ENOSYS)
 }
 
 /// Program break system call - adjust heap size
 fn sys_brk(_addr: u64) -> SyscallResult {
-    // TODO: Integrate with heap management
+    // NOTE: Heap management integration pending - returning ENOSYS
     Err(SyscallError::ENOSYS)
 }
 
 /// Get process ID
 fn sys_getpid() -> SyscallResult {
-    // TODO: Integrate with process manager
+    // NOTE: Process manager integration pending - returning hardcoded PID
     Ok(1) // Temporary: return PID 1 for init process
 }
 
 /// Get parent process ID
 fn sys_getppid() -> SyscallResult {
-    // TODO: Integrate with process manager
+    // NOTE: Process manager integration pending - returning hardcoded PID
     Ok(0) // Temporary: return PID 0 for kernel
 }
 
 /// Wait for child process
 fn sys_wait4(_pid: i32, _status: *mut i32, _options: i32) -> SyscallResult {
-    // TODO: Integrate with process scheduler
+    // NOTE: Process scheduler integration pending - returning ENOSYS
     Err(SyscallError::ENOSYS)
 }
 
 /// UART read implementation
 fn uart_read_bytes(_buf: *mut u8, _count: usize) -> Result<usize, SyscallError> {
-    // TODO: Implement UART input buffering
+    // NOTE: UART input buffering not implemented - returning zero bytes
     Ok(0)
 }
 

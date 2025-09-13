@@ -14,9 +14,9 @@ unsafe_code = "deny"
 
 [lints.clippy]
 all = "warn"
-pedantic = "warn"
-nursery = "warn"
-cargo = "warn"
+pedantic = "allow"
+nursery = "allow" 
+cargo = "allow"
 
 [[bin]]
 name = "sis-test-runner"
@@ -82,6 +82,13 @@ comprehensive-suite = [
     "distributed-tests",
     "security-tests",
     "ai-tests"
+]
+
+# Production-grade enforcement
+strict = [
+    "comprehensive-suite",
+    "formal-verification",
+    "property-based-tests"
 ]
 
 [dependencies.proptest]

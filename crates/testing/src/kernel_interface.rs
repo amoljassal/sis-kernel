@@ -65,6 +65,7 @@ pub struct KernelCommandInterface {
     qemu_process: Option<Child>,
     serial_log_path: String,
     serial_port: u16,
+    #[allow(dead_code)]
     monitor_port: u16,
     command_timeout: Duration,
     last_log_position: u64,
