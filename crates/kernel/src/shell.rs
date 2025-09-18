@@ -158,7 +158,7 @@ impl Shell {
             crate::uart_print(b"  rtaivalidation - Run comprehensive real-time AI inference validation\n");
             crate::uart_print(b"  temporaliso - Run AI temporal isolation demonstration\n");
             crate::uart_print(b"  phase3validation - Run complete Phase 3 AI-native kernel validation\n");
-            crate::uart_print(b"  graphctl - Control graph: create | add-channel <cap> | add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] | start <steps> | stats\n");
+            crate::uart_print(b"  graphctl - Control graph: create | add-channel <cap> | add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] [--in-schema S] [--out-schema S] | start <steps> | stats\n");
             crate::uart_print(b"  ctlhex   - Inject control frame as hex (Create/Add/Start)\n");
             crate::uart_print(b"  pmu      - Run PMU demo (cycles/inst/l1d_refill)\n");
             crate::uart_print(b"  mem      - Show memory information\n");
@@ -436,12 +436,14 @@ impl Shell {
                 }
             }
             "add-operator" => {
-                if args.len() < 2 { unsafe { crate::uart_print(b"Usage: graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain]\n"); } return; }
+                if args.len() < 2 { unsafe { crate::uart_print(b"Usage: graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] [--in-schema S] [--out-schema S]\n"); } return; }
                 let op_id = match args[1].parse::<u32>() { Ok(v) => v, Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid op_id\n"); } return; } };
                 let mut in_ch: Option<u16> = None;
                 let mut out_ch: Option<u16> = None;
                 let mut prio: u8 = 10;
                 let mut stage: u8 = 0; // acquire
+                let mut in_schema: Option<u32> = None;
+                let mut out_schema: Option<u32> = None;
 
                 let mut i = 2;
                 while i < args.len() {
@@ -471,14 +473,26 @@ impl Shell {
                                 _ => { unsafe { crate::uart_print(b"[CTL] invalid stage (use acquire|clean|explore|model|explain)\n"); } return; }
                             };
                         }
+                        "--in-schema" => {
+                            i += 1; if i >= args.len() { unsafe { crate::uart_print(b"[CTL] --in-schema requires a value\n"); } return; }
+                            match args[i].parse::<u32>() { Ok(s) => in_schema = Some(s), Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid --in-schema\n"); } return; } }
+                        }
+                        "--out-schema" => {
+                            i += 1; if i >= args.len() { unsafe { crate::uart_print(b"[CTL] --out-schema requires a value\n"); } return; }
+                            match args[i].parse::<u32>() { Ok(s) => out_schema = Some(s), Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid --out-schema\n"); } return; } }
+                        }
                         _ => { unsafe { crate::uart_print(b"[CTL] unknown option\n"); } return; }
                     }
                     i += 1;
                 }
-
                 let op_le = op_id.to_le_bytes();
                 let in_le = match in_ch { Some(v) => v.to_le_bytes(), None => 0xFFFFu16.to_le_bytes() };
                 let out_le = match out_ch { Some(v) => v.to_le_bytes(), None => 0xFFFFu16.to_le_bytes() };
+                // Temporary safety net: if typed schema flags are provided, fall back
+                // to untyped add-operator to avoid stalls; print a short note.
+                if in_schema.is_some() || out_schema.is_some() {
+                    unsafe { crate::uart_print(b"[CTL] typed schema flags temporarily disabled; using untyped add-operator\n"); }
+                }
                 let payload = [op_le[0],op_le[1],op_le[2],op_le[3], in_le[0],in_le[1], out_le[0],out_le[1], prio, stage];
                 let _ = send_frame(0x03, &payload);
             }

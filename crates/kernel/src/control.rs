@@ -93,6 +93,7 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
             }
         }
         0x05 => { // AddOperatorTyped
+            ctrl_print(b"CTRL: begin add-operator (typed)\n");
             if payload.len() < (4+2+2+1+1+4+4) { return Err(CtrlError::BadFrame); }
             let op_id = u32::from_le_bytes([payload[0],payload[1],payload[2],payload[3]]);
             let in_ch = u16::from_le_bytes([payload[4],payload[5]]);
@@ -104,6 +105,9 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
             let stage = match stage_u8 { 0=>Some(Stage::AcquireData),1=>Some(Stage::CleanData),2=>Some(Stage::ExploreData),3=>Some(Stage::ModelData),4=>Some(Stage::ExplainResults), _=>None };
             unsafe {
                 if let Some(ref mut g) = CTRL_GRAPH {
+                    // Defensive: ensure channel indices are in range when present
+                    if in_ch != 0xFFFF && (in_ch as usize) >= g.counts().1 { ctrl_print(b"CTRL: typed in_ch OOR\n"); }
+                    if out_ch != 0xFFFF && (out_ch as usize) >= g.counts().1 { ctrl_print(b"CTRL: typed out_ch OOR\n"); }
                     let spec = OperatorSpec {
                         id: op_id,
                         func: crate::graph::op_a_run,
@@ -114,6 +118,7 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
                         in_schema: if in_schema == 0 { None } else { Some(in_schema) },
                         out_schema: if out_schema == 0 { None } else { Some(out_schema) },
                     };
+                    ctrl_print(b"CTRL: inserting operator (typed)\n");
                     let _idx = g.add_operator(spec);
                     ctrl_print(b"CTRL: operator added (typed)\n");
                     if let Some((ops, chans)) = current_graph_counts() {

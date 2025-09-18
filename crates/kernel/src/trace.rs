@@ -31,6 +31,15 @@ pub fn op_start(op_id: u32) {
 }
 
 #[inline(always)]
+pub fn op_queued(op_id: u32) {
+    unsafe {
+        crate::uart_print(b"[TRACE] op_queued id=");
+        print_usize(op_id as usize);
+        crate::uart_print(b"\n");
+    }
+}
+
+#[inline(always)]
 pub fn op_end_ns(op_id: u32, ns: u64) {
     unsafe {
         crate::uart_print(b"[TRACE] op_end id=");

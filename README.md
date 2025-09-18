@@ -129,7 +129,7 @@ Useful shell commands (type `help` for full list):
   - `graphctl` — high-level control-plane aliases for graphs:
     - `graphctl create` — create new graph
     - `graphctl add-channel <capacity>` — add SPSC channel
-    - `graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] [--in-schema S] [--out-schema S]` — add operator with OSEMN stage and optional typed ports
+    - `graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] [--in-schema S] [--out-schema S]` — add operator with OSEMN stage; typed flags are accepted but, for stability, the shell currently routes them through the untyped path (typed runtime checks still exist; host‑tool typed control is planned)
     - `graphctl start <steps>` — execute graph scheduler
     - `graphctl stats` — show current graph structure (ops/channels)
     - Defaults: `--in none`, `--prio 10`, `--stage acquire` unless specified
@@ -171,6 +171,13 @@ Control-plane metrics (VirtIO, opt-in)
 - Frame counters: `METRIC ctl_frames_rx=<n>`, `ctl_frames_tx=<n>`, `ctl_errors=<n>`, `ctl_backpressure_drops=<n>`.
 - Round-trip timing: `METRIC ctl_roundtrip_us=<us>`.
 - Multiport: `METRIC ctl_selected_port=<id>`, `ctl_port_bound=1` when bound to `sis.datactl`.
+
+Operator trace events (scheduler path)
+- The scheduler emits per-operator trace lines during `graphctl start <steps>`:
+  - `[TRACE] op_queued id=<id>`
+  - `[TRACE] op_start id=<id>`
+  - `[TRACE] op_end id=<id> ns=<runtime>`
+  These do not appear in `graphdemo` (which runs a local loop) — use `graphctl` to exercise the runtime scheduler.
 
 Schema (metrics_dump.json)
 - The test runner writes a JSON dump of parsed METRICs. A JSON Schema is provided at `docs/schemas/sis-metrics-v1.schema.json`.
@@ -472,6 +479,9 @@ For other percentiles (P50/P95/P99 across metrics), refer to `metrics_dump.json`
 - Typed data checks: `schema_mismatch_count`, `quality_warns`
   - Note: `schema_mismatch_count` may arise at connect-time (typed port mismatch) or at runtime (demo header checks); both feed the same metric.
 - PMU attribution (with `PERF=1`): `op_a_pmu_inst`, `op_b_pmu_inst`, `op_a_pmu_l1d_refill`, `op_b_pmu_l1d_refill`
+
+Known caveat (shell typed flags)
+- For shell convenience commands, `--in-schema/--out-schema` are currently routed through the untyped control frame to avoid a rare freeze in the typed path; use untyped `graphctl add-operator` for now. Typed header checks remain active in the demo and metrics; the host‑tool typed control path will be enabled once stabilized.
 
 **PMU Hardware Monitoring**:
 - Build with `perf-verbose`: `PERF=1 ./scripts/uefi_run.sh`  

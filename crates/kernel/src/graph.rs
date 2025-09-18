@@ -8,6 +8,10 @@ use crate::trace::metric_kv;
 use crate::deterministic::{DeterministicScheduler, TaskSpec};
 #[cfg(feature = "perf-verbose")]
 use crate::pmu::aarch64 as pmu;
+use heapless::Vec;
+
+const MAX_OPERATORS: usize = 32;
+const MAX_CHANNELS: usize = 16;
 
 #[derive(Copy, Clone)]
 pub struct OperatorId(pub u32);
@@ -287,10 +291,14 @@ pub struct OperatorSpec {
 }
 
 pub struct GraphApi {
-    channels: alloc::vec::Vec<alloc::boxed::Box<Spsc<TensorHandle, 64>>>,
-    ops: alloc::vec::Vec<OpNode>,
-    channel_schemas: alloc::vec::Vec<Option<u32>>,
+    channels: Vec<Spsc<TensorHandle, 64>, MAX_CHANNELS>,
+    ops: Vec<OpNode, MAX_OPERATORS>,
+    channel_schemas: Vec<Option<u32>, MAX_CHANNELS>,
     schema_mismatch_count: usize,
+    #[cfg(feature = "deterministic")]
+    det_server_id: Option<u32>,
+    #[cfg(feature = "deterministic")]
+    det_wcet_ns: u64,
     #[cfg(feature = "deterministic")]
     det_scheduler: DeterministicScheduler<16>,
     #[allow(dead_code)]
@@ -316,15 +324,23 @@ struct OpNode {
 #[allow(dead_code)]
 impl GraphApi {
     pub fn create() -> Self {
-        Self {
-            channels: alloc::vec::Vec::new(),
-            ops: alloc::vec::Vec::new(),
-            channel_schemas: alloc::vec::Vec::new(),
+        let mut g = Self {
+            channels: Vec::new(),
+            ops: Vec::new(),
+            channel_schemas: Vec::new(),
             schema_mismatch_count: 0,
+            #[cfg(feature = "deterministic")]
+            det_server_id: None,
+            #[cfg(feature = "deterministic")]
+            det_wcet_ns: 0,
             #[cfg(feature = "deterministic")]
             det_scheduler: DeterministicScheduler::new(850_000), // 85% utilization bound
             deterministic_mode: false,
-        }
+        };
+        // Pre-reserve small capacities to avoid first-use heap allocations during control ops
+        // Pre-allocate fixed capacity (heapless); no dynamic allocations after this
+        // Capacity is fixed by type parameters (MAX_*), so nothing to do here.
+        g
     }
     
     /// Enable deterministic mode for this graph
@@ -338,8 +354,10 @@ impl GraphApi {
         };
         
         match self.det_scheduler.admit_graph(0, spec) {
-            Ok(_server_id) => {
+            Ok(server_id) => {
                 self.deterministic_mode = true;
+                self.det_server_id = Some(server_id);
+                self.det_wcet_ns = wcet_ns;
                 metric_kv("det_admit_ok", 1);
                 true
             },
@@ -351,8 +369,11 @@ impl GraphApi {
     }
     pub fn add_channel(&mut self, _spec: ChannelSpec) -> usize {
         let idx = self.channels.len();
-        self.channels.push(alloc::boxed::Box::new(Spsc::new()));
-        self.channel_schemas.push(None);
+        if self.channels.push(Spsc::new()).is_err() {
+            metric_kv("graph_add_channel_overflow", 1);
+            return idx; // no-op
+        }
+        let _ = self.channel_schemas.push(None);
         idx
     }
     pub fn add_operator(&mut self, spec: OperatorSpec) -> usize {
@@ -360,32 +381,38 @@ impl GraphApi {
         // Enforce/connect typed schemas to channels if provided
         if let Some(ch_idx) = spec.out_ch {
             if let Some(schema) = spec.out_schema {
-                if let Some(slot) = self.channel_schemas.get_mut(ch_idx) {
-                    match slot {
-                        None => { *slot = Some(schema); }
-                        Some(existing) => {
-                            if *existing != schema {
-                                self.schema_mismatch_count = self.schema_mismatch_count.saturating_add(1);
-                                metric_kv("schema_mismatch_count", self.schema_mismatch_count);
-                            }
+                if ch_idx < self.channel_schemas.len() {
+                    let slot = &mut self.channel_schemas[ch_idx];
+                    if slot.is_none() {
+                        *slot = Some(schema);
+                    } else if let Some(existing) = slot.as_mut() {
+                        if *existing != schema {
+                            self.schema_mismatch_count = self.schema_mismatch_count.saturating_add(1);
+                            metric_kv("schema_mismatch_count", self.schema_mismatch_count);
                         }
                     }
+                } else {
+                    metric_kv("graph_schema_out_of_range", ch_idx);
                 }
             }
         }
         if let Some(ch_idx) = spec.in_ch {
             if let Some(expected) = spec.in_schema {
-                if let Some(current) = self.channel_schemas.get(ch_idx).and_then(|x| *x) {
-                    if current != expected {
-                        self.schema_mismatch_count = self.schema_mismatch_count.saturating_add(1);
-                        metric_kv("schema_mismatch_count", self.schema_mismatch_count);
+                if ch_idx < self.channel_schemas.len() {
+                    if let Some(current) = self.channel_schemas[ch_idx] {
+                        if current != expected {
+                            self.schema_mismatch_count = self.schema_mismatch_count.saturating_add(1);
+                            metric_kv("schema_mismatch_count", self.schema_mismatch_count);
+                        }
+                    } else {
+                        self.channel_schemas[ch_idx] = Some(expected);
                     }
                 } else {
-                    if let Some(slot) = self.channel_schemas.get_mut(ch_idx) { *slot = Some(expected); }
+                    metric_kv("graph_schema_in_of_range", ch_idx);
                 }
             }
         }
-        self.ops.push(OpNode {
+        if self.ops.push(OpNode {
             id: spec.id,
             in_ch: spec.in_ch,
             out_ch: spec.out_ch,
@@ -394,13 +421,15 @@ impl GraphApi {
             stage: spec.stage,
             in_schema: spec.in_schema,
             out_schema: spec.out_schema,
-        });
+        }).is_err() {
+            metric_kv("graph_add_operator_overflow", 1);
+        }
         idx
     }
     pub fn is_runnable(&self, op_idx: usize) -> bool {
         if let Some(op) = self.ops.get(op_idx) {
-            let in_ready = match op.in_ch { Some(i) => !self.channels[i].is_empty(), None => true };
-            let out_ready = match op.out_ch { Some(i) => !self.channels[i].is_full(), None => true };
+            let in_ready = match op.in_ch { Some(i) if i < self.channels.len() => !self.channels[i].is_empty(), None => true, _ => false };
+            let out_ready = match op.out_ch { Some(i) if i < self.channels.len() => !self.channels[i].is_full(), None => true, _ => false };
             in_ready && out_ready
         } else { false }
     }
@@ -411,6 +440,17 @@ impl GraphApi {
         if steps == 0 { return; }
         // Simple O(n^2) selection for now (tiny n)
         for _ in 0..steps {
+            #[cfg(feature = "deterministic")]
+            {
+                if self.deterministic_mode {
+                    let now = cycles_to_ns(now_cycles());
+                    if let Some(gid) = self.det_scheduler.schedule_next(now) {
+                        if gid != 0 { break; }
+                    } else {
+                        break;
+                    }
+                }
+            }
             let mut ran = false;
             let mut best_idx: Option<usize> = None;
             let mut best_pri: u8 = 0;
@@ -419,10 +459,23 @@ impl GraphApi {
             }
             if let Some(i) = best_idx {
                 let op = &self.ops[i];
-                let out = op.out_ch.map(|k| &*self.channels[k]).unwrap_or_else(|| &*self.channels[0]);
-                let inp = op.in_ch.map(|k| &*self.channels[k]).unwrap_or_else(|| out);
+                let out = op.out_ch.and_then(|k| self.channels.get(k)).unwrap_or(&self.channels[0]);
+                let inp = op.in_ch.and_then(|k| self.channels.get(k)).unwrap_or(out);
                 let mut ctx = OperatorCtx { produced: out, consumed: inp };
+                crate::trace::op_queued(op.id);
+                let t0 = now_cycles();
+                crate::trace::op_start(op.id);
                 (op.func)(&mut ctx);
+                let t1 = now_cycles();
+                let dt_ns = cycles_to_ns(t1.saturating_sub(t0));
+                crate::trace::op_end_ns(op.id, dt_ns);
+                #[cfg(feature = "deterministic")]
+                {
+                    if self.deterministic_mode {
+                        let expected = if self.det_wcet_ns == 0 { dt_ns } else { self.det_wcet_ns };
+                        self.det_scheduler.complete_execution(0, dt_ns, expected);
+                    }
+                }
                 ran = true;
             }
             if !ran { break; }
