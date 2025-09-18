@@ -2,6 +2,8 @@
 import argparse
 import socket
 import struct
+import sys
+import time
 
 SOCK_PATH = '/tmp/sis-datactl.sock'
 
@@ -10,14 +12,22 @@ def frame(cmd: int, payload: bytes, flags: int = 0) -> bytes:
     hdr = struct.pack('<BBBBI', 0x43, 0, cmd, flags, len(payload))
     return hdr + payload
 
-def send_frame(cmd: int, payload: bytes):
+def send_frame(cmd: int, payload: bytes, wait_ack: bool = False):
     data = frame(cmd, payload)
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+        s.settimeout(1.0)
         s.connect(SOCK_PATH)
         s.sendall(data)
+        if wait_ack:
+            try:
+                resp = s.recv(64)
+                if resp:
+                    sys.stdout.write(f"ACK: {resp!r}\n")
+            except socket.timeout:
+                sys.stdout.write("ACK: <timeout>\n")
 
 def cmd_create_graph(args):
-    send_frame(0x01, b'')
+    send_frame(0x01, b'', args.wait_ack)
     print('CreateGraph sent')
 
 def cmd_add_channel(args):
@@ -25,7 +35,7 @@ def cmd_add_channel(args):
     if cap < 1 or cap > 65535:
         raise SystemExit('capacity must be 1..65535')
     payload = struct.pack('<H', cap)
-    send_frame(0x02, payload)
+    send_frame(0x02, payload, args.wait_ack)
     print(f'AddChannel(capacity={cap}) sent')
 
 def cmd_add_operator(args):
@@ -42,19 +52,27 @@ def cmd_add_operator(args):
         None: 0,
     }
     stage = stage_map.get(args.stage, 0)
-    payload = struct.pack('<IHHBB', op_id, in_ch, out_ch, prio, stage)
-    send_frame(0x03, payload)
-    print(f'AddOperator(op_id={op_id}, in={in_ch}, out={out_ch}, prio={prio}, stage={stage}) sent')
+    if args.in_schema is not None or args.out_schema is not None:
+        in_schema = int(args.in_schema) if args.in_schema is not None else 0
+        out_schema = int(args.out_schema) if args.out_schema is not None else 0
+        payload = struct.pack('<IHHBBII', op_id, in_ch, out_ch, prio, stage, in_schema, out_schema)
+        send_frame(0x05, payload, args.wait_ack)
+        print(f'AddOperatorTyped(op_id={op_id}, in={in_ch}, out={out_ch}, prio={prio}, stage={stage}, in_schema={in_schema}, out_schema={out_schema}) sent')
+    else:
+        payload = struct.pack('<IHHBB', op_id, in_ch, out_ch, prio, stage)
+        send_frame(0x03, payload, args.wait_ack)
+        print(f'AddOperator(op_id={op_id}, in={in_ch}, out={out_ch}, prio={prio}, stage={stage}) sent')
 
 def cmd_start(args):
     steps = int(args.steps)
     payload = struct.pack('<I', steps)
-    send_frame(0x04, payload)
+    send_frame(0x04, payload, args.wait_ack)
     print(f'StartGraph(steps={steps}) sent')
 
 def main():
     ap = argparse.ArgumentParser(description='SIS control-plane client (V0 framing)')
     sub = ap.add_subparsers(dest='cmd', required=True)
+    ap.add_argument('--wait-ack', action='store_true', help='wait for ACK/ERR from kernel (1s timeout)')
 
     sub.add_parser('create').set_defaults(fn=cmd_create_graph)
 
@@ -68,6 +86,8 @@ def main():
     ap_op.add_argument('--out-ch', type=int)
     ap_op.add_argument('--priority', type=int, default=10)
     ap_op.add_argument('--stage', choices=['acquire','clean','explore','model','explain'])
+    ap_op.add_argument('--in-schema', type=int)
+    ap_op.add_argument('--out-schema', type=int)
     ap_op.set_defaults(fn=cmd_add_operator)
 
     ap_run = sub.add_parser('start')

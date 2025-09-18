@@ -22,6 +22,8 @@
     "channel_ab_depth_max":        { "type": ["number", "null"] },
     "channel_ab_stalls":           { "type": ["number", "null"] },
     "channel_ab_drops":            { "type": ["number", "null"] },
+    "schema_mismatch_count":      { "type": ["number", "null"] },
+    "quality_warns":              { "type": ["number", "null"] },
     "zero_copy_count":             { "type": ["number", "null"] },
     "zero_copy_handle_count":      { "type": ["number", "null"] },
 
@@ -43,6 +45,15 @@
     "op_b_p95_ns":  { "type": ["number", "null"] },
     "op_b_p99_ns":  { "type": ["number", "null"] },
     "scheduler_run_us": { "type": ["number", "null"] },
+
+    "ctl_frames_rx":          { "type": ["number", "null"] },
+    "ctl_frames_tx":          { "type": ["number", "null"] },
+    "ctl_errors":             { "type": ["number", "null"] },
+    "ctl_backpressure_drops": { "type": ["number", "null"] },
+    "ctl_roundtrip_us":       { "type": ["number", "null"] },
+    "ctl_selected_port":     { "type": ["number", "null"] },
+    "ctl_port_bound":        { "type": ["number", "null"] },
+    "ctl_port_bound":        { "type": ["number", "null"] },
 
     "deterministic_deadline_miss_count": { "type": ["number", "null"] },
     "deterministic_jitter_p99_ns": { "type": ["number", "null"] },

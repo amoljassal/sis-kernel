@@ -81,7 +81,7 @@ Non-goals and not implemented: production hardening beyond testing framework, fu
 - Phase 2 deterministic scheduling implements CBS+EDF hybrid scheduler with 85% admission control threshold, jitter tracking with P99 bounds, and constraint enforcement preventing non-deterministic operations.
 - Phase 2 model security provides cryptographically-verified model packages with SHA-256 hash validation and simulated Ed25519 signature verification, capability-based permissions system, and comprehensive audit logging for compliance.
 - Phase 3 real-time AI scheduling delivers deterministic inference with CBS+EDF hybrid scheduler, temporal isolation for AI workloads, guaranteed resource allocation with 85% admission control, and jitter tracking with P99 bounds validation.
-- VirtIO device enumeration is present. For bring-up stability the VirtIO driver path is skipped by default and demos/control are run from the shell.
+- VirtIO console path is implemented (MMIO via `virtio-serial-device` + `virtconsole`) but is opt‑in. The kernel RX path drains frames and dispatches to the control plane; multiport groundwork is present. For bring‑up stability, it is disabled by default — prefer the shell path unless you enable `VIRTIO=1 SIS_FEATURES="virtio-console"` and drive it via `tools/sis_datactl.py`.
 - Phase 3 AI-native features are implemented with NPU emulation, real-time scheduling, and comprehensive validation. Advanced features beyond Phase 3 (hardware NPU integration, production ML workloads) are in planning.
 
 ## Quick Start (QEMU UEFI)
@@ -102,6 +102,7 @@ BRINGUP=1 ./scripts/uefi_run.sh
 
 # Optional feature toggles for the script
 #  - GRAPH=1 enables graph demo feature
+#  - GRAPH_STATS=1 auto-emits baseline graph counts on boot (feature: graph-autostats)
 #  - PERF=1 enables perf-verbose (PMU programming + extra logs)
 #  - DETERMINISTIC=1 enables Phase 2 deterministic scheduler and model security
 #  - VIRTIO=1 enables the virtio-console driver path and adds QEMU virtio-serial devices (off by default)
@@ -128,9 +129,10 @@ Useful shell commands (type `help` for full list):
   - `graphctl` — high-level control-plane aliases for graphs:
     - `graphctl create` — create new graph
     - `graphctl add-channel <capacity>` — add SPSC channel
-    - `graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain]` — add operator with OSEMN stage
+    - `graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] [--in-schema S] [--out-schema S]` — add operator with OSEMN stage and optional typed ports
     - `graphctl start <steps>` — execute graph scheduler
     - `graphctl stats` — show current graph structure (ops/channels)
+    - Defaults: `--in none`, `--prio 10`, `--stage acquire` unless specified
   - `graphdemo` — Phase 1 observability demo (A→B pipeline), emits comprehensive per-operator latency percentiles and channel backpressure metrics
   - `detdemo` — Phase 2 deterministic demo (feature: `deterministic`), demonstrates CBS+EDF scheduler, model security, and constraint enforcement
   - `rtaivalidation` — Phase 3 real-time AI inference validation, demonstrates NEON optimizations and real-time scheduling
@@ -143,7 +145,7 @@ Useful shell commands (type `help` for full list):
 
 ## Control Plane (Shell) and Framing
 
-Control-plane uses a small V0 binary frame format. For bring-up, use shell commands (virtio-serial integration is a future step).
+Control-plane uses a small V0 binary frame format. For bring-up, use shell commands; a VirtIO console path exists as an opt‑in alternative.
 
 - Frame header: magic `C`(0x43), ver u8(0), cmd u8, flags u8, len u32 LE, payload[len].
 - Commands:
@@ -154,10 +156,28 @@ Control-plane uses a small V0 binary frame format. For bring-up, use shell comma
 
 Use `graphctl` for convenience, or `ctlhex` to inject raw frames.
 
+Host control via VirtIO console (opt-in)
+- Enable at run time: `VIRTIO=1 SIS_FEATURES="virtio-console" ./scripts/uefi_run.sh`.
+- QEMU wiring (from the script): adds `-device virtio-serial-device` and `-device virtconsole,...,name=sis.datactl` bound to `/tmp/sis-datactl.sock`.
+- Send frames from host with the Python tool:
+  - `tools/sis_datactl.py create`
+  - `tools/sis_datactl.py add-channel 64`
+  - `tools/sis_datactl.py add-operator 1 --in-ch 65535 --out-ch 0 --priority 10 --stage acquire`
+  - `tools/sis_datactl.py start 100`
+- Kernel replies `OK\n` or `ERR\n`; use `--wait-ack` to print it.
+- Status: experimental and off by default. Prefer the shell path until stabilized.
+
+Control-plane metrics (VirtIO, opt-in)
+- Frame counters: `METRIC ctl_frames_rx=<n>`, `ctl_frames_tx=<n>`, `ctl_errors=<n>`, `ctl_backpressure_drops=<n>`.
+- Round-trip timing: `METRIC ctl_roundtrip_us=<us>`.
+- Multiport: `METRIC ctl_selected_port=<id>`, `ctl_port_bound=1` when bound to `sis.datactl`.
+
 Schema (metrics_dump.json)
 - The test runner writes a JSON dump of parsed METRICs. A JSON Schema is provided at `docs/schemas/sis-metrics-v1.schema.json`.
 - Validate with `pip install jsonschema` and:
   `python -c "import json,sys,jsonschema; s=json.load(open('docs/schemas/sis-metrics-v1.schema.json')); d=json.load(open('crates/testing/target/testing/metrics_dump.json')); jsonschema.validate(d,s); print('OK')"`
+
+- The dump includes optional baseline graph counts (`graph_stats_ops`, `graph_stats_channels`) and, when available, a structured `graphs` section with per-graph operators/channels (see schema docstrings).
 
 Schema (validation_report.json)
 - The reporting engine also writes a structured validation report with `schema_version: "v1"`.
@@ -196,6 +216,7 @@ Artifacts:
 - Parsed metrics JSON: `target/testing/metrics_dump.json`
 - Validation report: `target/testing/validation_report.json`
 - HTML dashboards: `target/testing/dashboard.html`
+  - Includes a small card for Graph Ops/Channels when present in metrics.
 - Formal verification: `target/testing/formal_verification/`
 - AI benchmarks: `target/testing/ai_benchmarks/`
 - Performance reports: `target/testing/performance_report.json`
@@ -206,6 +227,8 @@ Artifacts:
 - `crates/kernel/src/main.rs` — AArch64 bring-up, MMU, UART, GICv3, virtual timer, boot markers, NPU initialization.
 - `crates/kernel/src/graph.rs` — Phase 1 dataflow architecture: GraphDemo, operators, SPSC channels, per-operator latency tracking, Phase 2/3 scheduling integration.
 - `crates/kernel/src/control.rs` — V0 binary control plane for graph management with frame parsing.
+- `crates/kernel/src/virtio_console.rs` — Minimal VirtIO console driver (RX path) used by host control (opt-in).
+- `crates/kernel/src/virtio.rs` — VirtIO discovery and MMIO transport helpers.
 - `crates/kernel/src/pmu.rs` — ARM PMU hardware counter integration for instruction-level metrics.
 - `crates/kernel/src/deterministic.rs` — Phase 2 CBS+EDF hybrid scheduler with admission control, jitter tracking, and constraint enforcement.
 - `crates/kernel/src/model.rs` — Phase 2 signed model package infrastructure with SHA-256+Ed25519 verification, capability-based permissions, and audit logging.
@@ -237,6 +260,7 @@ Artifacts:
 - `docs/AI-ML-KERNEL-IMPLEMENTATION-PLAN.md` — 20-week roadmap for ML integration beyond Phase 1.
 - `tools/sis_datactl.py` — Control plane client for graph management.
 - `scripts/uefi_run.sh` — Local UEFI runner with feature flags (`BRINGUP`, `GRAPH`, `PERF`, `DETERMINISTIC`).
+- `scripts/validate-metrics.sh` — Validates `metrics_dump.json` and `validation_report.json` against v1 schemas (creates a temp venv if needed).
 - `test_phase2.rs` — Phase 2 verification script for deterministic scheduler and model security components.
 
 ## Testing Framework Capabilities
@@ -281,6 +305,7 @@ The SIS Kernel includes a comprehensive industry-grade testing framework that pr
   - `neon-optimized` — Enable 16×16 NEON matmul demo and related metric.
   - `perf-verbose` — Gate noisy `[PERF] ...` logs; METRICs and summaries are always on.
   - `graph-demo` — Enable the `graphdemo` shell demo and graph scaffolding helpers.
+  - `graph-autostats` — Auto-emit baseline graph counts (`graph_stats_ops`, `graph_stats_channels`) on boot.
   - `deterministic` — Enable deterministic scheduler scaffolding demos and METRICs.
   - `strict` — Deny warnings in the kernel build (CI lint gate).
   - `virtio-console` — Enable VirtIO console driver path (opt-in; default off).
@@ -311,6 +336,8 @@ METRIC irq_latency_ns=4800
 METRIC graph_demo_total_ns=125000
 METRIC graph_demo_items=100
 METRIC scheduler_run_us=125
+METRIC graph_stats_ops=2
+METRIC graph_stats_channels=2
 METRIC op_a_p50_ns=850
 METRIC op_a_p95_ns=1200
 METRIC op_a_p99_ns=1450
@@ -320,6 +347,8 @@ METRIC op_b_p99_ns=1150
 METRIC channel_ab_depth_max=8
 METRIC channel_ab_stalls=0
 METRIC channel_ab_drops=0
+METRIC schema_mismatch_count=0
+METRIC quality_warns=0
 METRIC zero_copy_count=100
 ```
 
@@ -439,8 +468,10 @@ For other percentiles (P50/P95/P99 across metrics), refer to `metrics_dump.json`
 - **Core metrics**: `graph_demo_total_ns`, `graph_demo_items`, `scheduler_run_us`
 - **Per-operator latency percentiles**: `op_a_p50_ns`, `op_a_p95_ns`, `op_a_p99_ns`, `op_b_p50_ns`, `op_b_p95_ns`, `op_b_p99_ns`
 - **Channel backpressure**: `channel_ab_depth_max`, `channel_ab_stalls`, `channel_ab_drops`
-- **Zero-copy tracking**: `zero_copy_count`, `zero_copy_handle_count`
-- **PMU attribution** (with `PERF=1`): `op_a_pmu_inst`, `op_b_pmu_inst`, `op_a_pmu_l1d_refill`, `op_b_pmu_l1d_refill`
+- Zero-copy tracking: `zero_copy_count`, `zero_copy_handle_count`
+- Typed data checks: `schema_mismatch_count`, `quality_warns`
+  - Note: `schema_mismatch_count` may arise at connect-time (typed port mismatch) or at runtime (demo header checks); both feed the same metric.
+- PMU attribution (with `PERF=1`): `op_a_pmu_inst`, `op_b_pmu_inst`, `op_a_pmu_l1d_refill`, `op_b_pmu_l1d_refill`
 
 **PMU Hardware Monitoring**:
 - Build with `perf-verbose`: `PERF=1 ./scripts/uefi_run.sh`  
@@ -592,6 +623,9 @@ scripts/extract-metrics.sh path/to/metrics_dump.json
 ```
 
 It prints context P95 (ns), AI P99 (µs), allocation P99 (ns), sample count for real_ctx_switch_ns, and computed P50/P95/P99 for the real context switch when available.
+
+Structured graphs section
+- When present, `metrics_dump.json` includes a `graphs` object keyed by graph name/id. Each entry includes totals, per-operator `id/stage/runs/total_ns/pmu`, and per‑channel `id/depth_max/stalls/drops`. See `docs/schemas/sis-metrics-v1.schema.json` for exact fields.
 
 ## Roadmap (near term)
 

@@ -729,20 +729,17 @@ impl VisualizationEngine {
     }
 
     fn add_alpha(&self, color: &str, alpha: f64) -> String {
-        if color.starts_with('#') && color.len() == 7 {
-            format!("{}{}",
-                color.replace("#", "rgba(").replace("", &format!(", {}))", alpha)),
-                // Convert hex to rgba
-                format!("rgba({}, {}, {}, {})",
-                    i32::from_str_radix(&color[1..3], 16).unwrap_or(0),
-                    i32::from_str_radix(&color[3..5], 16).unwrap_or(0),
-                    i32::from_str_radix(&color[5..7], 16).unwrap_or(0),
-                    alpha
-                )
-            )
-        } else {
-            color.to_string()
+        // Convert a hex color like "#RRGGBB" to an rgba string with the given alpha
+        if color.len() == 7 && color.starts_with('#') {
+            if let (Ok(r), Ok(g), Ok(b)) = (
+                u8::from_str_radix(&color[1..3], 16),
+                u8::from_str_radix(&color[3..5], 16),
+                u8::from_str_radix(&color[5..7], 16),
+            ) {
+                return format!("rgba({}, {}, {}, {:.3})", r, g, b, alpha.max(0.0).min(1.0));
+            }
         }
+        color.to_string()
     }
 }
 

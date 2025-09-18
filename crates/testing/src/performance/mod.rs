@@ -58,9 +58,19 @@ pub struct PerformanceTestFramework {
         pub channel_ab_depth_max: Option<f64>,
         pub channel_ab_stalls: Option<f64>,
         pub channel_ab_drops: Option<f64>,
+        pub schema_mismatch_count: Option<f64>,
+        pub quality_warns: Option<f64>,
         pub zero_copy_count: Option<f64>,
         pub zero_copy_handle_count: Option<f64>,
         pub scheduler_run_us: Option<f64>,
+        // Control-plane metrics (VirtIO)
+        pub ctl_frames_rx: Option<f64>,
+        pub ctl_frames_tx: Option<f64>,
+        pub ctl_errors: Option<f64>,
+        pub ctl_backpressure_drops: Option<f64>,
+        pub ctl_roundtrip_us: Option<f64>,
+        pub ctl_selected_port: Option<f64>,
+        pub ctl_port_bound: Option<f64>,
         // Operator summaries (optional)
         pub op_a_total_ns: Option<f64>,
         pub op_b_total_ns: Option<f64>,
@@ -169,6 +179,15 @@ impl PerformanceTestFramework {
         let mut op_a_runs: Option<f64> = None;
         let mut op_b_runs: Option<f64> = None;
         let mut arena_remaining_bytes: Option<f64> = None;
+        let mut schema_mismatch_count: Option<f64> = None;
+        let mut quality_warns: Option<f64> = None;
+        let mut ctl_frames_rx: Option<f64> = None;
+        let mut ctl_frames_tx: Option<f64> = None;
+        let mut ctl_errors: Option<f64> = None;
+        let mut ctl_backpressure_drops: Option<f64> = None;
+        let mut ctl_roundtrip_us: Option<f64> = None;
+        let mut ctl_selected_port: Option<f64> = None;
+        let mut ctl_port_bound: Option<f64> = None;
         let mut op_a_pmu_inst: Option<f64> = None;
         let mut op_b_pmu_inst: Option<f64> = None;
         let mut op_a_pmu_l1d_refill: Option<f64> = None;
@@ -215,6 +234,16 @@ impl PerformanceTestFramework {
                             "channel_ab_drops" => channel_ab_drops = Some(val),
                             "zero_copy_count" => zero_copy_count = Some(val),
                             "zero_copy_handle_count" => zero_copy_handle_count = Some(val),
+                            "schema_mismatch_count" => schema_mismatch_count = Some(val),
+                            "quality_warns" => quality_warns = Some(val),
+                            // Control-plane metrics
+                            "ctl_frames_rx" => ctl_frames_rx = Some(val),
+                            "ctl_frames_tx" => ctl_frames_tx = Some(val),
+                            "ctl_errors" => ctl_errors = Some(val),
+                            "ctl_backpressure_drops" => ctl_backpressure_drops = Some(val),
+                            "ctl_roundtrip_us" => ctl_roundtrip_us = Some(val),
+                            "ctl_selected_port" => ctl_selected_port = Some(val),
+                            "ctl_port_bound" => ctl_port_bound = Some(val),
                             "op_a_total_ns" => op_a_total_ns = Some(val),
                             "op_b_total_ns" => op_b_total_ns = Some(val),
                             "op_a_runs" => op_a_runs = Some(val),
@@ -398,6 +427,15 @@ impl PerformanceTestFramework {
             zero_copy_count,
             zero_copy_handle_count,
             scheduler_run_us,
+            schema_mismatch_count,
+            quality_warns,
+            ctl_frames_rx,
+            ctl_frames_tx,
+            ctl_errors,
+            ctl_backpressure_drops,
+            ctl_roundtrip_us,
+            ctl_selected_port,
+            ctl_port_bound,
             op_a_total_ns,
             op_b_total_ns,
             op_a_runs,

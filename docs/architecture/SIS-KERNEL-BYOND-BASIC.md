@@ -20,6 +20,42 @@ Implementation status (current repo)
 - PMU helpers exist with a QEMU caveat (cycles reliable; other events may read as 0).
 - Strict lint gate is available (`strict` feature) and CI/test runner prefer real context‑switch metrics with a minimum non‑zero sample requirement.
 
+### Implementation Status Matrix (Current Repo)
+
+| Area | Item | Status | Notes / Code References |
+|---|---|---|---|
+| Executive Blueprint | Dataflow‑first (Graph/Operator/Channel/Tensor; SPSC; zero‑copy) | Done | `crates/kernel/src/{graph.rs, channel/spsc.rs, tensor/*}`; METRICs in `graph.rs` |
+| Executive Blueprint | Capabilities‑only security | Partial | Capability types/rights; used for model ops; not pervasive on all kernel objects. `crates/kernel/src/{cap.rs, model.rs}` |
+| Executive Blueprint | Determinism by design (CBS+EDF) | Partial | Scheduler + admission control and demo; not default graph runtime. `crates/kernel/src/deterministic.rs`, `graph.rs::deterministic_demo()` |
+| Executive Blueprint | Built‑in observability (Phase‑1) | Done | Operator p50/p95/p99, channel backpressure, scheduler timing; schema v1; validation script; dashboard card. `graph.rs`, `docs/schemas/*`, `crates/testing/src/{performance,reporting}` |
+| Executive Blueprint | Minimal SSI (multi‑node) | Planned | RemoteChannel/transport/placement not implemented. |
+| Control Plane | V0 binary control plane via shell (`graphctl`, `ctlhex`) | Done | `crates/kernel/src/{shell.rs, control.rs}`; emits `METRIC graph_stats_ops/channels` |
+| Control Plane | VirtIO console host path | Partial | Opt‑in MMIO virtio‑console RX → `control::handle_frame`; QEMU devices in `scripts/uefi_run.sh`; host tool `tools/sis_datactl.py`. (Binary framing, not CBOR.) `crates/kernel/src/{virtio_console.rs, virtio.rs}` |
+| Object Model & Data | OSEMN stage classification | Done | `graph.rs::Stage` + `graphctl --stage` mapping |
+| Object Model & Data | Zero‑copy tensors/arena | Partial | Bump arena + handle passing; no typed DataTensor header (`schema_id/quality/lineage`) yet. `tensor/*`, metrics `zero_copy_*` |
+| Object Model & Data | Channels & backpressure | Done | SPSC ring; metrics `channel_ab_depth_max/stalls/drops`. `channel/spsc.rs`, `graph.rs` |
+| Data Analyst Pipelines | Control Plane MVP (virtio‑serial + CBOR; Acquire→Clean→Model) | Partial | End‑to‑end control via binary V0; A→B demo; Connect semantics via AddOperator in/out; CBOR not used. `shell.rs`, `control.rs`, `graph.rs` |
+| Data Analyst Pipelines | Typed DataTensor (schema_id/quality/lineage; connect checks) | Planned | Not implemented. |
+| Data Analyst Pipelines | Error frames & quality counters | Planned | Not implemented (backpressure metrics exist). |
+| Data Analyst Pipelines | Deterministic subgraph | Partial | Deterministic demo with metrics; not wired to OSEMN pipeline. `deterministic.rs`, `graph.rs` |
+| Data Analyst Pipelines | Data connectors (files/streams → batches) | Planned | Not implemented. |
+| Scheduling | Static priority scheduler (Phase‑1) | Done | Highest‑priority runnable op, run‑to‑completion. `graph.rs::run_steps` |
+| Scheduling | Deterministic CBS+EDF (admission, invariants) | Partial | Module + demo; invariants enforced in demo; integration pending. `deterministic.rs` |
+| Security & Models | Capability core | Partial | Present & used by model ops; not yet gating all kernel objects/paths. `cap.rs` |
+| Security & Models | Signed model packages + measurement log | Partial | Placeholder crypto (hash/signature) + audit + metrics. `model.rs` |
+| Observability & Metrics | Tracepoint taxonomy (queued/started/completed) | Partial | Low‑overhead METRICs exist; textual trace in a few spots; not full taxonomy. `trace::trace`, `graph.rs` |
+| Observability & Metrics | PMU attribution per‑operator | Partial | Guarded by `perf-verbose`; attribution in demo is minimized for QEMU variability. `pmu.rs`, `graph.rs` |
+| Observability & Metrics | JSON Schema v1 + structured graphs | Done | `docs/schemas/sis-metrics-v1.schema.json`; `graphs` section optional; parser exports `graphs`. `crates/testing/src/performance/mod.rs` |
+| Multi‑Node SSI | RemoteChannel & transport (virtio‑net) | Planned | Not implemented. |
+| Multi‑Node SSI | Placement, heartbeats/epochs | Planned | Not implemented. |
+| Validation & CI | Schemas + validation script + dashboard | Done | `scripts/validate-metrics.sh`; dashboard `target/testing/dashboard.html`. |
+| Validation & CI | QEMU‑aware thresholds | Done | Runner selects thresholds via `SIS_CI_ENV` / `SIS_QEMU`. `crates/testing/src/bin/main.rs` |
+| Validation & CI | Phase acceptance gates (P1/P2/P3) | Partial | Deterministic admission/miss metrics exist; zero‑copy vs copy 2× and remote p95 gates not implemented. |
+| Immediate Actions (doc) | Modules graph/channel/tensor/cap | Done | Implemented. |
+| Immediate Actions (doc) | Define schema v1 + update runner | Done | Implemented. |
+| Immediate Actions (doc) | SPSC + arenas + tracepoints | Done | Implemented (tracepoints minimal; METRICs strong). |
+| Immediate Actions (doc) | Sobel chain demo | Planned | Not implemented (current demo is A→B). |
+
 ### 16–20 Week Roadmap (Phases)
 
 | Weeks | Phase | Milestones |

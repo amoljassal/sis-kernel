@@ -217,6 +217,8 @@ mod bringup {
                 out_ch: Some(ch),
                 priority: 10,
                 stage: None,
+                in_schema: None,
+                out_schema: None,
             });
             let (ops, chans) = g.counts();
             crate::trace::metric_kv("graph_stats_ops", ops);

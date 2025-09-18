@@ -39,14 +39,15 @@ impl GraphDemo {
         let mut graph = GraphApi::create();
         let ch_ab_idx = graph.add_channel(ChannelSpec { capacity: 64 });
         let ch_bc_idx = graph.add_channel(ChannelSpec { capacity: 64 });
-        let op_a_idx = graph.add_operator(OperatorSpec { id: 1, func: op_a_run, in_ch: None, out_ch: Some(ch_ab_idx), priority: 10, stage: None });
-        let op_b_idx = graph.add_operator(OperatorSpec { id: 2, func: op_b_run, in_ch: Some(ch_ab_idx), out_ch: Some(ch_bc_idx), priority: 5, stage: None });
+        let op_a_idx = graph.add_operator(OperatorSpec { id: 1, func: op_a_run, in_ch: None, out_ch: Some(ch_ab_idx), priority: 10, stage: None, in_schema: None, out_schema: Some(1) });
+        let op_b_idx = graph.add_operator(OperatorSpec { id: 2, func: op_b_run, in_ch: Some(ch_ab_idx), out_ch: Some(ch_bc_idx), priority: 5, stage: None, in_schema: Some(1), out_schema: None });
         Self { n_items, arena: BumpArena::new(), graph, op_a_idx, op_b_idx, ch_ab_idx, ch_bc_idx }
     }
 
     /// Run a trivial A->B pipeline to demonstrate scheduling and metrics.
     pub fn run(&mut self) {
         // Operators: A produces 0..n, B consumes and forwards (or accumulates).
+        const SCHEMA_ID_A2B: u32 = 1;
         #[cfg(feature = "perf-verbose")]
         let _op_a_id = 1u32;
         #[cfg(feature = "perf-verbose")]
@@ -79,6 +80,8 @@ impl GraphDemo {
         let mut lat_b: [u64; 128] = [0; 128];
         let mut lat_a_n: usize = 0;
         let mut lat_b_n: usize = 0;
+        let mut schema_mismatch_count: usize = 0;
+        let mut quality_warns: usize = 0;
 
         let t0 = now_cycles();
         for i in 0..self.n_items {
@@ -90,8 +93,31 @@ impl GraphDemo {
                 produced: self.graph.channel(self.ch_ab_idx),
                 consumed: self.graph.channel(self.ch_ab_idx),
             });
-            if let Some(h) = self.arena.alloc(64, 64) {
+            // Allocate a handle and try to enqueue into AB channel
+            if let Some(h) = self.arena.alloc(128, 64) {
                 if !h.is_null() { zero_copy_handle_count += 1; }
+                // Initialize header (typed DataTensor)
+                unsafe {
+                    if let Some(hdr) = h.header_mut() {
+                        hdr.version = 1;
+                        hdr.dtype = 0;
+                        hdr.dims = [0; 4];
+                        hdr.strides = [0; 4];
+                        hdr.data_offset = core::mem::size_of::<crate::tensor::TensorHeader>() as u64;
+                        hdr.schema_id = SCHEMA_ID_A2B;
+                        hdr.records = 1;
+                        hdr.quality = 100; // perfect quality for demo
+                        hdr._pad = 0;
+                        hdr.lineage = i as u64;
+                    }
+                }
+                // Enqueue; count stalls/drops on failure
+                if self.graph.channel(self.ch_ab_idx).try_enqueue(h).is_err() {
+                    ch_ab_stalls = ch_ab_stalls.saturating_add(1);
+                    ch_ab_drops = ch_ab_drops.saturating_add(1);
+                } else {
+                    zero_copy_count = zero_copy_count.saturating_add(1);
+                }
             }
             _produced += 1;
             let ta1 = now_cycles();
@@ -106,17 +132,21 @@ impl GraphDemo {
             }
             op_a_runs += 1;
 
-            // Consumer work (no channel dependency)
-            // Track channel AB depth for backpressure visibility
+            // Consumer work; track channel AB depth for backpressure visibility
             let d = self.graph.channel(self.ch_ab_idx).depth();
             if d > ch_ab_depth_max { ch_ab_depth_max = d; }
-            // Track stalls: if channel is full, count as stall
-            if self.graph.channel(self.ch_ab_idx).is_full() {
-                ch_ab_stalls += 1;
-            }
-            // Track potential drops: if depth is at capacity-1 and still producing
-            if d >= 63 { // Channel capacity is 64, so 63+ indicates near-full
-                ch_ab_drops += 1;
+            // Try to dequeue from AB channel and enforce schema
+            if let Some(hd) = self.graph.channel(self.ch_ab_idx).try_dequeue() {
+                unsafe {
+                    if let Some(hdr) = hd.header() {
+                        if hdr.schema_id != SCHEMA_ID_A2B {
+                            schema_mismatch_count = schema_mismatch_count.saturating_add(1);
+                        }
+                        if hdr.quality < 50 { // arbitrary warning threshold
+                            quality_warns = quality_warns.saturating_add(1);
+                        }
+                    }
+                }
             }
             let tb0 = now_cycles();
             #[cfg(feature = "perf-verbose")]
@@ -126,7 +156,6 @@ impl GraphDemo {
                 consumed: self.graph.channel(self.ch_ab_idx),
             });
             _consumed += 1;
-            zero_copy_count += 1;
             let tb1 = now_cycles();
             let cyc_b = tb1.saturating_sub(tb0);
             op_b_cycles = op_b_cycles.saturating_add(cyc_b);
@@ -152,6 +181,8 @@ impl GraphDemo {
         metric_kv("channel_ab_depth_max", ch_ab_depth_max);
         metric_kv("channel_ab_stalls", ch_ab_stalls);
         metric_kv("channel_ab_drops", ch_ab_drops);
+        metric_kv("schema_mismatch_count", schema_mismatch_count);
+        metric_kv("quality_warns", quality_warns);
         metric_kv("zero_copy_count", zero_copy_count);
         metric_kv("zero_copy_handle_count", zero_copy_handle_count);
         // Operator summaries
@@ -227,7 +258,7 @@ fn cntfrq_hz() -> u64 {
 }
 
 #[inline(always)]
-fn cycles_to_ns(cycles: u64) -> u64 {
+pub fn cycles_to_ns(cycles: u64) -> u64 {
     let f = cntfrq_hz();
     if f == 0 { return 0; }
     (cycles.saturating_mul(1_000_000_000u64)) / f
@@ -249,11 +280,17 @@ pub struct OperatorSpec {
     pub priority: u8,
     #[allow(dead_code)]
     pub stage: Option<Stage>,
+    #[allow(dead_code)]
+    pub in_schema: Option<u32>,
+    #[allow(dead_code)]
+    pub out_schema: Option<u32>,
 }
 
 pub struct GraphApi {
     channels: alloc::vec::Vec<alloc::boxed::Box<Spsc<TensorHandle, 64>>>,
     ops: alloc::vec::Vec<OpNode>,
+    channel_schemas: alloc::vec::Vec<Option<u32>>,
+    schema_mismatch_count: usize,
     #[cfg(feature = "deterministic")]
     det_scheduler: DeterministicScheduler<16>,
     #[allow(dead_code)]
@@ -270,6 +307,10 @@ struct OpNode {
     func: fn(&mut OperatorCtx),
     #[allow(dead_code)]
     stage: Option<Stage>,
+    #[allow(dead_code)]
+    in_schema: Option<u32>,
+    #[allow(dead_code)]
+    out_schema: Option<u32>,
 }
 
 #[allow(dead_code)]
@@ -278,6 +319,8 @@ impl GraphApi {
         Self {
             channels: alloc::vec::Vec::new(),
             ops: alloc::vec::Vec::new(),
+            channel_schemas: alloc::vec::Vec::new(),
+            schema_mismatch_count: 0,
             #[cfg(feature = "deterministic")]
             det_scheduler: DeterministicScheduler::new(850_000), // 85% utilization bound
             deterministic_mode: false,
@@ -309,11 +352,49 @@ impl GraphApi {
     pub fn add_channel(&mut self, _spec: ChannelSpec) -> usize {
         let idx = self.channels.len();
         self.channels.push(alloc::boxed::Box::new(Spsc::new()));
+        self.channel_schemas.push(None);
         idx
     }
     pub fn add_operator(&mut self, spec: OperatorSpec) -> usize {
         let idx = self.ops.len();
-        self.ops.push(OpNode { id: spec.id, in_ch: spec.in_ch, out_ch: spec.out_ch, priority: spec.priority, func: spec.func, stage: spec.stage });
+        // Enforce/connect typed schemas to channels if provided
+        if let Some(ch_idx) = spec.out_ch {
+            if let Some(schema) = spec.out_schema {
+                if let Some(slot) = self.channel_schemas.get_mut(ch_idx) {
+                    match slot {
+                        None => { *slot = Some(schema); }
+                        Some(existing) => {
+                            if *existing != schema {
+                                self.schema_mismatch_count = self.schema_mismatch_count.saturating_add(1);
+                                metric_kv("schema_mismatch_count", self.schema_mismatch_count);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(ch_idx) = spec.in_ch {
+            if let Some(expected) = spec.in_schema {
+                if let Some(current) = self.channel_schemas.get(ch_idx).and_then(|x| *x) {
+                    if current != expected {
+                        self.schema_mismatch_count = self.schema_mismatch_count.saturating_add(1);
+                        metric_kv("schema_mismatch_count", self.schema_mismatch_count);
+                    }
+                } else {
+                    if let Some(slot) = self.channel_schemas.get_mut(ch_idx) { *slot = Some(expected); }
+                }
+            }
+        }
+        self.ops.push(OpNode {
+            id: spec.id,
+            in_ch: spec.in_ch,
+            out_ch: spec.out_ch,
+            priority: spec.priority,
+            func: spec.func,
+            stage: spec.stage,
+            in_schema: spec.in_schema,
+            out_schema: spec.out_schema,
+        });
         idx
     }
     pub fn is_runnable(&self, op_idx: usize) -> bool {

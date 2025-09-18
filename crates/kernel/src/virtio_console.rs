@@ -56,6 +56,7 @@ struct VirtIOConsoleControl {
     value: u16,
 }
 
+
 /// VirtQueue descriptor
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -206,12 +207,24 @@ pub struct VirtIOConsoleDriver {
     transport: Option<VirtIOMMIOTransport>,
     receiveq: Option<VirtQueue>,
     transmitq: Option<VirtQueue>,
+    ctrl_rxq: Option<VirtQueue>,
+    ctrl_txq: Option<VirtQueue>,
     buffer: [u8; 4096],
     /// Dedicated RX buffer for receive queue
     rx_buffer: [u8; 4096],
     initialized: bool,
+    multip: bool,
+    selected_port: Option<u32>,
     ctl_buf: [u8; 1024],
     ctl_len: usize,
+    ctrl_buf: [u8; 512],
+    bound_name: [u8; 32],
+    bound_len: usize,
+    // Metrics counters
+    ctl_frames_rx: usize,
+    ctl_frames_tx: usize,
+    ctl_errors: usize,
+    ctl_backpressure_drops: usize,
 }
 
 impl VirtIOConsoleDriver {
@@ -221,11 +234,22 @@ impl VirtIOConsoleDriver {
             transport: None,
             receiveq: None,
             transmitq: None,
+            ctrl_rxq: None,
+            ctrl_txq: None,
             buffer: [0; 4096],
             rx_buffer: [0; 4096],
             initialized: false,
+            multip: false,
+            selected_port: None,
             ctl_buf: [0; 1024],
             ctl_len: 0,
+            ctrl_buf: [0; 512],
+            bound_name: [0; 32],
+            bound_len: 0,
+            ctl_frames_rx: 0,
+            ctl_frames_tx: 0,
+            ctl_errors: 0,
+            ctl_backpressure_drops: 0,
         }
     }
 
@@ -317,6 +341,19 @@ impl VirtIOConsoleDriver {
         }
 
         Ok(())
+    }
+
+    /// Negotiate features (detect MultiPort)
+    unsafe fn negotiate_features(&mut self, transport: &VirtIOMMIOTransport) -> u32 {
+        // Read device features (low 32 bits)
+        transport.write_reg(VirtIOMMIOOffset::DeviceFeaturesSel, 0);
+        let dev = transport.read_reg(VirtIOMMIOOffset::DeviceFeatures);
+        let mut features: u32 = 0;
+        if (dev & (VirtIOConsoleFeatures::MultiPort as u32)) != 0 {
+            self.multip = true;
+            features |= VirtIOConsoleFeatures::MultiPort as u32;
+        }
+        features
     }
 
     /// Write data using VirtIO console
@@ -415,8 +452,24 @@ impl VirtIOConsoleDriver {
             ]) as usize;
             if self.ctl_len.saturating_sub(offset) < 8 + len { break; }
             let frame = &self.ctl_buf[offset..offset+8+len];
+            let t0 = crate::graph::now_cycles();
             let res = crate::control::handle_frame(frame);
-            match res { Ok(()) => crate::uart_print(b"[CTL] ok\n"), Err(_) => crate::uart_print(b"[CTL] error\n"), }
+            self.ctl_frames_rx = self.ctl_frames_rx.saturating_add(1);
+            match res {
+                Ok(()) => {
+                    crate::uart_print(b"[CTL] ok\n");
+                    let _ = self.send_ack(true);
+                }
+                Err(_) => {
+                    crate::uart_print(b"[CTL] error\n");
+                    self.ctl_errors = self.ctl_errors.saturating_add(1);
+                    let _ = self.send_ack(false);
+                }
+            }
+            let t1 = crate::graph::now_cycles();
+            let dt_ns = crate::graph::cycles_to_ns(t1.saturating_sub(t0));
+            // Emit lightweight roundtrip timing in microseconds
+            crate::trace::metric_kv("ctl_roundtrip_us", (dt_ns / 1000) as usize);
             offset += 8 + len;
         }
         if offset > 0 {
@@ -425,6 +478,118 @@ impl VirtIOConsoleDriver {
             for i in 0..remain { self.ctl_buf[i] = self.ctl_buf[offset+i]; }
             self.ctl_len = remain;
         }
+    }
+
+    /// Poll control RX queue for multiport events (if enabled)
+    pub unsafe fn poll_ctrl_events(&mut self) -> DriverResult<()> {
+        if !self.initialized || !self.multip { return Ok(()); }
+        // Defer actions that require &mut self outside of the ctrl queue borrow
+        let mut port_to_open: Option<u32> = None;
+        if let Some(ctrl) = self.ctrl_rxq.as_mut() {
+            while let Some((_id, len)) = ctrl.get_used_buffer() {
+                let n = core::cmp::min(len as usize, self.ctrl_buf.len());
+                if n >= core::mem::size_of::<VirtIOConsoleControl>() {
+                    let hdr_ptr = self.ctrl_buf.as_ptr() as *const VirtIOConsoleControl;
+                    let hdr = core::ptr::read_unaligned(hdr_ptr);
+                    match hdr.event {
+                        x if x == VirtIOConsoleControlType::DeviceAdd as u16 => crate::uart_print(b"[VCON] CTRL DeviceAdd\n"),
+                        x if x == VirtIOConsoleControlType::DeviceRemove as u16 => crate::uart_print(b"[VCON] CTRL DeviceRemove\n"),
+                        x if x == VirtIOConsoleControlType::PortReady as u16 => crate::uart_print(b"[VCON] CTRL PortReady\n"),
+                        x if x == VirtIOConsoleControlType::PortOpen as u16 => crate::uart_print(b"[VCON] CTRL PortOpen\n"),
+                        x if x == VirtIOConsoleControlType::PortName as u16 => {
+                            crate::uart_print(b"[VCON] CTRL PortName\n");
+                            // Remaining bytes after header contain the UTF-8 name (may be NUL-terminated)
+                            let name_off = core::mem::size_of::<VirtIOConsoleControl>();
+                            let max = core::cmp::min(n.saturating_sub(name_off), 32);
+                            let mut name_tmp = [0u8; 32];
+                            for i in 0..max { name_tmp[i] = self.ctrl_buf[name_off + i]; }
+                            // Check for sis.datactl substring
+                            let mut matched = false;
+                            const PAT: &[u8] = b"sis.datactl";
+                            'scan: for i in 0..max {
+                                if name_tmp[i] == 0 { break 'scan; }
+                                if i + PAT.len() <= max {
+                                    let mut ok = true;
+                                    for j in 0..PAT.len() { if name_tmp[i+j] != PAT[j] { ok = false; break; } }
+                                    if ok { matched = true; break 'scan; }
+                                }
+                            }
+                            if matched { port_to_open = Some(hdr.id); }
+                        }
+                        _ => crate::uart_print(b"[VCON] CTRL event\n"),
+                    }
+                }
+                // Re-post buffer
+                let added = ctrl.add_buffer(self.ctrl_buf.as_ptr() as u64, self.ctrl_buf.len() as u32, 1 << 1);
+                if added.is_err() { self.ctl_backpressure_drops = self.ctl_backpressure_drops.saturating_add(1); }
+                if let Some(t) = &self.transport { t.write_reg(VirtIOMMIOOffset::QueueNotify, 2); }
+            }
+        }
+        // Perform deferred actions now that ctrl_rxq borrow has ended
+        if let Some(pid) = port_to_open {
+            self.selected_port = Some(pid);
+            crate::trace::metric_kv("ctl_selected_port", pid as usize);
+            let _ = self.send_ctrl_event(VirtIOConsoleControlType::PortOpen as u16, pid, 1);
+            crate::trace::metric_kv("ctl_port_bound", 1);
+            crate::uart_print(b"[VCON] BOUND port to sis.datactl\n");
+        }
+        Ok(())
+    }
+
+    /// Send a minimal ACK/ERR response back to host over the data TX queue.
+    /// This keeps the kernel framing (V0) write-only and provides simple status.
+    unsafe fn send_ack(&mut self, ok: bool) -> DriverResult<()> {
+        let msg: &[u8] = if ok { b"OK\n" } else { b"ERR\n" };
+        if let Some(tq) = self.transmitq.as_mut() {
+            if let Some(transport) = &self.transport {
+                // Copy message into buffer and submit
+                let n = core::cmp::min(msg.len(), self.buffer.len());
+                self.buffer[..n].copy_from_slice(&msg[..n]);
+                match tq.add_buffer(self.buffer.as_ptr() as u64, n as u32, 0) {
+                    Ok(()) => {
+                        transport.write_reg(VirtIOMMIOOffset::QueueNotify, 1);
+                        // Poll for completion briefly
+                        for _ in 0..256 {
+                            if let Some((_id, _len)) = tq.get_used_buffer() { break; }
+                            core::hint::spin_loop();
+                        }
+                        self.ctl_frames_tx = self.ctl_frames_tx.saturating_add(1);
+                        // Emit counters periodically to avoid log spam
+                        if (self.ctl_frames_tx & 0xFF) == 0 {
+                            crate::trace::metric_kv("ctl_frames_rx", self.ctl_frames_rx);
+                            crate::trace::metric_kv("ctl_frames_tx", self.ctl_frames_tx);
+                            crate::trace::metric_kv("ctl_errors", self.ctl_errors);
+                            crate::trace::metric_kv("ctl_backpressure_drops", self.ctl_backpressure_drops);
+                        }
+                        Ok(())
+                    }
+                    Err(_) => {
+                        self.ctl_backpressure_drops = self.ctl_backpressure_drops.saturating_add(1);
+                        Err(DriverError::ResourceError)
+                    }
+                }
+            } else { Err(DriverError::InitFailed) }
+        } else { Ok(()) }
+    }
+
+    /// Send a control event (e.g., PortOpen) on the control TX queue
+    unsafe fn send_ctrl_event(&mut self, event: u16, id: u32, value: u16) -> DriverResult<()> {
+        if let Some(txq) = self.ctrl_txq.as_mut() {
+            if let Some(transport) = &self.transport {
+                let mut msg = VirtIOConsoleControl { id, event, value };
+                let ptr = &mut msg as *mut VirtIOConsoleControl as u64;
+                let len = core::mem::size_of::<VirtIOConsoleControl>() as u32;
+                match txq.add_buffer(ptr, len, 0) {
+                    Ok(()) => {
+                        transport.write_reg(VirtIOMMIOOffset::QueueNotify, 3);
+                        // Poll briefly for completion
+                        for _ in 0..256 { if let Some((_id, _len)) = txq.get_used_buffer() { break; } core::hint::spin_loop(); }
+                        Ok(())
+                    }
+                    Err(_) => Err(DriverError::ResourceError),
+                }
+            } else { Err(DriverError::InitFailed) }
+        } else { Err(DriverError::NotSupported) }
     }
 }
 
@@ -463,8 +628,9 @@ impl Driver for VirtIOConsoleDriver {
             crate::uart_print(b"[VIRTIO-CONSOLE] Device verified as VirtIO console\n");
         }
 
-        // Initialize device with minimal features
-        transport.init_device(0)?;
+        // Negotiate features
+        let feats = unsafe { self.negotiate_features(&transport) };
+        transport.init_device(feats)?;
 
         unsafe {
             crate::uart_print(b"[VIRTIO-CONSOLE] Device initialization complete\n");
@@ -472,9 +638,53 @@ impl Driver for VirtIOConsoleDriver {
 
         self.transport = Some(transport);
 
-        // Initialize virtqueues
-        unsafe {
-            self.init_virtqueues(device)?;
+        // Initialize virtqueues (data queues always)
+        unsafe { self.init_virtqueues(device)?; }
+
+        // Initialize control queues for multiport if present
+        if self.multip {
+            unsafe { crate::uart_print(b"[VIRTIO-CONSOLE] MULTIPORT enabled\n"); }
+            let transport = self.transport.as_ref().ok_or(DriverError::InitFailed)?;
+            // CTRL RX on queue 2
+            unsafe {
+                transport.write_reg(VirtIOMMIOOffset::QueueSel, 2);
+                let qsz = transport.read_reg(VirtIOMMIOOffset::QueueNumMax);
+                if qsz > 0 {
+                    let base = 0x5002_0000u64;
+                    self.ctrl_rxq = Some(VirtQueue::new(2, qsz as u16, base));
+                    transport.write_reg(VirtIOMMIOOffset::QueueDescLow, (base & 0xFFFF_FFFF) as u32);
+                    transport.write_reg(VirtIOMMIOOffset::QueueDescHigh, (base >> 32) as u32);
+                    let avail = base + (qsz as u64 * 16);
+                    transport.write_reg(VirtIOMMIOOffset::QueueAvailLow, (avail & 0xFFFF_FFFF) as u32);
+                    transport.write_reg(VirtIOMMIOOffset::QueueAvailHigh, (avail >> 32) as u32);
+                    let used = avail + (qsz as u64 * 2) + 6;
+                    transport.write_reg(VirtIOMMIOOffset::QueueUsedLow, (used & 0xFFFF_FFFF) as u32);
+                    transport.write_reg(VirtIOMMIOOffset::QueueUsedHigh, (used >> 32) as u32);
+                    transport.write_reg(VirtIOMMIOOffset::QueueNum, qsz);
+                    transport.write_reg(VirtIOMMIOOffset::QueueReady, 1);
+                    if let Some(q) = self.ctrl_rxq.as_mut() {
+                        let _ = q.add_buffer(self.ctrl_buf.as_ptr() as u64, self.ctrl_buf.len() as u32, 1 << 1);
+                        transport.write_reg(VirtIOMMIOOffset::QueueNotify, 2);
+                    }
+                }
+                // CTRL TX on queue 3
+                transport.write_reg(VirtIOMMIOOffset::QueueSel, 3);
+                let qsz3 = transport.read_reg(VirtIOMMIOOffset::QueueNumMax);
+                if qsz3 > 0 {
+                    let base = 0x5003_0000u64;
+                    self.ctrl_txq = Some(VirtQueue::new(3, qsz3 as u16, base));
+                    transport.write_reg(VirtIOMMIOOffset::QueueDescLow, (base & 0xFFFF_FFFF) as u32);
+                    transport.write_reg(VirtIOMMIOOffset::QueueDescHigh, (base >> 32) as u32);
+                    let avail = base + (qsz3 as u64 * 16);
+                    transport.write_reg(VirtIOMMIOOffset::QueueAvailLow, (avail & 0xFFFF_FFFF) as u32);
+                    transport.write_reg(VirtIOMMIOOffset::QueueAvailHigh, (avail >> 32) as u32);
+                    let used = avail + (qsz3 as u64 * 2) + 6;
+                    transport.write_reg(VirtIOMMIOOffset::QueueUsedLow, (used & 0xFFFF_FFFF) as u32);
+                    transport.write_reg(VirtIOMMIOOffset::QueueUsedHigh, (used >> 32) as u32);
+                    transport.write_reg(VirtIOMMIOOffset::QueueNum, qsz3);
+                    transport.write_reg(VirtIOMMIOOffset::QueueReady, 1);
+                }
+            }
         }
 
         unsafe {
@@ -494,15 +704,6 @@ impl Driver for VirtIOConsoleDriver {
             }
 
             self.initialized = true;
-
-            // Test basic functionality
-            if let Ok(written) = self.write_data(b"VirtIO Console initialized!\n") {
-                unsafe {
-                    crate::uart_print(b"[VIRTIO-CONSOLE] Test write completed, bytes written: ");
-                    self.print_number(written as u32);
-                    crate::uart_print(b"\n");
-                }
-            }
 
             Ok(())
         } else {
@@ -544,6 +745,8 @@ impl Driver for VirtIOConsoleDriver {
 
         // Attempt to drain RX and process control frames
         unsafe { let _ = self.poll_control_frames(); }
+        // Poll control events if multiport
+        unsafe { let _ = self.poll_ctrl_events(); }
         Ok(())
     }
 

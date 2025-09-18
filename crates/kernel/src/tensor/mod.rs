@@ -11,6 +11,12 @@ pub struct TensorHeader {
     pub dims: [u64; 4],
     pub strides: [u64; 4],
     pub data_offset: u64,
+    // Phase 1.5 typed DataTensor fields (for schema/quality/lineage guardrails)
+    pub schema_id: u32,
+    pub records: u32,
+    pub quality: u16,
+    pub _pad: u16,
+    pub lineage: u64,
 }
 
 #[derive(Copy, Clone)]
@@ -24,6 +30,16 @@ impl TensorHandle {
     pub fn null() -> Self { Self { ptr: core::ptr::null_mut(), len: 0 } }
     #[inline(always)]
     pub fn is_null(&self) -> bool { self.ptr.is_null() }
+    #[inline(always)]
+    pub unsafe fn header_mut(&self) -> Option<&'static mut TensorHeader> {
+        if self.ptr.is_null() || self.len < core::mem::size_of::<TensorHeader>() { return None; }
+        Some(&mut *(self.ptr as *mut TensorHeader))
+    }
+    #[inline(always)]
+    pub unsafe fn header(&self) -> Option<&'static TensorHeader> {
+        if self.ptr.is_null() || self.len < core::mem::size_of::<TensorHeader>() { return None; }
+        Some(&*(self.ptr as *const TensorHeader))
+    }
 }
 
 pub struct TensorAlloc;

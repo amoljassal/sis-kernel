@@ -5,6 +5,7 @@
 //!  0x02 AddChannel { capacity_le_u16 }
 //!  0x03 AddOperator { op_id_le_u32, in_ch_le_u16(0xFFFF=none), out_ch_le_u16(0xFFFF=none), priority_u8, stage_u8 }
 //!  0x04 StartGraph { steps_le_u32 }
+//!  0x05 AddOperatorTyped { op_id_le_u32, in_ch_le_u16(0xFFFF=none), out_ch_le_u16(0xFFFF=none), priority_u8, stage_u8, in_schema_le_u32, out_schema_le_u32 }
 
 use crate::graph::{GraphApi, OperatorSpec, Stage};
 use crate::trace::metric_kv;
@@ -64,7 +65,16 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
             let stage = match stage_u8 { 0=>Some(Stage::AcquireData),1=>Some(Stage::CleanData),2=>Some(Stage::ExploreData),3=>Some(Stage::ModelData),4=>Some(Stage::ExplainResults), _=>None };
             unsafe {
                 if let Some(ref mut g) = CTRL_GRAPH {
-                    let spec = OperatorSpec { id: op_id, func: crate::graph::op_a_run, in_ch: if in_ch==0xFFFF { None } else { Some(in_ch as usize) }, out_ch: if out_ch==0xFFFF { None } else { Some(out_ch as usize) }, priority: prio, stage };
+                    let spec = OperatorSpec {
+                        id: op_id,
+                        func: crate::graph::op_a_run,
+                        in_ch: if in_ch==0xFFFF { None } else { Some(in_ch as usize) },
+                        out_ch: if out_ch==0xFFFF { None } else { Some(out_ch as usize) },
+                        priority: prio,
+                        stage,
+                        in_schema: None,
+                        out_schema: None,
+                    };
                     let _idx = g.add_operator(spec);
                     ctrl_print(b"CTRL: operator added\n");
                     if let Some((ops, chans)) = current_graph_counts() {
@@ -80,6 +90,38 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
             let steps = u32::from_le_bytes([payload[0],payload[1],payload[2],payload[3]]) as usize;
             unsafe {
                 if let Some(ref mut g) = CTRL_GRAPH { g.run_steps(steps); ctrl_print(b"CTRL: ran steps\n"); Ok(()) } else { Err(CtrlError::NoGraph) }
+            }
+        }
+        0x05 => { // AddOperatorTyped
+            if payload.len() < (4+2+2+1+1+4+4) { return Err(CtrlError::BadFrame); }
+            let op_id = u32::from_le_bytes([payload[0],payload[1],payload[2],payload[3]]);
+            let in_ch = u16::from_le_bytes([payload[4],payload[5]]);
+            let out_ch = u16::from_le_bytes([payload[6],payload[7]]);
+            let prio = payload[8];
+            let stage_u8 = payload[9];
+            let in_schema = u32::from_le_bytes([payload[10],payload[11],payload[12],payload[13]]);
+            let out_schema = u32::from_le_bytes([payload[14],payload[15],payload[16],payload[17]]);
+            let stage = match stage_u8 { 0=>Some(Stage::AcquireData),1=>Some(Stage::CleanData),2=>Some(Stage::ExploreData),3=>Some(Stage::ModelData),4=>Some(Stage::ExplainResults), _=>None };
+            unsafe {
+                if let Some(ref mut g) = CTRL_GRAPH {
+                    let spec = OperatorSpec {
+                        id: op_id,
+                        func: crate::graph::op_a_run,
+                        in_ch: if in_ch==0xFFFF { None } else { Some(in_ch as usize) },
+                        out_ch: if out_ch==0xFFFF { None } else { Some(out_ch as usize) },
+                        priority: prio,
+                        stage,
+                        in_schema: if in_schema == 0 { None } else { Some(in_schema) },
+                        out_schema: if out_schema == 0 { None } else { Some(out_schema) },
+                    };
+                    let _idx = g.add_operator(spec);
+                    ctrl_print(b"CTRL: operator added (typed)\n");
+                    if let Some((ops, chans)) = current_graph_counts() {
+                        metric_kv("graph_stats_ops", ops);
+                        metric_kv("graph_stats_channels", chans);
+                    }
+                    Ok(())
+                } else { Err(CtrlError::NoGraph) }
             }
         }
         _ => Err(CtrlError::Unsupported),

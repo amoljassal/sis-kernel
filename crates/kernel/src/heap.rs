@@ -10,7 +10,8 @@
 
 use core::alloc::{GlobalAlloc, Layout};
 use linked_list_allocator::LockedHeap;
-use spin::{Mutex, Once};
+use spin::Mutex;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 /// Cache-aligned array wrapper for heap memory
 #[repr(align(64))] // Align to cache line size for RISC-V
@@ -43,31 +44,39 @@ static HEAP_STATS: Mutex<HeapStats> = Mutex::new(HeapStats {
 const HEAP_START: usize = 0x444_44440_0000;
 const HEAP_SIZE: usize = 100 * 1024; // 100 KiB heap
 
-/// Heap initialization status
-static HEAP_INIT: Once = Once::new();
+/// Heap initialization status (lock-free, avoids potential early boot stalls)
+static HEAP_INIT_DONE: AtomicBool = AtomicBool::new(false);
 
 /// Initialize the kernel heap
 pub fn init_heap() -> Result<(), &'static str> {
-    HEAP_INIT.call_once(|| {
-        unsafe {
-            // For now, we'll use a static array as heap memory
-            // This is a simplified approach for demonstration
-            // Use cache-aligned heap memory for optimal performance
-            static mut HEAP_MEMORY: CacheAlignedArray = CacheAlignedArray([0; HEAP_SIZE]);
-            let heap_arr_ptr = core::ptr::addr_of_mut!(HEAP_MEMORY) as *mut CacheAlignedArray;
-            let heap_start = core::ptr::addr_of_mut!((*heap_arr_ptr).0) as *mut u8;
+    // Initialize once using a lock-free guard
+    if !HEAP_INIT_DONE.load(Ordering::SeqCst) {
+        unsafe { crate::uart_print(b"[HEAP] ENTER INIT\n"); }
+        if HEAP_INIT_DONE
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            unsafe {
+                crate::uart_print(b"[HEAP] GUARD SET\n");
+                // Use a static array as heap memory (cache-aligned)
+                static mut HEAP_MEMORY: CacheAlignedArray = CacheAlignedArray([0; HEAP_SIZE]);
+                let heap_arr_ptr = core::ptr::addr_of_mut!(HEAP_MEMORY) as *mut CacheAlignedArray;
+                let heap_start = core::ptr::addr_of_mut!((*heap_arr_ptr).0) as *mut u8;
 
-            // Initialize the allocator with our memory region
-            ALLOCATOR.lock().init(heap_start, HEAP_SIZE);
+                crate::uart_print(b"[HEAP] BEFORE INIT ALLOCATOR\n");
+                // Initialize the allocator with our memory region
+                ALLOCATOR.lock().init(heap_start, HEAP_SIZE);
+                crate::uart_print(b"[HEAP] AFTER INIT ALLOCATOR\n");
 
-            // Print initialization message
-            crate::uart_print(b"[HEAP] Initialized ");
-            print_size(HEAP_SIZE);
-            crate::uart_print(b" heap at 0x");
-            print_hex(heap_start as usize);
-            crate::uart_print(b"\n");
+                // Print initialization message (simple, non-allocating)
+                crate::uart_print(b"[HEAP] Initialized ");
+                print_size(HEAP_SIZE);
+                crate::uart_print(b" heap at 0x");
+                print_hex(heap_start as usize);
+                crate::uart_print(b"\n");
+            }
         }
-    });
+    }
 
     Ok(())
 }

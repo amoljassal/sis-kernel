@@ -216,6 +216,18 @@ The SIS Kernel underwent comprehensive validation testing across multiple domain
     
     async fn generate_html_dashboard(&self, report: &ValidationReport) -> Result<(), TestError> {
         let html_path = self.output_dir.join("dashboard.html");
+        // Attempt to read graph stats from metrics_dump.json for a small dashboard card
+        let (graph_ops, graph_chans) = (|| {
+            let p = self.output_dir.join("metrics_dump.json");
+            if let Ok(s) = std::fs::read_to_string(&p) {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&s) {
+                    let ops = v.get("graph_stats_ops").and_then(|x| x.as_f64()).unwrap_or(0.0);
+                    let ch = v.get("graph_stats_channels").and_then(|x| x.as_f64()).unwrap_or(0.0);
+                    return (ops, ch);
+                }
+            }
+            (0.0, 0.0)
+        })();
         
         let html_content = format!(r#"<!DOCTYPE html>
 <html lang="en">
@@ -269,6 +281,17 @@ The SIS Kernel underwent comprehensive validation testing across multiple domain
                 <div class="value">{:.1}%</div>
             </div>
         </div>
+
+        <div class="metrics">
+            <div class="metric">
+                <h3>Graph Ops</h3>
+                <div class="value">{}</div>
+            </div>
+            <div class="metric">
+                <h3>Graph Channels</h3>
+                <div class="value">{}</div>
+            </div>
+        </div>
         
         <div class="results">
             <h2>Validation Results</h2>
@@ -288,6 +311,7 @@ The SIS Kernel underwent comprehensive validation testing across multiple domain
             report.test_coverage.correctness_coverage * 100.0,
             report.test_coverage.security_coverage * 100.0,
             report.test_coverage.distributed_coverage * 100.0,
+            (graph_ops as i64), (graph_chans as i64),
             self.format_validation_results(&report.results),
             report.generated_at.format("%Y-%m-%d %H:%M:%S UTC")
         );
