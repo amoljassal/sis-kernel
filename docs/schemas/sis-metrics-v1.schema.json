@@ -53,7 +53,6 @@
     "ctl_roundtrip_us":       { "type": ["number", "null"] },
     "ctl_selected_port":     { "type": ["number", "null"] },
     "ctl_port_bound":        { "type": ["number", "null"] },
-    "ctl_port_bound":        { "type": ["number", "null"] },
 
     "deterministic_deadline_miss_count": { "type": ["number", "null"] },
     "deterministic_jitter_p99_ns": { "type": ["number", "null"] },

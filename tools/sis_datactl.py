@@ -69,6 +69,14 @@ def cmd_start(args):
     send_frame(0x04, payload, args.wait_ack)
     print(f'StartGraph(steps={steps}) sent')
 
+def cmd_det(args):
+    wcet = int(args.wcet_ns)
+    period = int(args.period_ns)
+    deadline = int(args.deadline_ns)
+    payload = struct.pack('<QQQ', wcet, period, deadline)
+    send_frame(0x06, payload, args.wait_ack)
+    print(f'EnableDeterministic(wcet_ns={wcet}, period_ns={period}, deadline_ns={deadline}) sent')
+
 def main():
     ap = argparse.ArgumentParser(description='SIS control-plane client (V0 framing)')
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -93,6 +101,12 @@ def main():
     ap_run = sub.add_parser('start')
     ap_run.add_argument('steps')
     ap_run.set_defaults(fn=cmd_start)
+
+    ap_det = sub.add_parser('det')
+    ap_det.add_argument('wcet_ns')
+    ap_det.add_argument('period_ns')
+    ap_det.add_argument('deadline_ns')
+    ap_det.set_defaults(fn=cmd_det)
 
     args = ap.parse_args()
     args.fn(args)

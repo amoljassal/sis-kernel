@@ -129,7 +129,7 @@ Useful shell commands (type `help` for full list):
   - `graphctl` — high-level control-plane aliases for graphs:
     - `graphctl create` — create new graph
     - `graphctl add-channel <capacity>` — add SPSC channel
-    - `graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] [--in-schema S] [--out-schema S]` — add operator with OSEMN stage; typed flags are accepted but, for stability, the shell currently routes them through the untyped path (typed runtime checks still exist; host‑tool typed control is planned)
+    - `graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] [--in-schema S] [--out-schema S]` — add operator with OSEMN stage; strict connect‑time schema enforcement is active (mismatches are rejected with a clear message and `schema_mismatch_count` metric)
     - `graphctl det <wcet_ns> <period_ns> <deadline_ns>` — enable deterministic mode for the current graph (feature: `deterministic`); emits `det_admit_ok` or `det_admit_reject`
     - `graphctl start <steps>` — execute graph scheduler
     - `graphctl stats` — show current graph structure (ops/channels)
@@ -165,6 +165,7 @@ Host control via VirtIO console (opt-in)
   - `tools/sis_datactl.py add-channel 64`
   - `tools/sis_datactl.py add-operator 1 --in-ch 65535 --out-ch 0 --priority 10 --stage acquire`
   - `tools/sis_datactl.py start 100`
+  - Deterministic enable: `tools/sis_datactl.py det <wcet_ns> <period_ns> <deadline_ns>`
 - Kernel replies `OK\n` or `ERR\n`; use `--wait-ack` to print it.
 - Status: experimental and off by default. Prefer the shell path until stabilized.
 
@@ -481,8 +482,8 @@ For other percentiles (P50/P95/P99 across metrics), refer to `metrics_dump.json`
   - Note: `schema_mismatch_count` may arise at connect-time (typed port mismatch) or at runtime (demo header checks); both feed the same metric.
 - PMU attribution (with `PERF=1`): `op_a_pmu_inst`, `op_b_pmu_inst`, `op_a_pmu_l1d_refill`, `op_b_pmu_l1d_refill`
 
-Known caveat (shell typed flags)
-- For shell convenience commands, `--in-schema/--out-schema` are currently routed through the untyped control frame to avoid a rare freeze in the typed path; use untyped `graphctl add-operator` for now. Typed header checks remain active in the demo and metrics; the host‑tool typed control path will be enabled once stabilized.
+Typed schemas (shell)
+- `--in-schema/--out-schema` are enforced at connect time in the shell: the second operator must agree with the channel’s schema; on mismatch the add is rejected and `schema_mismatch_count` increments. Matching schemas are accepted.
 
 **PMU Hardware Monitoring**:
 - Build with `perf-verbose`: `PERF=1 ./scripts/uefi_run.sh`  
