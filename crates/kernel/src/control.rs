@@ -145,14 +145,14 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
         }
         0x06 => { // EnableDeterministic (graph-level)
             if payload.len() < (8+8+8) { return Err(CtrlError::BadFrame); }
-            let wcet = u64::from_le_bytes([payload[0],payload[1],payload[2],payload[3],payload[4],payload[5],payload[6],payload[7]]);
-            let period = u64::from_le_bytes([payload[8],payload[9],payload[10],payload[11],payload[12],payload[13],payload[14],payload[15]]);
-            let deadline = u64::from_le_bytes([payload[16],payload[17],payload[18],payload[19],payload[20],payload[21],payload[22],payload[23]]);
+            let _wcet = u64::from_le_bytes([payload[0],payload[1],payload[2],payload[3],payload[4],payload[5],payload[6],payload[7]]);
+            let _period = u64::from_le_bytes([payload[8],payload[9],payload[10],payload[11],payload[12],payload[13],payload[14],payload[15]]);
+            let _deadline = u64::from_le_bytes([payload[16],payload[17],payload[18],payload[19],payload[20],payload[21],payload[22],payload[23]]);
             unsafe {
-                if let Some(ref mut g) = CTRL_GRAPH {
+                if let Some(ref mut _g) = CTRL_GRAPH {
                     #[cfg(feature = "deterministic")]
                     {
-                        let ok = g.enable_deterministic(wcet, period, deadline);
+                        let ok = _g.enable_deterministic(_wcet, _period, _deadline);
                         if ok { ctrl_print(b"CTRL: deterministic enabled\n"); } else { ctrl_print(b"CTRL: deterministic admit rejected\n"); }
                         return Ok(());
                     }
@@ -178,5 +178,32 @@ pub fn current_graph_counts() -> Option<(usize, usize)> {
         } else {
             None
         }
+    }
+}
+
+/// Directly add an operator (used by shell to avoid rare frame-path stalls)
+pub fn add_operator_direct(op_id: u32, in_ch: Option<u16>, out_ch: Option<u16>, prio: u8, stage_u8: u8) -> Result<(), CtrlError> {
+    let stage = match stage_u8 { 0=>Some(Stage::AcquireData),1=>Some(Stage::CleanData),2=>Some(Stage::ExploreData),3=>Some(Stage::ModelData),4=>Some(Stage::ExplainResults), _=>None };
+    unsafe {
+        if let Some(ref mut g) = CTRL_GRAPH {
+            let spec = OperatorSpec {
+                id: op_id,
+                func: crate::graph::op_a_run,
+                in_ch: in_ch.map(|v| v as usize),
+                out_ch: out_ch.map(|v| v as usize),
+                priority: prio,
+                stage,
+                in_schema: None,
+                out_schema: None,
+            };
+            ctrl_print(b"CTRL: begin add-operator (direct)\n");
+            let _idx = g.add_operator(spec);
+            ctrl_print(b"CTRL: operator added (direct)\n");
+            if let Some((ops, chans)) = current_graph_counts() {
+                metric_kv("graph_stats_ops", ops);
+                metric_kv("graph_stats_channels", chans);
+            }
+            Ok(())
+        } else { Err(CtrlError::NoGraph) }
     }
 }

@@ -91,7 +91,7 @@ impl Shell {
 
         unsafe {
             let cmd_str = core::str::from_utf8_unchecked(&CMD_BUFFER[..cmd_len]);
-            let parts: heapless::Vec<&str, 8> = cmd_str.split_whitespace().collect();
+            let parts: heapless::Vec<&str, 16> = cmd_str.split_whitespace().collect();
 
             if parts.is_empty() {
                 return;
@@ -442,8 +442,8 @@ impl Shell {
                 let mut out_ch: Option<u16> = None;
                 let mut prio: u8 = 10;
                 let mut stage: u8 = 0; // acquire
-                let mut in_schema: Option<u32> = None;
-                let mut out_schema: Option<u32> = None;
+                let mut _in_schema: Option<u32> = None;
+                let mut _out_schema: Option<u32> = None;
 
                 let mut i = 2;
                 while i < args.len() {
@@ -475,26 +475,18 @@ impl Shell {
                         }
                         "--in-schema" => {
                             i += 1; if i >= args.len() { unsafe { crate::uart_print(b"[CTL] --in-schema requires a value\n"); } return; }
-                            match args[i].parse::<u32>() { Ok(s) => in_schema = Some(s), Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid --in-schema\n"); } return; } }
+                            match args[i].parse::<u32>() { Ok(s) => _in_schema = Some(s), Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid --in-schema\n"); } return; } }
                         }
                         "--out-schema" => {
                             i += 1; if i >= args.len() { unsafe { crate::uart_print(b"[CTL] --out-schema requires a value\n"); } return; }
-                            match args[i].parse::<u32>() { Ok(s) => out_schema = Some(s), Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid --out-schema\n"); } return; } }
+                            match args[i].parse::<u32>() { Ok(s) => _out_schema = Some(s), Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid --out-schema\n"); } return; } }
                         }
                         _ => { unsafe { crate::uart_print(b"[CTL] unknown option\n"); } return; }
                     }
                     i += 1;
                 }
-                let op_le = op_id.to_le_bytes();
-                let in_le = match in_ch { Some(v) => v.to_le_bytes(), None => 0xFFFFu16.to_le_bytes() };
-                let out_le = match out_ch { Some(v) => v.to_le_bytes(), None => 0xFFFFu16.to_le_bytes() };
-                // Temporary safety net: if typed schema flags are provided, fall back
-                // to untyped add-operator to avoid stalls; print a short note.
-                if in_schema.is_some() || out_schema.is_some() {
-                    unsafe { crate::uart_print(b"[CTL] typed schema flags temporarily disabled; using untyped add-operator\n"); }
-                }
-                let payload = [op_le[0],op_le[1],op_le[2],op_le[3], in_le[0],in_le[1], out_le[0],out_le[1], prio, stage];
-                let _ = send_frame(0x03, &payload);
+                // Prefer direct path to avoid rare stalls in frame path for certain options
+                let _ = crate::control::add_operator_direct(op_id, in_ch, out_ch, prio, stage);
             }
             "start" => {
                 if args.len() < 2 { unsafe { crate::uart_print(b"Usage: graphctl start <steps>\n"); } return; }

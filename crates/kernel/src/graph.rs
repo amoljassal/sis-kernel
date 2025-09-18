@@ -325,7 +325,7 @@ struct OpNode {
 #[allow(dead_code)]
 impl GraphApi {
     pub fn create() -> Self {
-        let mut g = Self {
+        let g = Self {
             channels: Vec::new(),
             ops: Vec::new(),
             channel_schemas: Vec::new(),

@@ -218,7 +218,9 @@ pub struct VirtIOConsoleDriver {
     ctl_buf: [u8; 1024],
     ctl_len: usize,
     ctrl_buf: [u8; 512],
+    #[allow(dead_code)]
     bound_name: [u8; 32],
+    #[allow(dead_code)]
     bound_len: usize,
     // Metrics counters
     ctl_frames_rx: usize,
@@ -762,6 +764,7 @@ impl Driver for VirtIOConsoleDriver {
 
 impl VirtIOConsoleDriver {
     /// Helper to print numbers
+    #[allow(dead_code)]
     unsafe fn print_number(&self, mut num: u32) {
         if num == 0 {
             crate::uart_print(b"0");
