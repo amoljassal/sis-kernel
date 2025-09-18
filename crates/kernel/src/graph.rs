@@ -380,40 +380,6 @@ impl GraphApi {
     }
     pub fn add_operator(&mut self, spec: OperatorSpec) -> usize {
         let idx = self.ops.len();
-        // Enforce/connect typed schemas to channels if provided
-        if let Some(ch_idx) = spec.out_ch {
-            if let Some(schema) = spec.out_schema {
-                if ch_idx < self.channel_schemas.len() {
-                    let slot = &mut self.channel_schemas[ch_idx];
-                    if slot.is_none() {
-                        *slot = Some(schema);
-                    } else if let Some(existing) = slot.as_mut() {
-                        if *existing != schema {
-                            self.schema_mismatch_count = self.schema_mismatch_count.saturating_add(1);
-                            metric_kv("schema_mismatch_count", self.schema_mismatch_count);
-                        }
-                    }
-                } else {
-                    metric_kv("graph_schema_out_of_range", ch_idx);
-                }
-            }
-        }
-        if let Some(ch_idx) = spec.in_ch {
-            if let Some(expected) = spec.in_schema {
-                if ch_idx < self.channel_schemas.len() {
-                    if let Some(current) = self.channel_schemas[ch_idx] {
-                        if current != expected {
-                            self.schema_mismatch_count = self.schema_mismatch_count.saturating_add(1);
-                            metric_kv("schema_mismatch_count", self.schema_mismatch_count);
-                        }
-                    } else {
-                        self.channel_schemas[ch_idx] = Some(expected);
-                    }
-                } else {
-                    metric_kv("graph_schema_in_of_range", ch_idx);
-                }
-            }
-        }
         if self.ops.push(OpNode {
             id: spec.id,
             in_ch: spec.in_ch,
@@ -427,6 +393,60 @@ impl GraphApi {
             metric_kv("graph_add_operator_overflow", 1);
         }
         idx
+    }
+
+    /// Strictly enforce typed schemas at connect time; returns true if added
+    pub fn add_operator_strict(&mut self, spec: OperatorSpec) -> bool {
+        // Enforce/connect typed schemas to channels if provided
+        if let Some(ch_idx) = spec.out_ch {
+            if let Some(schema) = spec.out_schema {
+                if ch_idx < self.channel_schemas.len() {
+                    let slot = &mut self.channel_schemas[ch_idx];
+                    if slot.is_none() {
+                        *slot = Some(schema);
+                    } else if let Some(existing) = slot.as_mut() {
+                        if *existing != schema {
+                            self.schema_mismatch_count = self.schema_mismatch_count.saturating_add(1);
+                            metric_kv("schema_mismatch_count", self.schema_mismatch_count);
+                            return false;
+                        }
+                    }
+                } else {
+                    metric_kv("graph_schema_out_of_range", ch_idx);
+                    return false;
+                }
+            }
+        }
+        if let Some(ch_idx) = spec.in_ch {
+            if let Some(expected) = spec.in_schema {
+                if ch_idx < self.channel_schemas.len() {
+                    if let Some(current) = self.channel_schemas[ch_idx] {
+                        if current != expected {
+                            self.schema_mismatch_count = self.schema_mismatch_count.saturating_add(1);
+                            metric_kv("schema_mismatch_count", self.schema_mismatch_count);
+                            return false;
+                        }
+                    } else {
+                        // Bind channel to expected input schema if not set yet
+                        self.channel_schemas[ch_idx] = Some(expected);
+                    }
+                } else {
+                    metric_kv("graph_schema_in_of_range", ch_idx);
+                    return false;
+                }
+            }
+        }
+        let _ = self.ops.push(OpNode {
+            id: spec.id,
+            in_ch: spec.in_ch,
+            out_ch: spec.out_ch,
+            priority: spec.priority,
+            func: spec.func,
+            stage: spec.stage,
+            in_schema: spec.in_schema,
+            out_schema: spec.out_schema,
+        });
+        true
     }
     pub fn is_runnable(&self, op_idx: usize) -> bool {
         if let Some(op) = self.ops.get(op_idx) {

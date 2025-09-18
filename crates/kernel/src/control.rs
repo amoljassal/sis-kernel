@@ -133,7 +133,8 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
                         out_schema: if out_schema == 0 { None } else { Some(out_schema) },
                     };
                     ctrl_print(b"CTRL: inserting operator (typed)\n");
-                    let _idx = g.add_operator(spec);
+                    let ok = g.add_operator_strict(spec);
+                    if !ok { ctrl_print(b"CTRL: operator rejected (typed schema mismatch)\n"); return Ok(()); }
                     ctrl_print(b"CTRL: operator added (typed)\n");
                     if let Some((ops, chans)) = current_graph_counts() {
                         metric_kv("graph_stats_ops", ops);
@@ -182,7 +183,15 @@ pub fn current_graph_counts() -> Option<(usize, usize)> {
 }
 
 /// Directly add an operator (used by shell to avoid rare frame-path stalls)
-pub fn add_operator_direct(op_id: u32, in_ch: Option<u16>, out_ch: Option<u16>, prio: u8, stage_u8: u8) -> Result<(), CtrlError> {
+pub fn add_operator_direct(
+    op_id: u32,
+    in_ch: Option<u16>,
+    out_ch: Option<u16>,
+    prio: u8,
+    stage_u8: u8,
+    in_schema: Option<u32>,
+    out_schema: Option<u32>,
+) -> Result<(), CtrlError> {
     let stage = match stage_u8 { 0=>Some(Stage::AcquireData),1=>Some(Stage::CleanData),2=>Some(Stage::ExploreData),3=>Some(Stage::ModelData),4=>Some(Stage::ExplainResults), _=>None };
     unsafe {
         if let Some(ref mut g) = CTRL_GRAPH {
@@ -193,11 +202,12 @@ pub fn add_operator_direct(op_id: u32, in_ch: Option<u16>, out_ch: Option<u16>, 
                 out_ch: out_ch.map(|v| v as usize),
                 priority: prio,
                 stage,
-                in_schema: None,
-                out_schema: None,
+                in_schema,
+                out_schema,
             };
             ctrl_print(b"CTRL: begin add-operator (direct)\n");
-            let _idx = g.add_operator(spec);
+            let ok = g.add_operator_strict(spec);
+            if !ok { ctrl_print(b"CTRL: operator rejected (direct schema mismatch)\n"); return Ok(()); }
             ctrl_print(b"CTRL: operator added (direct)\n");
             if let Some((ops, chans)) = current_graph_counts() {
                 metric_kv("graph_stats_ops", ops);

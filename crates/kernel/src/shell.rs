@@ -486,7 +486,8 @@ impl Shell {
                     i += 1;
                 }
                 // Prefer direct path to avoid rare stalls in frame path for certain options
-                let _ = crate::control::add_operator_direct(op_id, in_ch, out_ch, prio, stage);
+                // Pass optional schemas for strict enforcement when provided
+                let _ = crate::control::add_operator_direct(op_id, in_ch, out_ch, prio, stage, _in_schema, _out_schema);
             }
             "start" => {
                 if args.len() < 2 { unsafe { crate::uart_print(b"Usage: graphctl start <steps>\n"); } return; }
