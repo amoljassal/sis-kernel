@@ -295,6 +295,7 @@ pub struct GraphApi {
     ops: Vec<OpNode, MAX_OPERATORS>,
     channel_schemas: Vec<Option<u32>, MAX_CHANNELS>,
     schema_mismatch_count: usize,
+    prev_depths: [usize; MAX_CHANNELS],
     #[cfg(feature = "deterministic")]
     det_server_id: Option<u32>,
     #[cfg(feature = "deterministic")]
@@ -329,6 +330,7 @@ impl GraphApi {
             ops: Vec::new(),
             channel_schemas: Vec::new(),
             schema_mismatch_count: 0,
+            prev_depths: [0; MAX_CHANNELS],
             #[cfg(feature = "deterministic")]
             det_server_id: None,
             #[cfg(feature = "deterministic")]
@@ -459,8 +461,21 @@ impl GraphApi {
             }
             if let Some(i) = best_idx {
                 let op = &self.ops[i];
-                let out = op.out_ch.and_then(|k| self.channels.get(k)).unwrap_or(&self.channels[0]);
-                let inp = op.in_ch.and_then(|k| self.channels.get(k)).unwrap_or(out);
+                let out_idx = op.out_ch.unwrap_or(0);
+                let in_idx = op.in_ch.unwrap_or(out_idx);
+                let out = self.channels.get(out_idx).unwrap_or(&self.channels[0]);
+                let inp = self.channels.get(in_idx).unwrap_or(out);
+                // Trace channel depth changes for in/out
+                let in_depth = if in_idx < self.channels.len() { self.channels[in_idx].depth() } else { 0 };
+                if in_idx < self.prev_depths.len() && self.prev_depths[in_idx] != in_depth {
+                    self.prev_depths[in_idx] = in_depth;
+                    crate::trace::ch_depth(in_idx, in_depth);
+                }
+                let out_depth = if out_idx < self.channels.len() { self.channels[out_idx].depth() } else { 0 };
+                if out_idx < self.prev_depths.len() && self.prev_depths[out_idx] != out_depth {
+                    self.prev_depths[out_idx] = out_depth;
+                    crate::trace::ch_depth(out_idx, out_depth);
+                }
                 let mut ctx = OperatorCtx { produced: out, consumed: inp };
                 crate::trace::op_queued(op.id);
                 let t0 = now_cycles();

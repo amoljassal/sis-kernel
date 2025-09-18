@@ -397,7 +397,7 @@ impl Shell {
     /// Graph control convenience command
     fn cmd_graphctl(&self, args: &[&str]) {
         if args.is_empty() {
-            unsafe { crate::uart_print(b"Usage: graphctl <create|add-channel|add-operator|start> ...\n"); }
+            unsafe { crate::uart_print(b"Usage: graphctl <create|add-channel|add-operator|start|det> ...\n"); }
             return;
         }
 
@@ -505,6 +505,17 @@ impl Shell {
                 } else {
                     unsafe { crate::uart_print(b"[CTL] invalid steps\n"); }
                 }
+            }
+            "det" | "deterministic" => {
+                if args.len() < 4 { unsafe { crate::uart_print(b"Usage: graphctl det <wcet_ns> <period_ns> <deadline_ns>\n"); } return; }
+                let wcet = match args[1].parse::<u64>() { Ok(v) => v, Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid wcet\n"); } return; } };
+                let period = match args[2].parse::<u64>() { Ok(v) => v, Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid period\n"); } return; } };
+                let deadline = match args[3].parse::<u64>() { Ok(v) => v, Err(_) => { unsafe { crate::uart_print(b"[CTL] invalid deadline\n"); } return; } };
+                let mut buf = [0u8; 24];
+                let w = wcet.to_le_bytes(); buf[0..8].copy_from_slice(&w);
+                let p = period.to_le_bytes(); buf[8..16].copy_from_slice(&p);
+                let d = deadline.to_le_bytes(); buf[16..24].copy_from_slice(&d);
+                let _ = send_frame(0x06, &buf);
             }
             "stats" => {
                 // Print a concise summary and METRICs for graph structure

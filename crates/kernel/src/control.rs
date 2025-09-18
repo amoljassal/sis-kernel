@@ -6,6 +6,7 @@
 //!  0x03 AddOperator { op_id_le_u32, in_ch_le_u16(0xFFFF=none), out_ch_le_u16(0xFFFF=none), priority_u8, stage_u8 }
 //!  0x04 StartGraph { steps_le_u32 }
 //!  0x05 AddOperatorTyped { op_id_le_u32, in_ch_le_u16(0xFFFF=none), out_ch_le_u16(0xFFFF=none), priority_u8, stage_u8, in_schema_le_u32, out_schema_le_u32 }
+//!  0x06 EnableDeterministic { wcet_ns_le_u64, period_ns_le_u64, deadline_ns_le_u64 }
 
 use crate::graph::{GraphApi, OperatorSpec, Stage};
 use crate::trace::metric_kv;
@@ -56,7 +57,8 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
             }
         }
         0x03 => { // AddOperator
-            if payload.len() < 4+2+2+1+1 { return Err(CtrlError::BadFrame); }
+            ctrl_print(b"CTRL: begin add-operator\n");
+            if payload.len() < 4+2+2+1+1 { ctrl_print(b"CTRL: bad frame len\n"); return Err(CtrlError::BadFrame); }
             let op_id = u32::from_le_bytes([payload[0],payload[1],payload[2],payload[3]]);
             let in_ch = u16::from_le_bytes([payload[4],payload[5]]);
             let out_ch = u16::from_le_bytes([payload[6],payload[7]]);
@@ -65,6 +67,9 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
             let stage = match stage_u8 { 0=>Some(Stage::AcquireData),1=>Some(Stage::CleanData),2=>Some(Stage::ExploreData),3=>Some(Stage::ModelData),4=>Some(Stage::ExplainResults), _=>None };
             unsafe {
                 if let Some(ref mut g) = CTRL_GRAPH {
+                    // Defensive index checks
+                    if in_ch != 0xFFFF && (in_ch as usize) >= g.counts().1 { ctrl_print(b"CTRL: in_ch OOR\n"); }
+                    if out_ch != 0xFFFF && (out_ch as usize) >= g.counts().1 { ctrl_print(b"CTRL: out_ch OOR\n"); }
                     let spec = OperatorSpec {
                         id: op_id,
                         func: crate::graph::op_a_run,
@@ -75,6 +80,7 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
                         in_schema: None,
                         out_schema: None,
                     };
+                    ctrl_print(b"CTRL: inserting operator\n");
                     let _idx = g.add_operator(spec);
                     ctrl_print(b"CTRL: operator added\n");
                     if let Some((ops, chans)) = current_graph_counts() {
@@ -89,7 +95,15 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
             if payload.len() < 4 { return Err(CtrlError::BadFrame); }
             let steps = u32::from_le_bytes([payload[0],payload[1],payload[2],payload[3]]) as usize;
             unsafe {
-                if let Some(ref mut g) = CTRL_GRAPH { g.run_steps(steps); ctrl_print(b"CTRL: ran steps\n"); Ok(()) } else { Err(CtrlError::NoGraph) }
+                if let Some(ref mut g) = CTRL_GRAPH {
+                    let t0 = crate::graph::now_cycles();
+                    g.run_steps(steps);
+                    let t1 = crate::graph::now_cycles();
+                    let ns = crate::graph::cycles_to_ns(t1.saturating_sub(t0));
+                    metric_kv("scheduler_run_us", (ns / 1000) as usize);
+                    ctrl_print(b"CTRL: ran steps\n");
+                    Ok(())
+                } else { Err(CtrlError::NoGraph) }
             }
         }
         0x05 => { // AddOperatorTyped
@@ -126,6 +140,27 @@ pub fn handle_frame(frame: &[u8]) -> Result<(), CtrlError> {
                         metric_kv("graph_stats_channels", chans);
                     }
                     Ok(())
+                } else { Err(CtrlError::NoGraph) }
+            }
+        }
+        0x06 => { // EnableDeterministic (graph-level)
+            if payload.len() < (8+8+8) { return Err(CtrlError::BadFrame); }
+            let wcet = u64::from_le_bytes([payload[0],payload[1],payload[2],payload[3],payload[4],payload[5],payload[6],payload[7]]);
+            let period = u64::from_le_bytes([payload[8],payload[9],payload[10],payload[11],payload[12],payload[13],payload[14],payload[15]]);
+            let deadline = u64::from_le_bytes([payload[16],payload[17],payload[18],payload[19],payload[20],payload[21],payload[22],payload[23]]);
+            unsafe {
+                if let Some(ref mut g) = CTRL_GRAPH {
+                    #[cfg(feature = "deterministic")]
+                    {
+                        let ok = g.enable_deterministic(wcet, period, deadline);
+                        if ok { ctrl_print(b"CTRL: deterministic enabled\n"); } else { ctrl_print(b"CTRL: deterministic admit rejected\n"); }
+                        return Ok(());
+                    }
+                    #[cfg(not(feature = "deterministic"))]
+                    {
+                        ctrl_print(b"CTRL: deterministic feature not enabled\n");
+                        return Ok(());
+                    }
                 } else { Err(CtrlError::NoGraph) }
             }
         }

@@ -51,6 +51,17 @@ pub fn op_end_ns(op_id: u32, ns: u64) {
 }
 
 #[inline(always)]
+pub fn ch_depth(ch_id: usize, depth: usize) {
+    unsafe {
+        crate::uart_print(b"[TRACE] ch_depth id=");
+        print_usize(ch_id);
+        crate::uart_print(b" depth=");
+        print_usize(depth);
+        crate::uart_print(b"\n");
+    }
+}
+
+#[inline(always)]
 pub unsafe fn print_str(s: &str) {
     crate::uart_print(s.as_bytes());
 }

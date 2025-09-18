@@ -130,6 +130,7 @@ Useful shell commands (type `help` for full list):
     - `graphctl create` — create new graph
     - `graphctl add-channel <capacity>` — add SPSC channel
     - `graphctl add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] [--in-schema S] [--out-schema S]` — add operator with OSEMN stage; typed flags are accepted but, for stability, the shell currently routes them through the untyped path (typed runtime checks still exist; host‑tool typed control is planned)
+    - `graphctl det <wcet_ns> <period_ns> <deadline_ns>` — enable deterministic mode for the current graph (feature: `deterministic`); emits `det_admit_ok` or `det_admit_reject`
     - `graphctl start <steps>` — execute graph scheduler
     - `graphctl stats` — show current graph structure (ops/channels)
     - Defaults: `--in none`, `--prio 10`, `--stage acquire` unless specified
