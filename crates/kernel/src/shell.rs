@@ -158,7 +158,7 @@ impl Shell {
             crate::uart_print(b"  rtaivalidation - Run comprehensive real-time AI inference validation\n");
             crate::uart_print(b"  temporaliso - Run AI temporal isolation demonstration\n");
             crate::uart_print(b"  phase3validation - Run complete Phase 3 AI-native kernel validation\n");
-            crate::uart_print(b"  graphctl - Control graph: create | add-channel <cap> | add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] [--in-schema S] [--out-schema S] | start <steps> | stats\n");
+            crate::uart_print(b"  graphctl - Control graph: create | add-channel <cap> | add-operator <op_id> [--in N|none] [--out N|none] [--prio P] [--stage acquire|clean|explore|model|explain] [--in-schema S] [--out-schema S] | start <steps> | det <wcet_ns> <period_ns> <deadline_ns> | stats\n");
             crate::uart_print(b"  ctlhex   - Inject control frame as hex (Create/Add/Start)\n");
             crate::uart_print(b"  pmu      - Run PMU demo (cycles/inst/l1d_refill)\n");
             crate::uart_print(b"  mem      - Show memory information\n");
@@ -522,7 +522,7 @@ impl Shell {
                     unsafe { crate::uart_print(b"GRAPH: no active graph\n"); }
                 }
             }
-            _ => unsafe { crate::uart_print(b"Usage: graphctl <create|add-channel|add-operator|start> ...\n"); }
+            _ => unsafe { crate::uart_print(b"Usage: graphctl <create|add-channel|add-operator|start|det|stats> ...\n"); }
         }
     }
 

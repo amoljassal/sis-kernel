@@ -15,10 +15,10 @@ SIS treats AI workloads as first‑class: the kernel schedules dataflow graphs, 
 - Minimal SSI: A consensus‑free data plane with a narrow control plane to place and supervise graphs across nodes.
 
 Implementation status (current repo)
-- Phase 1 foundations are in: Graph/Operator/Channel/Tensor scaffolding, SPSC ring, zero‑copy tensor handles, graph demo (A→B), basic per‑operator time attribution and METRICs.
-- Control plane V0 is implemented in‑kernel with a minimal binary frame format; for bring‑up it is exercised via shell commands (`graphctl`, `ctlhex`). A VirtIO control path exists behind a feature flag and remains opt‑in until hardened.
+- Phase 1 foundations are in: Graph/Operator/Channel/Tensor scaffolding, SPSC ring, zero‑copy tensor handles, typed DataTensor header (schema_id/records/quality/lineage), graph demo (A→B), basic per‑operator time attribution and METRICs.
+- Control plane V0 is implemented in‑kernel with a minimal binary frame format; for bring‑up it is exercised via shell commands (`graphctl`, `ctlhex`). A VirtIO control path exists behind a feature flag and remains opt‑in; it emits control‑plane metrics (`ctl_frames_rx/tx/errors/backpressure_drops`, `ctl_roundtrip_us`, `ctl_selected_port/ctl_port_bound`) and sends `OK\n`/`ERR\n` ACKs.
 - PMU helpers exist with a QEMU caveat (cycles reliable; other events may read as 0).
-- Strict lint gate is available (`strict` feature) and CI/test runner prefer real context‑switch metrics with a minimum non‑zero sample requirement.
+- Strict lint gate is available (`strict` feature) and CI/test runner prefer real context‑switch metrics with a minimum non‑zero sample requirement. Operator/channel traces are emitted (`[TRACE] op_queued/start/end`, `[TRACE] ch_depth`).
 
 ### Implementation Status Matrix (Current Repo)
 
@@ -32,11 +32,11 @@ Implementation status (current repo)
 | Control Plane | V0 binary control plane via shell (`graphctl`, `ctlhex`) | Done | `crates/kernel/src/{shell.rs, control.rs}`; emits `METRIC graph_stats_ops/channels` |
 | Control Plane | VirtIO console host path | Partial | Opt‑in MMIO virtio‑console RX → `control::handle_frame`; QEMU devices in `scripts/uefi_run.sh`; host tool `tools/sis_datactl.py`. (Binary framing, not CBOR.) `crates/kernel/src/{virtio_console.rs, virtio.rs}` |
 | Object Model & Data | OSEMN stage classification | Done | `graph.rs::Stage` + `graphctl --stage` mapping |
-| Object Model & Data | Zero‑copy tensors/arena | Partial | Bump arena + handle passing; no typed DataTensor header (`schema_id/quality/lineage`) yet. `tensor/*`, metrics `zero_copy_*` |
+| Object Model & Data | Zero‑copy tensors/arena | Done | Bump arena + handle passing; typed DataTensor header present (`schema_id/quality/lineage`). `tensor/*`, metrics `zero_copy_*` |
 | Object Model & Data | Channels & backpressure | Done | SPSC ring; metrics `channel_ab_depth_max/stalls/drops`. `channel/spsc.rs`, `graph.rs` |
 | Data Analyst Pipelines | Control Plane MVP (virtio‑serial + CBOR; Acquire→Clean→Model) | Partial | End‑to‑end control via binary V0; A→B demo; Connect semantics via AddOperator in/out; CBOR not used. `shell.rs`, `control.rs`, `graph.rs` |
-| Data Analyst Pipelines | Typed DataTensor (schema_id/quality/lineage; connect checks) | Planned | Not implemented. |
-| Data Analyst Pipelines | Error frames & quality counters | Planned | Not implemented (backpressure metrics exist). |
+| Data Analyst Pipelines | Typed DataTensor (schema_id/quality/lineage; connect checks) | Done | Header fields implemented; strict connect‑time schema enforcement in graph; shell/control reject mismatches. `tensor/mod.rs`, `graph.rs::add_operator_strict`, `control.rs` |
+| Data Analyst Pipelines | Error frames & quality counters | Partial | Quality counters (`quality_warns`) exist; dedicated error frames not implemented yet. |
 | Data Analyst Pipelines | Deterministic subgraph | Partial | Deterministic demo with metrics; not wired to OSEMN pipeline. `deterministic.rs`, `graph.rs` |
 | Data Analyst Pipelines | Data connectors (files/streams → batches) | Planned | Not implemented. |
 | Scheduling | Static priority scheduler (Phase‑1) | Done | Highest‑priority runnable op, run‑to‑completion. `graph.rs::run_steps` |

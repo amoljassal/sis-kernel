@@ -3,6 +3,7 @@
 #![feature(alloc_error_handler)]
 // CI lint gate: when built with `--features strict`, fail on any warning
 #![cfg_attr(feature = "strict", deny(warnings))]
+#![cfg_attr(feature = "strict", deny(unsafe_op_in_unsafe_fn))]
 
 // Required for heap allocation
 extern crate alloc;
