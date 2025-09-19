@@ -304,6 +304,8 @@ pub struct GraphApi {
     det_scheduler: DeterministicScheduler<16>,
     #[allow(dead_code)]
     deterministic_mode: bool,
+    #[cfg(feature = "deterministic")]
+    det_overrun_count: usize,
 }
 
 struct OpNode {
@@ -338,6 +340,8 @@ impl GraphApi {
             #[cfg(feature = "deterministic")]
             det_scheduler: DeterministicScheduler::new(850_000), // 85% utilization bound
             deterministic_mode: false,
+            #[cfg(feature = "deterministic")]
+            det_overrun_count: 0,
         };
         // Pre-reserve small capacities to avoid first-use heap allocations during control ops
         // Pre-allocate fixed capacity (heapless); no dynamic allocations after this
@@ -500,7 +504,12 @@ impl GraphApi {
                 crate::trace::op_queued(op.id);
                 let t0 = now_cycles();
                 crate::trace::op_start(op.id);
+                // In deterministic mode, disallow heap allocations during operator run
+                #[cfg(feature = "deterministic")]
+                if self.deterministic_mode { crate::heap::det_no_alloc_enter(); }
                 (op.func)(&mut ctx);
+                #[cfg(feature = "deterministic")]
+                if self.deterministic_mode { crate::heap::det_no_alloc_exit(); }
                 let t1 = now_cycles();
                 let dt_ns = cycles_to_ns(t1.saturating_sub(t0));
                 crate::trace::op_end_ns(op.id, dt_ns);
@@ -508,6 +517,10 @@ impl GraphApi {
                 {
                     if self.deterministic_mode {
                         let expected = if self.det_wcet_ns == 0 { dt_ns } else { self.det_wcet_ns };
+                        if dt_ns > expected {
+                            self.det_overrun_count = self.det_overrun_count.saturating_add(1);
+                            crate::trace::metric_kv("det_overrun_count", self.det_overrun_count);
+                        }
                         self.det_scheduler.complete_execution(0, dt_ns, expected);
                     }
                 }
@@ -526,6 +539,26 @@ impl GraphApi {
     pub fn admit_deterministic(&mut self, wcet_ns: u64, period_ns: u64, deadline_ns: u64) -> bool {
         self.enable_deterministic(wcet_ns, period_ns, deadline_ns)
     }
+
+    /// Disable deterministic mode for this graph
+    #[cfg(feature = "deterministic")]
+    pub fn disable_deterministic(&mut self) { self.deterministic_mode = false; }
+
+    /// Return current deterministic overrun count
+    #[cfg(feature = "deterministic")]
+    pub fn det_overruns(&self) -> usize { self.det_overrun_count }
+
+    /// Reset deterministic counters
+    #[cfg(feature = "deterministic")]
+    pub fn det_reset(&mut self) { self.det_overrun_count = 0; }
+
+    /// Return whether deterministic mode is enabled
+    #[cfg(feature = "deterministic")]
+    pub fn deterministic_enabled(&self) -> bool { self.deterministic_mode }
+
+    /// Return configured WCET (ns)
+    #[cfg(feature = "deterministic")]
+    pub fn det_wcet(&self) -> u64 { self.det_wcet_ns }
 }
 
 #[allow(dead_code)]

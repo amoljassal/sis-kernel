@@ -161,7 +161,8 @@ Host control via VirtIO console (opt-in)
 - Enable at run time: `VIRTIO=1 SIS_FEATURES="virtio-console" ./scripts/uefi_run.sh`.
 - QEMU wiring (from the script): adds `-device virtio-serial-device` and `-device virtconsole,...,name=sis.datactl` bound to `/tmp/sis-datactl.sock`.
 - Send frames from host with the Python tool:
-  - `tools/sis_datactl.py create`
+  - All control payloads require a 64-bit capability token prepended (defaults to dev token).
+  - `tools/sis_datactl.py --wait-ack create`
   - `tools/sis_datactl.py add-channel 64`
   - `tools/sis_datactl.py add-operator 1 --in-ch 65535 --out-ch 0 --priority 10 --stage acquire`
   - `tools/sis_datactl.py start 100`
@@ -229,6 +230,46 @@ Artifacts:
 - Formal verification: `target/testing/formal_verification/`
 - AI benchmarks: `target/testing/ai_benchmarks/`
 - Performance reports: `target/testing/performance_report.json`
+
+## Run This Demo
+
+Quick, copy-paste steps to record a short demo video or try locally.
+
+1) Quick demo (QEMU bring-up + Image→Top‑5)
+- Build and boot: `BRINGUP=1 ./scripts/uefi_run.sh`
+- In the SIS shell:
+  - `imagedemo`
+  - You’ll see Top‑5 labels and timings like:
+    - `[RESULT] person score=…` then `METRIC imagedemo_*_us=…`
+
+2) Token rotation (safety moment)
+- In the SIS shell:
+  - `ctlkey` (shows current key)
+  - `ctlkey 0x53535F4354524C22` (sets a new key)
+  - `ctlkey` (confirms new key)
+- Note: Host tools must use `--token <hex>` after rotation.
+
+3) Deterministic mode (optional; requires the feature)
+- Build with deterministic feature: `SIS_FEATURES="deterministic" BRINGUP=1 ./scripts/uefi_run.sh`
+- In the SIS shell:
+  - `graphctl create`
+  - `graphctl add-channel 64`
+  - `det on 50000 200000 200000`   # admit with WCET/period/deadline (ns)
+  - `det status`                   # prints enabled, wcet_ns, misses
+  - `graphctl start 10`
+  - `det status`                   # verify misses (should be 0 for demo)
+  - `det off`                      # disable
+  - `det reset`                    # reset counters
+- If built without the feature, `det` prints: “deterministic feature not enabled”.
+
+4) VirtIO host control (optional)
+- Build with VirtIO console: `SIS_FEATURES="virtio-console" BRINGUP=1 ./scripts/uefi_run.sh`
+- From host (default dev token):
+  - `tools/sis_datactl.py --wait-ack create`
+  - `tools/sis_datactl.py add-channel 64`
+  - `tools/sis_datactl.py add-operator 1 --in-ch 65535 --out-ch 0 --priority 10 --stage acquire`
+  - `tools/sis_datactl.py start 100`
+- If you rotated the token in the shell, pass it: `--token 0xYOUR_HEX_TOKEN`.
 
 ## Repository Structure (relevant parts)
 

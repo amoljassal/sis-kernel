@@ -30,7 +30,7 @@ Implementation status (current repo)
 | Executive Blueprint | Built‑in observability (Phase‑1) | Done | Operator p50/p95/p99, channel backpressure, scheduler timing; schema v1; validation script; dashboard card. `graph.rs`, `docs/schemas/*`, `crates/testing/src/{performance,reporting}` |
 | Executive Blueprint | Minimal SSI (multi‑node) | Planned | RemoteChannel/transport/placement not implemented. |
 | Control Plane | V0 binary control plane via shell (`graphctl`, `ctlhex`) | Done | `crates/kernel/src/{shell.rs, control.rs}`; emits `METRIC graph_stats_ops/channels` |
-| Control Plane | VirtIO console host path | Partial | Opt‑in MMIO virtio‑console RX → `control::handle_frame`; QEMU devices in `scripts/uefi_run.sh`; host tool `tools/sis_datactl.py`. (Binary framing, not CBOR.) `crates/kernel/src/{virtio_console.rs, virtio.rs}` |
+| Control Plane | VirtIO console host path | Partial | Opt‑in MMIO virtio‑console RX → `control::handle_frame`; QEMU devices in `scripts/uefi_run.sh`; host tool `tools/sis_datactl.py`. Capability token required in payload. (Binary framing, not CBOR.) `crates/kernel/src/{virtio_console.rs, virtio.rs, control.rs}` |
 | Object Model & Data | OSEMN stage classification | Done | `graph.rs::Stage` + `graphctl --stage` mapping |
 | Object Model & Data | Zero‑copy tensors/arena | Done | Bump arena + handle passing; typed DataTensor header present (`schema_id/quality/lineage`). `tensor/*`, metrics `zero_copy_*` |
 | Object Model & Data | Channels & backpressure | Done | SPSC ring; metrics `channel_ab_depth_max/stalls/drops`. `channel/spsc.rs`, `graph.rs` |

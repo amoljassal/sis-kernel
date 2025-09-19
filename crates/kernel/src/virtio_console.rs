@@ -4,7 +4,15 @@
 //! Provides character-based I/O through VirtIO virtqueues
 
 use crate::driver::{DeviceId, DeviceInfo, Driver, DriverError, DriverInfo, DriverResult};
+use core::sync::atomic::{AtomicUsize, Ordering};
 use crate::virtio::{VirtIODeviceType, VirtIOMMIOOffset, VirtIOMMIOTransport};
+
+// Simple page-aligned DMA pool (module scope) for virtqueue memory
+const VCON_DMA_POOL_SIZE: usize = 256 * 1024; // 256 KiB
+#[repr(align(4096))]
+struct VconDmaPool([u8; VCON_DMA_POOL_SIZE]);
+static mut VCON_DMA_POOL: VconDmaPool = VconDmaPool([0; VCON_DMA_POOL_SIZE]);
+static VCON_DMA_OFF: AtomicUsize = AtomicUsize::new(0);
 
 /// VirtIO Console feature bits
 #[repr(u32)]
@@ -230,6 +238,16 @@ pub struct VirtIOConsoleDriver {
 }
 
 impl VirtIOConsoleDriver {
+    fn dma_alloc(size: usize, align: usize) -> u64 {
+        // Very small bump allocator; single-thread use in early boot
+        let off = VCON_DMA_OFF.load(Ordering::Relaxed);
+        let base = unsafe { (&raw const VCON_DMA_POOL.0) as *const u8 as usize };
+        let align_mask = align.saturating_sub(1);
+        let aligned = (off + align_mask) & !align_mask;
+        let end = aligned.saturating_add(size);
+        let _ = VCON_DMA_OFF.store(end, Ordering::Relaxed);
+        (base + aligned) as u64
+    }
     /// Create new VirtIO console driver
     pub const fn new() -> Self {
         VirtIOConsoleDriver {
@@ -269,8 +287,9 @@ impl VirtIOConsoleDriver {
             return Err(DriverError::NotSupported);
         }
 
-        // Allocate memory for queue 0 (simplified - using static addresses)
-        let queue0_addr = 0x50000000u64;
+        // Allocate memory for queue 0
+        let q0_bytes = (queue0_size as usize * 16) + (queue0_size as usize * 2) + 6 + (queue0_size as usize * 8) + 6;
+        let queue0_addr = Self::dma_alloc(q0_bytes, 4096);
         self.receiveq = Some(VirtQueue::new(0, queue0_size as u16, queue0_addr));
 
         // Set queue 0 addresses
@@ -313,7 +332,8 @@ impl VirtIOConsoleDriver {
         let queue1_size = core::cmp::min(queue1_size_hw, 256);
 
         if queue1_size > 0 {
-            let queue1_addr = 0x50010000u64;
+            let q1_bytes = (queue1_size as usize * 16) + (queue1_size as usize * 2) + 6 + (queue1_size as usize * 8) + 6;
+            let queue1_addr = Self::dma_alloc(q1_bytes, 4096);
             self.transmitq = Some(VirtQueue::new(1, queue1_size as u16, queue1_addr));
 
             // Set queue 1 addresses
@@ -462,10 +482,20 @@ impl VirtIOConsoleDriver {
                     crate::uart_print(b"[CTL] ok\n");
                     let _ = self.send_ack(true);
                 }
-                Err(_) => {
+                Err(e) => {
                     crate::uart_print(b"[CTL] error\n");
                     self.ctl_errors = self.ctl_errors.saturating_add(1);
-                    let _ = self.send_ack(false);
+                    // Map error to a small hex code for host visibility
+                    let code: u8 = match e {
+                        crate::control::CtrlError::BadFrame => 0x01,
+                        crate::control::CtrlError::Unsupported => 0x02,
+                        crate::control::CtrlError::NoGraph => 0x03,
+                        crate::control::CtrlError::Oversize => { crate::trace::metric_kv("ctl_oversize", 1); 0x04 },
+                        crate::control::CtrlError::AuthFailed => 0x05,
+                    };
+                    let _ = self.send_ack_code(code);
+                    // Periodically emit counters
+                    if (self.ctl_errors & 0xFF) == 0 { crate::trace::metric_kv("ctl_errors", self.ctl_errors); }
                 }
             }
             let t1 = crate::graph::now_cycles();
@@ -574,6 +604,26 @@ impl VirtIOConsoleDriver {
         } else { Ok(()) }
     }
 
+    /// Send an ERR with a hex code: "ERR 0xNN\n"
+    unsafe fn send_ack_code(&mut self, code: u8) -> DriverResult<()> {
+        let mut msg = [0u8; 12];
+        // Build b"ERR 0xNN\n"
+        let s = b"ERR 0x";
+        msg[..6].copy_from_slice(s);
+        let hex = b"0123456789ABCDEF";
+        msg[6] = hex[(code >> 4) as usize];
+        msg[7] = hex[(code & 0xF) as usize];
+        msg[8] = b'\n';
+        if let Some(tq) = self.transmitq.as_mut() {
+            if let Some(transport) = &self.transport {
+                let _ = tq.add_buffer(msg.as_ptr() as u64, 9, 0);
+                transport.write_reg(VirtIOMMIOOffset::QueueNotify, 1);
+                for _ in 0..256 { if let Some((_id,_len)) = tq.get_used_buffer() { break; } core::hint::spin_loop(); }
+            }
+        }
+        Ok(())
+    }
+
     /// Send a control event (e.g., PortOpen) on the control TX queue
     unsafe fn send_ctrl_event(&mut self, event: u16, id: u32, value: u16) -> DriverResult<()> {
         if let Some(txq) = self.ctrl_txq.as_mut() {
@@ -652,7 +702,8 @@ impl Driver for VirtIOConsoleDriver {
                 transport.write_reg(VirtIOMMIOOffset::QueueSel, 2);
                 let qsz = transport.read_reg(VirtIOMMIOOffset::QueueNumMax);
                 if qsz > 0 {
-                    let base = 0x5002_0000u64;
+                    let bytes = (qsz as usize * 16) + (qsz as usize * 2) + 6 + (qsz as usize * 8) + 6;
+                    let base = Self::dma_alloc(bytes, 4096);
                     self.ctrl_rxq = Some(VirtQueue::new(2, qsz as u16, base));
                     transport.write_reg(VirtIOMMIOOffset::QueueDescLow, (base & 0xFFFF_FFFF) as u32);
                     transport.write_reg(VirtIOMMIOOffset::QueueDescHigh, (base >> 32) as u32);
@@ -673,7 +724,8 @@ impl Driver for VirtIOConsoleDriver {
                 transport.write_reg(VirtIOMMIOOffset::QueueSel, 3);
                 let qsz3 = transport.read_reg(VirtIOMMIOOffset::QueueNumMax);
                 if qsz3 > 0 {
-                    let base = 0x5003_0000u64;
+                    let bytes = (qsz3 as usize * 16) + (qsz3 as usize * 2) + 6 + (qsz3 as usize * 8) + 6;
+                    let base = Self::dma_alloc(bytes, 4096);
                     self.ctrl_txq = Some(VirtQueue::new(3, qsz3 as u16, base));
                     transport.write_reg(VirtIOMMIOOffset::QueueDescLow, (base & 0xFFFF_FFFF) as u32);
                     transport.write_reg(VirtIOMMIOOffset::QueueDescHigh, (base >> 32) as u32);

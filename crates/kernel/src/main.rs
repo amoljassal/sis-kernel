@@ -83,7 +83,10 @@ pub extern "C" fn _start() -> ! {
 }
 
 #[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    unsafe {
+        uart_print(b"PANIC\n");
+    }
     loop {}
 }
 

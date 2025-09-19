@@ -19,9 +19,11 @@ struct CacheAlignedArray([u8; HEAP_SIZE]);
 // Note: Previously exposed an as_mut_ptr(); now removed in favor of
 // direct raw pointers via addr_of_mut! to avoid dead_code and keep APIs minimal.
 
-/// Global heap allocator instance
-#[global_allocator]
+/// Global heap allocator instance (wrapped by guarded allocator below)
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
+
+/// Deterministic no-alloc guard (when true, allocations are rejected)
+static DET_NO_ALLOC: AtomicBool = AtomicBool::new(false);
 
 /// Heap statistics for monitoring and debugging
 pub struct HeapStats {
@@ -86,6 +88,11 @@ pub struct StatsTrackingAllocator;
 
 unsafe impl GlobalAlloc for StatsTrackingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        // Reject allocations under deterministic guard
+        if DET_NO_ALLOC.load(Ordering::Relaxed) {
+            crate::trace::metric_kv("det_alloc_violation", 1);
+            return core::ptr::null_mut();
+        }
         // Runtime verification hook for memory allocation
         #[cfg(target_arch = "riscv64")]
         {
@@ -156,6 +163,10 @@ unsafe impl GlobalAlloc for StatsTrackingAllocator {
         stats.current_allocated = stats.current_allocated.saturating_sub(layout.size());
     }
 }
+
+/// Install guarded global allocator
+#[global_allocator]
+static GLOBAL_ALLOC: StatsTrackingAllocator = StatsTrackingAllocator;
 
 /// Allocation error handler
 #[alloc_error_handler]
@@ -312,6 +323,16 @@ pub fn test_heap() -> Result<(), &'static str> {
     }
     print_heap_stats();
     Ok(())
+}
+
+/// Enter deterministic no-alloc region
+pub fn det_no_alloc_enter() {
+    DET_NO_ALLOC.store(true, Ordering::Relaxed);
+}
+
+/// Exit deterministic no-alloc region
+pub fn det_no_alloc_exit() {
+    DET_NO_ALLOC.store(false, Ordering::Relaxed);
 }
 
 /// Helper function to print hex numbers

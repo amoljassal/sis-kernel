@@ -12,6 +12,9 @@ def frame(cmd: int, payload: bytes, flags: int = 0) -> bytes:
     hdr = struct.pack('<BBBBI', 0x43, 0, cmd, flags, len(payload))
     return hdr + payload
 
+def with_token(payload: bytes, token: int) -> bytes:
+    return struct.pack('<Q', token) + payload
+
 def send_frame(cmd: int, payload: bytes, wait_ack: bool = False):
     data = frame(cmd, payload)
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
@@ -27,14 +30,15 @@ def send_frame(cmd: int, payload: bytes, wait_ack: bool = False):
                 sys.stdout.write("ACK: <timeout>\n")
 
 def cmd_create_graph(args):
-    send_frame(0x01, b'', args.wait_ack)
+    pl = with_token(b'', args.token)
+    send_frame(0x01, pl, args.wait_ack)
     print('CreateGraph sent')
 
 def cmd_add_channel(args):
     cap = int(args.capacity)
     if cap < 1 or cap > 65535:
         raise SystemExit('capacity must be 1..65535')
-    payload = struct.pack('<H', cap)
+    payload = with_token(struct.pack('<H', cap), args.token)
     send_frame(0x02, payload, args.wait_ack)
     print(f'AddChannel(capacity={cap}) sent')
 
@@ -55,17 +59,17 @@ def cmd_add_operator(args):
     if args.in_schema is not None or args.out_schema is not None:
         in_schema = int(args.in_schema) if args.in_schema is not None else 0
         out_schema = int(args.out_schema) if args.out_schema is not None else 0
-        payload = struct.pack('<IHHBBII', op_id, in_ch, out_ch, prio, stage, in_schema, out_schema)
+        payload = with_token(struct.pack('<IHHBBII', op_id, in_ch, out_ch, prio, stage, in_schema, out_schema), args.token)
         send_frame(0x05, payload, args.wait_ack)
         print(f'AddOperatorTyped(op_id={op_id}, in={in_ch}, out={out_ch}, prio={prio}, stage={stage}, in_schema={in_schema}, out_schema={out_schema}) sent')
     else:
-        payload = struct.pack('<IHHBB', op_id, in_ch, out_ch, prio, stage)
+        payload = with_token(struct.pack('<IHHBB', op_id, in_ch, out_ch, prio, stage), args.token)
         send_frame(0x03, payload, args.wait_ack)
         print(f'AddOperator(op_id={op_id}, in={in_ch}, out={out_ch}, prio={prio}, stage={stage}) sent')
 
 def cmd_start(args):
     steps = int(args.steps)
-    payload = struct.pack('<I', steps)
+    payload = with_token(struct.pack('<I', steps), args.token)
     send_frame(0x04, payload, args.wait_ack)
     print(f'StartGraph(steps={steps}) sent')
 
@@ -73,7 +77,7 @@ def cmd_det(args):
     wcet = int(args.wcet_ns)
     period = int(args.period_ns)
     deadline = int(args.deadline_ns)
-    payload = struct.pack('<QQQ', wcet, period, deadline)
+    payload = with_token(struct.pack('<QQQ', wcet, period, deadline), args.token)
     send_frame(0x06, payload, args.wait_ack)
     print(f'EnableDeterministic(wcet_ns={wcet}, period_ns={period}, deadline_ns={deadline}) sent')
 
@@ -81,6 +85,7 @@ def main():
     ap = argparse.ArgumentParser(description='SIS control-plane client (V0 framing)')
     sub = ap.add_subparsers(dest='cmd', required=True)
     ap.add_argument('--wait-ack', action='store_true', help='wait for ACK/ERR from kernel (1s timeout)')
+    ap.add_argument('--token', type=lambda x: int(x, 0), default=0x53535F4354524C21, help='64-bit capability token (default matches kernel dev token)')
 
     sub.add_parser('create').set_defaults(fn=cmd_create_graph)
 

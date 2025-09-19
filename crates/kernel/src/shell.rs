@@ -107,6 +107,7 @@ impl Shell {
                 "stress" => self.cmd_stress(),
                 "overhead" => self.cmd_overhead(),
                 "graphdemo" => self.cmd_graph_demo(),
+                "imagedemo" => self.cmd_image_demo(),
                 "detdemo" => self.cmd_deterministic_demo(),
                 "aidemo" => self.cmd_ai_scheduler_demo(),
                 "cbsdemo" => self.cmd_cbs_budget_demo(),
@@ -117,6 +118,8 @@ impl Shell {
                 "rtaivalidation" => self.cmd_realtime_ai_validation(),
                 "temporaliso" => self.cmd_temporal_isolation_demo(),
                 "phase3validation" => self.cmd_phase3_validation(),
+                "ctlkey" => self.cmd_ctlkey(&parts[1..]),
+                "det" => self.cmd_det(&parts[1..]),
                 "graphctl" => self.cmd_graphctl(&parts[1..]),
                 "ctlhex" => self.cmd_ctlhex(&parts[1..]),
                 "pmu" => self.cmd_pmu_demo(),
@@ -148,13 +151,16 @@ impl Shell {
             crate::uart_print(b"  stress   - Run syscall stress tests\n");
             crate::uart_print(b"  overhead - Measure syscall overhead\n");
             crate::uart_print(b"  graphdemo- Run graph demo (feature: graph-demo)\n");
+            crate::uart_print(b"  imagedemo- Run Image->Top5 labels demo (simulated)\n");
             crate::uart_print(b"  detdemo  - Run deterministic scheduler demo (feature: deterministic)\n");
+            crate::uart_print(b"  det      - Deterministic control: on <wcet_ns> <period_ns> <deadline_ns> | off | status | reset\n");
             crate::uart_print(b"  aidemo   - Run AI-enhanced scheduler demo with real-time inference\n");
             crate::uart_print(b"  cbsdemo  - Run CBS+EDF budget management demo for AI inference\n");
             crate::uart_print(b"  mldemo   - Run Phase 3 TinyML demo (AI inference)\n");
             crate::uart_print(b"  infdemo  - Run deterministic inference demo (cycle-accurate)\n");
             crate::uart_print(b"  npudemo  - Run NPU device emulation demo (MMIO/IRQ)\n");
             crate::uart_print(b"  npudriver- Run NPU driver demo with interrupt handling\n");
+            crate::uart_print(b"  ctlkey   - Show or rotate control-plane key: ctlkey [0xHEX]\n");
             crate::uart_print(b"  rtaivalidation - Run comprehensive real-time AI inference validation\n");
             crate::uart_print(b"  temporaliso - Run AI temporal isolation demonstration\n");
             crate::uart_print(b"  phase3validation - Run complete Phase 3 AI-native kernel validation\n");
@@ -251,6 +257,55 @@ impl Shell {
         unsafe { crate::uart_print(b"[GRAPH] Demo complete\n"); }
     }
 
+    /// Simple Image -> Top-5 Labels demo (simulated pipeline)
+    fn cmd_image_demo(&self) {
+        // Simulate an image buffer (e.g., 256x256 grayscale)
+        const N: usize = 256 * 256;
+        let mut img_sum: u64 = 0;
+        let t0 = crate::graph::now_cycles();
+        // Fake acquire/normalize: fill and compute simple stats
+        let mut px: u8 = 0;
+        for _ in 0..N {
+            px = px.wrapping_add(73);
+            img_sum = img_sum.wrapping_add(px as u64);
+        }
+        let t1 = crate::graph::now_cycles();
+        // Fake model step: compute 5 scores deterministically
+        let labels: [&str; 5] = [
+            "cat", "dog", "car", "tree", "person",
+        ];
+        let mut scores = [0u32; 5];
+        for (i, s) in scores.iter_mut().enumerate() {
+            // Derive a pseudo score from img_sum and label index
+            let base = img_sum.wrapping_add((i as u64) * 0x9E37_79B9u64);
+            *s = ((base ^ (base >> 13)) as u32) % 100;
+        }
+        // Sort indices by score descending (tiny 5-element selection)
+        let mut idx = [0usize, 1, 2, 3, 4];
+        idx.sort_by(|&a, &b| scores[b].cmp(&scores[a]));
+        let t2 = crate::graph::now_cycles();
+
+        // Emit results
+        unsafe {
+            crate::uart_print(b"[RESULT] Top-5 Labels:\n");
+            for rank in 0..5 {
+                crate::uart_print(b"[RESULT] ");
+                let i = idx[rank];
+                crate::uart_print(labels[i].as_bytes());
+                crate::uart_print(b" score=");
+                self.print_number_simple(scores[i] as u64);
+                crate::uart_print(b"\n");
+            }
+        }
+        // Emit timing metrics (us)
+        let norm_us = crate::graph::cycles_to_ns(t1.saturating_sub(t0)) / 1000;
+        let model_us = crate::graph::cycles_to_ns(t2.saturating_sub(t1)) / 1000;
+        let total_us = crate::graph::cycles_to_ns(t2.saturating_sub(t0)) / 1000;
+        crate::trace::metric_kv("imagedemo_normalize_us", norm_us as usize);
+        crate::trace::metric_kv("imagedemo_model_us", model_us as usize);
+        crate::trace::metric_kv("imagedemo_total_us", total_us as usize);
+    }
+
     /// Phase 2 deterministic scheduler demo command
     fn cmd_deterministic_demo(&self) {
         #[cfg(feature = "deterministic")]
@@ -262,6 +317,95 @@ impl Shell {
         #[cfg(not(feature = "deterministic"))]
         {
             unsafe { crate::uart_print(b"[DETERMINISTIC] Requires 'deterministic' feature\n"); }
+        }
+    }
+
+    /// Show or rotate the control-plane key
+    fn cmd_ctlkey(&self, args: &[&str]) {
+        if args.is_empty() {
+            let tok = crate::control::get_control_token();
+            unsafe { crate::uart_print(b"CONTROL TOKEN: "); }
+            self.print_hex(tok);
+            unsafe { crate::uart_print(b"\n"); }
+            return;
+        }
+        // Parse 0x-prefixed hex
+        let s = args[0].trim();
+        let v = if let Some(stripped) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+            u64::from_str_radix(stripped, 16)
+        } else { u64::from_str_radix(s, 16) };
+        match v {
+            Ok(tok) => {
+                crate::control::set_control_token(tok);
+                unsafe { crate::uart_print(b"CONTROL TOKEN UPDATED\n"); }
+            }
+            Err(_) => unsafe { crate::uart_print(b"[CTL] invalid hex token\n"); },
+        }
+    }
+
+    /// Deterministic control: on/off/status/reset
+    fn cmd_det(&self, args: &[&str]) {
+        if args.is_empty() {
+            unsafe { crate::uart_print(b"Usage: det on <wcet_ns> <period_ns> <deadline_ns> | off | status | reset\n"); }
+            return;
+        }
+        match args[0] {
+            "on" => {
+                if args.len() < 4 { unsafe { crate::uart_print(b"Usage: det on <wcet_ns> <period_ns> <deadline_ns>\n"); } return; }
+                let _wcet = match args[1].parse::<u64>() { Ok(v) => v, Err(_) => { unsafe { crate::uart_print(b"[DET] invalid wcet\n"); } return; } };
+                let _period = match args[2].parse::<u64>() { Ok(v) => v, Err(_) => { unsafe { crate::uart_print(b"[DET] invalid period\n"); } return; } };
+                let _deadline = match args[3].parse::<u64>() { Ok(v) => v, Err(_) => { unsafe { crate::uart_print(b"[DET] invalid deadline\n"); } return; } };
+                #[cfg(feature = "deterministic")]
+                {
+                    let wcet = _wcet; let period = _period; let deadline = _deadline;
+                    match crate::control::det_enable_direct(wcet, period, deadline) {
+                        Ok(true) => unsafe { crate::uart_print(b"[DET] admitted\n"); },
+                        Ok(false) => unsafe { crate::uart_print(b"[DET] rejected\n"); },
+                        Err(_) => unsafe { crate::uart_print(b"[DET] no active graph\n"); },
+                    }
+                }
+                #[cfg(not(feature = "deterministic"))]
+                unsafe { crate::uart_print(b"[DET] deterministic feature not enabled\n"); }
+            }
+            "off" => {
+                #[cfg(feature = "deterministic")]
+                {
+                    match crate::control::det_disable_direct() {
+                        Ok(()) => unsafe { crate::uart_print(b"[DET] disabled\n"); },
+                        Err(_) => unsafe { crate::uart_print(b"[DET] no active graph\n"); },
+                    }
+                }
+                #[cfg(not(feature = "deterministic"))]
+                unsafe { crate::uart_print(b"[DET] deterministic feature not enabled\n"); }
+            }
+            "status" => {
+                #[cfg(feature = "deterministic")]
+                {
+                    match crate::control::det_status_direct() {
+                        Ok((enabled, wcet, overruns)) => unsafe {
+                            crate::uart_print(b"[DET] enabled="); self.print_number_simple(enabled as u64);
+                            crate::uart_print(b" wcet_ns="); self.print_number_simple(wcet);
+                            crate::uart_print(b" misses="); self.print_number_simple(overruns as u64);
+                            crate::uart_print(b"\n");
+                        },
+                        Err(_) => unsafe { crate::uart_print(b"[DET] no active graph\n"); },
+                    }
+                }
+                #[cfg(not(feature = "deterministic"))]
+                unsafe { crate::uart_print(b"[DET] deterministic feature not enabled\n"); }
+            }
+            "reset" => {
+                #[cfg(feature = "deterministic")]
+                {
+                    match crate::control::det_reset_counters_direct() {
+                        Ok(()) => unsafe { crate::uart_print(b"[DET] counters reset\n"); },
+                        Err(_) => unsafe { crate::uart_print(b"[DET] no active graph\n"); },
+                    }
+                }
+                #[cfg(not(feature = "deterministic"))]
+                unsafe { crate::uart_print(b"[DET] deterministic feature not enabled\n"); }
+            }
+            _ => unsafe { crate::uart_print(b"Usage: det on <wcet> <period> <deadline> | off | status | reset\n"); },
         }
     }
 
@@ -403,17 +547,24 @@ impl Shell {
 
         // Helper to send a framed control message
         fn send_frame(cmd: u8, payload: &[u8]) -> bool {
-            let mut buf = [0u8; 64];
-            let total = 8 + payload.len();
+            // Prepend 64-bit capability token to payload
+            const TOKEN: u64 = 0x53535F4354524C21; // must match kernel CONTROL_TOKEN
+            let token = TOKEN.to_le_bytes();
+            let mut buf = [0u8; 96];
+            let total = 8 + 8 + payload.len();
             if total > buf.len() { unsafe { crate::uart_print(b"[CTL] payload too large\n"); } return false; }
             buf[0] = 0x43; // 'C'
             buf[1] = 0;    // ver
             buf[2] = cmd;  // cmd
             buf[3] = 0;    // flags
-            let len = payload.len() as u32;
+            let len = (8 + payload.len()) as u32; // include token in payload length
             let le = len.to_le_bytes();
             buf[4] = le[0]; buf[5] = le[1]; buf[6] = le[2]; buf[7] = le[3];
-            for i in 0..payload.len() { buf[8 + i] = payload[i]; }
+            // write token then payload
+            let mut off = 8;
+            for i in 0..8 { buf[off + i] = token[i]; }
+            off += 8;
+            for i in 0..payload.len() { buf[off + i] = payload[i]; }
             match crate::control::handle_frame(&buf[..total]) {
                 Ok(()) => unsafe { crate::uart_print(b"[CTL] ok\n"); true },
                 Err(_) => unsafe { crate::uart_print(b"[CTL] error\n"); false },
@@ -428,9 +579,11 @@ impl Shell {
                 if args.len() < 2 { unsafe { crate::uart_print(b"Usage: graphctl add-channel <capacity>\n"); } return; }
                 if let Ok(cap) = args[1].parse::<u32>() {
                     if cap == 0 || cap > 65535 { unsafe { crate::uart_print(b"[CTL] capacity must be 1..65535\n"); } return; }
-                    let cap_le = (cap as u16).to_le_bytes();
-                    let payload = [cap_le[0], cap_le[1]];
-                    let _ = send_frame(0x02, &payload);
+                    // Prefer direct path to avoid frame-path issues
+                    match crate::control::add_channel_direct(cap as u16) {
+                        Ok(()) => unsafe { crate::uart_print(b"[CTL] ok\n"); },
+                        Err(_) => unsafe { crate::uart_print(b"[CTL] error\n"); },
+                    }
                 } else {
                     unsafe { crate::uart_print(b"[CTL] invalid capacity\n"); }
                 }
